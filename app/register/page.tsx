@@ -1,305 +1,295 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { ChevronRight, CheckCircle2, UserPlus } from "lucide-react"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowLeft, Eye, EyeOff, Sparkles, UserPlus, Mail, Lock, Phone, User } from "lucide-react"
+import Link from "next/link"
+import { useState } from "react"
+import Image from "next/image"
 
 export default function RegisterPage() {
-  const [registrationStep, setRegistrationStep] = useState<"form" | "success">("form")
-
-  const handleRegistration = (e: React.FormEvent) => {
-    e.preventDefault()
-    setRegistrationStep("success")
-    setTimeout(() => setRegistrationStep("form"), 3000)
-  }
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <img src="/logo.png" alt="Diamond Health Logo" className="h-12 w-12 object-contain" />
-              <div>
-                <h1 className="text-lg font-bold text-foreground">Diamond Health</h1>
-                <p className="text-xs text-muted-foreground">Phòng khám đa khoa</p>
+    <div className="flex min-h-screen">
+      <div className="flex w-full flex-col justify-center bg-gradient-to-br from-background via-background to-muted/20 px-6 py-12 lg:w-1/2 lg:px-20">
+        <div className="mx-auto w-full max-w-md space-y-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Quay lại trang chủ
+          </Link>
+
+          <div className="flex items-center gap-4">
+            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
+              <img
+                src="/images/logo.png"
+                alt="Logo"
+                className="object-contain"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold leading-none text-foreground">Diamond Health</span>
+              <span className="text-sm text-muted-foreground">Phòng khám đa khoa</span>
+            </div>
+          </div>
+
+          <Card className="border-none bg-white shadow-2xl ring-1 ring-black/5">
+            <CardHeader className="space-y-3 pb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <UserPlus className="h-5 w-5 text-primary" />
+                </div>
+                <CardTitle className="text-3xl font-bold">Đăng ký tài khoản</CardTitle>
               </div>
-            </Link>
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium hover:text-primary transition-colors">
-                Trang chủ
-              </Link>
-              <Link href="/#services" className="text-sm font-medium hover:text-primary transition-colors">
-                Dịch vụ
-              </Link>
-              <Link href="/#departments" className="text-sm font-medium hover:text-primary transition-colors">
-                Đội ngũ bác sĩ
-              </Link>
-              <Link href="/#about" className="text-sm font-medium hover:text-primary transition-colors">
-                Về chúng tôi
-              </Link>
-              <Link href="/#contact" className="text-sm font-medium hover:text-primary transition-colors">
-                Liên hệ
-              </Link>
-            </nav>
-            <div className="flex items-center gap-3">
-              <Button size="sm" className="gap-2" asChild>
-                <Link href="/appointments">Đặt lịch ngay</Link>
-              </Button>
-              <Link href="/login">
-                <Button variant="ghost" size="sm">
-                  Đăng nhập
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+              <CardDescription className="text-base leading-relaxed">
+                Tạo tài khoản mới để trải nghiệm dịch vụ chăm sóc sức khỏe tốt nhất
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <form className="space-y-5">
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="fullname">
+                    <User className="h-4 w-4 text-primary" />
+                    Họ và tên
+                  </label>
+                  <input
+                    id="fullname"
+                    type="text"
+                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    placeholder="Nhập họ và tên đầy đủ"
+                  />
+                </div>
 
-      {/* Hero Section */}
-      <section className="py-12 bg-gradient-to-br from-background via-muted/20 to-background">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-              <UserPlus className="h-4 w-4" />
-              Đăng ký tài khoản bệnh nhân
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold leading-tight text-balance">
-              Tạo tài khoản <span className="text-primary">bệnh nhân</span> mới
-            </h1>
-            <p className="text-lg text-muted-foreground leading-relaxed text-pretty">
-              Đăng ký tài khoản để quản lý lịch khám, xem kết quả xét nghiệm và theo dõi sức khỏe của bạn
-            </p>
-          </div>
-        </div>
-      </section>
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="email">
+                    <Mail className="h-4 w-4 text-primary" />
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    placeholder="example@email.com"
+                  />
+                </div>
 
-      {/* Registration Form Section */}
-      <section className="py-12 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto">
-            {registrationStep === "form" ? (
-              <Card className="border-2">
-                <CardContent className="p-8">
-                  <form onSubmit={handleRegistration} className="space-y-6">
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold">Thông tin cá nhân</h3>
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="phone">
+                    <Phone className="h-4 w-4 text-primary" />
+                    Số điện thoại
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    placeholder="0123 456 789"
+                  />
+                </div>
 
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="fullName">Họ và tên *</Label>
-                          <Input id="fullName" placeholder="Nguyễn Văn A" required />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="dob">Ngày sinh *</Label>
-                          <Input id="dob" type="date" required />
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="gender">Giới tính *</Label>
-                          <Select required>
-                            <SelectTrigger id="gender">
-                              <SelectValue placeholder="Chọn giới tính" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="male">Nam</SelectItem>
-                              <SelectItem value="female">Nữ</SelectItem>
-                              <SelectItem value="other">Khác</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="idNumber">CMND/CCCD *</Label>
-                          <Input id="idNumber" placeholder="001234567890" required />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Địa chỉ *</Label>
-                        <Input id="address" placeholder="123 Đường ABC, Quận 1, TP.HCM" required />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold">Thông tin liên hệ</h3>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="phone">Số điện thoại *</Label>
-                          <Input id="phone" type="tel" placeholder="0901234567" required />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email *</Label>
-                          <Input id="email" type="email" placeholder="email@example.com" required />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="emergencyContact">Số điện thoại người thân</Label>
-                        <Input id="emergencyContact" type="tel" placeholder="0901234567" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold">Thông tin tài khoản</h3>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="username">Tên đăng nhập *</Label>
-                          <Input id="username" placeholder="nguyenvana" required />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="password">Mật khẩu *</Label>
-                          <Input id="password" type="password" placeholder="••••••••" required />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Xác nhận mật khẩu *</Label>
-                        <Input id="confirmPassword" type="password" placeholder="••••••••" required />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold">Thông tin y tế (tùy chọn)</h3>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="bloodType">Nhóm máu</Label>
-                          <Select>
-                            <SelectTrigger id="bloodType">
-                              <SelectValue placeholder="Chọn nhóm máu" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="A">A</SelectItem>
-                              <SelectItem value="B">B</SelectItem>
-                              <SelectItem value="AB">AB</SelectItem>
-                              <SelectItem value="O">O</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="allergies">Dị ứng</Label>
-                          <Input id="allergies" placeholder="Thuốc, thực phẩm..." />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="medicalHistory">Tiền sử bệnh</Label>
-                        <Input id="medicalHistory" placeholder="Các bệnh mãn tính, phẫu thuật..." />
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <input type="checkbox" id="terms" required className="mt-1" />
-                      <Label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
-                        Tôi đồng ý với các điều khoản sử dụng dịch vụ và chính sách bảo mật thông tin của Diamond Health
-                      </Label>
-                    </div>
-
-                    <Button type="submit" size="lg" className="w-full gap-2">
-                      Đăng ký tài khoản
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-
-                    <p className="text-sm text-muted-foreground text-center">
-                      Đã có tài khoản?{" "}
-                      <Link href="/login" className="text-primary font-medium hover:underline">
-                        Đăng nhập ngay
-                      </Link>
-                    </p>
-                  </form>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="border-2 border-primary">
-                <CardContent className="p-12 text-center space-y-4">
-                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="h-8 w-8 text-primary" />
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="password">
+                    <Lock className="h-4 w-4 text-primary" />
+                    Mật khẩu
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 pr-12 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                      placeholder="Tối thiểu 8 ký tự"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
-                  <h3 className="text-2xl font-bold text-primary">Đăng ký thành công!</h3>
-                  <p className="text-muted-foreground">
-                    Tài khoản của bạn đã được tạo. Vui lòng kiểm tra email để xác nhận tài khoản.
-                  </p>
-                  <Button asChild className="mt-4">
-                    <Link href="/login">Đăng nhập ngay</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      </section>
+                </div>
 
-      {/* Footer */}
-      <footer className="py-12 bg-background border-t">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="Diamond Health Logo" className="h-8 w-8 object-contain" />
-                <span className="font-bold">Diamond Health</span>
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="confirm-password">
+                    <Lock className="h-4 w-4 text-primary" />
+                    Xác nhận mật khẩu
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 pr-12 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                      placeholder="Nhập lại mật khẩu"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-primary"
+                  />
+                  <label htmlFor="terms" className="text-sm leading-relaxed">
+                    Tôi đồng ý với{" "}
+                    <Link href="#" className="font-semibold text-primary hover:underline">
+                      Điều khoản sử dụng
+                    </Link>{" "}
+                    và{" "}
+                    <Link href="#" className="font-semibold text-primary hover:underline">
+                      Chính sách bảo mật
+                    </Link>{" "}
+                    của Diamond Health
+                  </label>
+                </div>
+
+                <Button
+                  className="h-14 w-full bg-gradient-to-r from-primary to-primary/90 text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02]"
+                  size="lg"
+                >
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Tạo tài khoản
+                </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t-2 border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs font-semibold uppercase">
+                    <span className="bg-card px-3 text-muted-foreground">Hoặc đăng ký với</span>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  className="h-12 w-full justify-center border-2 font-semibold transition-all hover:bg-muted/50 hover:scale-[1.02] bg-transparent"
+                  type="button"
+                >
+                  <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </svg>
+                  Đăng ký với Google
+                </Button>
+
+                <div className="text-center text-sm">
+                  <span className="text-muted-foreground">Đã có tài khoản? </span>
+                  <Link href="/login" className="font-bold text-primary hover:underline">
+                    Đăng nhập ngay
+                  </Link>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="relative hidden lg:block lg:w-1/2">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500">
+          <Image
+            src="/modern-healthcare-facility-with-friendly-medical-s.jpg"
+            alt="Diamond Health Registration"
+            fill
+            className="object-cover opacity-15"
+          />
+        </div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.25)_0%,transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.2)_0%,transparent_50%)]"></div>
+        <div className="absolute right-0 top-0 h-[500px] w-[500px] rounded-full bg-gradient-to-br from-white/20 to-transparent blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-gradient-to-tr from-white/20 to-transparent blur-3xl"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50"></div>
+
+        <div className="relative flex h-full flex-col justify-center px-20 text-primary-foreground">
+          <div className="max-w-lg space-y-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-5 py-2.5 text-sm font-semibold backdrop-blur-sm">
+              <Sparkles className="h-4 w-4" />
+              Tham gia cộng đồng sức khỏe
+            </div>
+
+            <h2 className="text-5xl font-bold leading-tight text-balance">
+              Bắt đầu hành trình chăm sóc sức khỏe của bạn
+            </h2>
+
+            <p className="text-xl leading-relaxed opacity-95">
+              Đăng ký ngay để trải nghiệm dịch vụ y tế hiện đại với đội ngũ bác sĩ chuyên nghiệp và tận tâm.
+            </p>
+
+            <div className="grid gap-6 pt-6">
+              <div className="flex items-start gap-5 rounded-2xl bg-primary-foreground/10 p-6 backdrop-blur-sm transition-all hover:bg-primary-foreground/15">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-lg font-bold">Hồ sơ sức khỏe cá nhân</h3>
+                  <p className="leading-relaxed opacity-90">Quản lý thông tin sức khỏe và lịch sử khám bệnh của bạn</p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">Phòng khám đa khoa uy tín, chất lượng</p>
+
+              <div className="flex items-start gap-5 rounded-2xl bg-primary-foreground/10 p-6 backdrop-blur-sm transition-all hover:bg-primary-foreground/15">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-lg font-bold">Đặt lịch linh hoạt</h3>
+                  <p className="leading-relaxed opacity-90">Chọn thời gian khám phù hợp với lịch trình của bạn</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-5 rounded-2xl bg-primary-foreground/10 p-6 backdrop-blur-sm transition-all hover:bg-primary-foreground/15">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-lg font-bold">Nhắc nhở thông minh</h3>
+                  <p className="leading-relaxed opacity-90">Nhận thông báo về lịch khám và chăm sóc sức khỏe</p>
+                </div>
+              </div>
             </div>
-            <div className="space-y-3">
-              <h4 className="font-semibold">Dịch vụ</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <Link href="/#departments" className="hover:text-primary transition-colors">
-                    Chuyên khoa
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/#services" className="hover:text-primary transition-colors">
-                    Đội ngũ bác sĩ
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/appointments" className="hover:text-primary transition-colors">
-                    Đặt lịch khám
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-3">
-              <h4 className="font-semibold">Hệ thống</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <Link href="/login" className="hover:text-primary transition-colors">
-                    Đăng nhập
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/register" className="hover:text-primary transition-colors">
-                    Đăng ký
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-3">
-              <h4 className="font-semibold">Liên hệ</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>123 Đường ABC, Q.1, TP.HCM</li>
-                <li>(028) 1234 5678</li>
-                <li>info@diamondhealth.vn</li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 border-t text-center text-sm text-muted-foreground">
-            <p>&copy; 2025 Diamond Health Clinic. All rights reserved.</p>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   )
 }
