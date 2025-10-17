@@ -1,10 +1,42 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { MapPin, Phone, Clock, Mail, Calendar, MessageSquare } from "lucide-react"
+import { BookingModal, type BookingData } from "@/components/booking-modal"
 
 export default function LienHePage() {
+  const [isBookingOpen, setIsBookingOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    specialty: "",
+    service: "",
+    date: "",
+    time: "",
+    message: "",
+  })
+
+  const handleBookingComplete = (data: BookingData) => {
+    setFormData((prev) => ({
+      ...prev,
+      service: data.service || "",
+      date: data.date || "",
+      time: data.time || "",
+    }))
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -28,7 +60,7 @@ export default function LienHePage() {
         </section>
 
         {/* Contact Info & Form */}
-        <section className="bg-white py-24 md:py-32">
+        <section className="bg-white py-24 md:py-32 relative">
           <div className="container mx-auto px-4">
             <div className="grid gap-16 lg:grid-cols-2 lg:gap-20">
               {/* Contact Information */}
@@ -104,6 +136,9 @@ export default function LienHePage() {
                         <label className="text-sm font-semibold">Họ và tên *</label>
                         <input
                           type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
                           className="h-12 w-full rounded-xl border-2 border-input bg-white px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                           placeholder="Nhập họ và tên"
                         />
@@ -112,6 +147,9 @@ export default function LienHePage() {
                         <label className="text-sm font-semibold">Số điện thoại *</label>
                         <input
                           type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
                           className="h-12 w-full rounded-xl border-2 border-input bg-white px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                           placeholder="Nhập số điện thoại"
                         />
@@ -121,22 +159,44 @@ export default function LienHePage() {
                       <label className="text-sm font-semibold">Email</label>
                       <input
                         type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
                         className="h-12 w-full rounded-xl border-2 border-input bg-white px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                         placeholder="Nhập email"
                       />
                     </div>
+
                     <div className="space-y-3">
-                      <label className="text-sm font-semibold">Chuyên khoa</label>
-                      <select className="h-12 w-full rounded-xl border-2 border-input bg-white px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10">
-                        <option>Chọn chuyên khoa</option>
-                        <option>Nội tổng quát</option>
-                        <option>Nhi khoa</option>
-                        <option>Sản - Phụ khoa</option>
-                      </select>
+                      <label className="text-sm font-semibold">Đặt lịch khám</label>
+                      <Button
+                        type="button"
+                        onClick={() => setIsBookingOpen(true)}
+                        className="h-12 w-full bg-secondary text-white font-semibold hover:bg-secondary/90"
+                      >
+                        <Calendar className="mr-2 h-5 w-5" />
+                        Chọn Dịch vụ và Thời gian
+                      </Button>
                     </div>
+
+                    {/* Display selected booking info */}
+                    {formData.service && (
+                      <div className="rounded-lg bg-secondary/10 p-4 border border-secondary/20">
+                        <p className="text-sm font-semibold text-foreground mb-2">Thông tin đã chọn:</p>
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          {formData.service && <p>• Dịch vụ: {formData.service}</p>}
+                          {formData.date && <p>• Ngày: {formData.date}</p>}
+                          {formData.time && <p>• Giờ: {formData.time}</p>}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-3">
                       <label className="text-sm font-semibold">Nội dung</label>
                       <textarea
+                        name="message"
+                        value={formData.message}
+                        onChange={handleInputChange}
                         rows={4}
                         className="w-full rounded-xl border-2 border-input bg-white px-4 py-3 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                         placeholder="Nhập nội dung cần tư vấn"
@@ -151,6 +211,12 @@ export default function LienHePage() {
               </Card>
             </div>
           </div>
+
+          <BookingModal
+            isOpen={isBookingOpen}
+            onClose={() => setIsBookingOpen(false)}
+            onComplete={handleBookingComplete}
+          />
         </section>
 
         {/* Map Section */}
