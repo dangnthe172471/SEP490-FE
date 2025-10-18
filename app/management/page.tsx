@@ -14,6 +14,8 @@ import {
   ArrowUp,
   ArrowDown,
   FileText,
+  CalendarIcon,
+  Clock,
 } from "lucide-react"
 import {
   Bar,
@@ -34,6 +36,8 @@ import {
 const navigation = [
   { name: "Tổng quan", href: "/management", icon: BarChart3 },
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
+  { name: "Lịch làm việc", href: "/management/staff-schedule", icon: CalendarIcon },
+  { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
 ]
 
@@ -232,7 +236,7 @@ export default function ManagementDashboard() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name}: ${(Number(percent) * 100).toFixed(0)}%`}
                       outerRadius={120}
                       fill="#8884d8"
                       dataKey="value"
@@ -263,7 +267,7 @@ export default function ManagementDashboard() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name}: ${(Number(percent) * 100).toFixed(0)}%`}
                       outerRadius={120}
                       fill="#8884d8"
                       dataKey="value"

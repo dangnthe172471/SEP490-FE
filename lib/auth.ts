@@ -21,7 +21,7 @@ export function getCurrentUser(): User | null {
   if (!userStr) return {
     id: "6",
     email: "manager@dhc.vn",
-    name: "Giám đốc Hoàng Văn E",
+    name: "Giám đốc C",
     role: "management",
   }
 
