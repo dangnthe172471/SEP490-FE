@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Suspense } from "react"
+import { Toaster } from "@/components/ui/sonner"
 
 const inter = Inter({
   subsets: ["latin", "vietnamese"],
@@ -28,6 +29,7 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           {children}
           <Analytics />
+          <Toaster />
         </Suspense>
       </body>
     </html>
