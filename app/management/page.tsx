@@ -14,6 +14,7 @@ import {
   ArrowUp,
   ArrowDown,
   FileText,
+  TestTube,
 } from "lucide-react"
 import {
   Bar,
@@ -35,6 +36,7 @@ const navigation = [
   { name: "Tổng quan", href: "/management", icon: BarChart3 },
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
+  { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
 ]
 
 // Mock data for charts

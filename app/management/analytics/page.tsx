@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart3, TrendingUp, FileText, Users, Clock, DollarSign, Activity } from "lucide-react"
+import { BarChart3, TrendingUp, FileText, Users, Clock, DollarSign, Activity, TestTube } from "lucide-react"
 import {
   Bar,
   BarChart,
@@ -24,6 +24,7 @@ const navigation = [
   { name: "Tổng quan", href: "/management", icon: BarChart3 },
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
+  { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
 ]
 
 // Mock data for detailed analytics
