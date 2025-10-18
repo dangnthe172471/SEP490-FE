@@ -1,4 +1,6 @@
 // Authentication and authorization utilities
+import { apiService, ApiError } from '../api/index'
+
 export type UserRole = "doctor" | "nurse" | "reception" | "pharmacy" | "admin" | "management"
 
 export interface User {
@@ -10,7 +12,7 @@ export interface User {
   avatar?: string
 }
 
-// Mock authentication - replace with real auth later
+// Get current user from localStorage
 export function getCurrentUser(): User | null {
   if (typeof window === "undefined") return null
 
@@ -36,61 +38,37 @@ export function setCurrentUser(user: User | null) {
 
 export function logout() {
   setCurrentUser(null)
+  apiService.clearToken()
 }
 
-// Mock login function - replace with real authentication
-export async function login(email: string, password: string): Promise<User> {
-  // Simulate API call
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+// Real login function using API
+export async function login(phone: string, password: string): Promise<User> {
+  try {
+    // Call backend API
+    const response = await apiService.authenticateUser({ phone, password })
 
-  // Mock users for demo
-  const mockUsers: Record<string, User> = {
-    "doctor@dhc.vn": {
-      id: "1",
-      email: "doctor@dhc.vn",
-      name: "BS. Nguyễn Văn A",
-      role: "doctor",
-      department: "Khoa Nội",
-    },
-    "nurse@dhc.vn": {
-      id: "2",
-      email: "nurse@dhc.vn",
-      name: "Điều dưỡng Trần Thị B",
-      role: "nurse",
-    },
-    "reception@dhc.vn": {
-      id: "3",
-      email: "reception@dhc.vn",
-      name: "Lễ tân Lê Văn C",
-      role: "reception",
-    },
-    "pharmacy@dhc.vn": {
-      id: "4",
-      email: "pharmacy@dhc.vn",
-      name: "Dược sĩ Phạm Thị D",
-      role: "pharmacy",
-    },
-    "admin@dhc.vn": {
-      id: "5",
-      email: "admin@dhc.vn",
-      name: "Quản trị viên",
-      role: "admin",
-    },
-    "manager@dhc.vn": {
-      id: "6",
-      email: "manager@dhc.vn",
-      name: "Giám đốc Hoàng Văn E",
-      role: "management",
-    },
+    // Get user info from token or make another API call
+    // For now, we'll create a user object from the phone
+    const user: User = {
+      id: phone,
+      email: phone, // Using phone as email for compatibility
+      name: `User ${phone}`,
+      role: "doctor", // Default role, should be extracted from JWT token
+    }
+
+    setCurrentUser(user)
+    return user
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      if (error.status === 401) {
+        throw new Error("Số điện thoại hoặc mật khẩu không đúng")
+      }
+      throw new Error(`Lỗi đăng nhập: ${error.message}`)
+    }
+    throw new Error("Không thể kết nối đến server. Vui lòng thử lại sau.")
   }
-
-  const user = mockUsers[email]
-  if (!user || password !== "demo123") {
-    throw new Error("Email hoặc mật khẩu không đúng")
-  }
-
-  return user
 }
+
 
 export function getRoleName(role: UserRole): string {
   const roleNames: Record<UserRole, string> = {

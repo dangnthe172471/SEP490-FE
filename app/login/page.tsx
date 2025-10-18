@@ -2,13 +2,51 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Eye, EyeOff, Sparkles } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff, Sparkles, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { login, getDashboardPath } from "@/lib/auth"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    phone: "",
+    password: ""
+  })
+  const router = useRouter()
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.phone || !formData.password) {
+      toast.error("Vui lòng nhập đầy đủ thông tin")
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const user = await login(formData.phone, formData.password)
+      toast.success(`Chào mừng ${user.name}!`)
+      router.push(getDashboardPath(user.role))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Đăng nhập thất bại")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -44,16 +82,20 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
-              <form className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-3">
-                  <label className="text-sm font-semibold" htmlFor="email">
-                    Email hoặc số điện thoại
+                  <label className="text-sm font-semibold" htmlFor="phone">
+                    Số điện thoại
                   </label>
                   <input
-                    id="email"
+                    id="phone"
+                    name="phone"
                     type="text"
+                    value={formData.phone}
+                    onChange={handleInputChange}
                     className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                    placeholder="Nhập email hoặc số điện thoại"
+                    placeholder="Nhập số điện thoại"
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -69,25 +111,32 @@ export default function LoginPage() {
                   <div className="relative">
                     <input
                       id="password"
+                      name="password"
                       type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleInputChange}
                       className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 pr-12 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                       placeholder="Nhập mật khẩu"
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
                 </div>
 
+
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     id="remember"
                     className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-primary"
+                    disabled={isLoading}
                   />
                   <label htmlFor="remember" className="text-sm font-medium">
                     Ghi nhớ đăng nhập
@@ -95,10 +144,19 @@ export default function LoginPage() {
                 </div>
 
                 <Button
+                  type="submit"
                   className="h-14 w-full bg-primary text-base font-semibold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
                   size="lg"
+                  disabled={isLoading}
                 >
-                  Đăng nhập
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Đang đăng nhập...
+                    </>
+                  ) : (
+                    "Đăng nhập"
+                  )}
                 </Button>
 
                 <div className="relative">
