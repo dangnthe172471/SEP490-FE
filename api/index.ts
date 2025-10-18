@@ -1,5 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
+
 export interface LoginRequest {
     phone: string
     password: string
@@ -7,6 +8,15 @@ export interface LoginRequest {
 
 export interface LoginResponse {
     token: string
+    user: {
+        userId: number
+        phone?: string
+        fullName?: string
+        email?: string
+        role?: string
+        gender?: string
+        dob?: string
+    }
 }
 
 export interface RegisterRequest {
@@ -31,6 +41,8 @@ export interface UserDto {
     role?: string
     gender?: string
     dob?: string
+    allergies?: string
+    medicalHistory?: string
 }
 
 export class ApiError extends Error {
@@ -70,6 +82,7 @@ class ApiService {
             },
             ...options,
         }
+
 
         try {
             const response = await fetch(url, config)
@@ -129,6 +142,39 @@ class ApiService {
 
     async fetchSecureUsers(): Promise<UserDto[]> {
         return this.request<UserDto[]>('/api/users/test-secure')
+    }
+
+    async fetchAdminUsers(): Promise<UserDto[]> {
+        return this.request<UserDto[]>('/api/users/admin-only')
+    }
+
+    async fetchUserProfile(): Promise<UserDto> {
+        return this.request<UserDto>('/api/auth/profile')
+    }
+
+
+
+    async updateBasicInfo(data: {
+        fullName: string
+        email: string
+        phone: string
+        dob: string
+        gender: string
+    }): Promise<{ message: string, user: UserDto }> {
+        return this.request<{ message: string, user: UserDto }>('/api/profile/basic-info', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        })
+    }
+
+    async updateMedicalInfo(data: {
+        allergies: string
+        medicalHistory: string
+    }): Promise<{ message: string, user: UserDto }> {
+        return this.request<{ message: string, user: UserDto }>('/api/profile/medical-info', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        })
     }
 
     // Token management

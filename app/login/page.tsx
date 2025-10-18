@@ -40,6 +40,10 @@ export default function LoginPage() {
     try {
       const user = await login(formData.phone, formData.password)
       toast.success(`Chào mừng ${user.name}!`)
+
+      // Trigger storage event to update header
+      window.dispatchEvent(new Event('storage'))
+
       router.push(getDashboardPath(user.role))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Đăng nhập thất bại")

@@ -2,26 +2,130 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Eye, EyeOff, Sparkles, UserPlus, Mail, Lock, Phone, User } from "lucide-react"
-import Link from "next/link"
+import { ArrowLeft, Eye, EyeOff, Sparkles, UserPlus, Mail, Lock, Phone, User, Calendar, Loader2 } from "lucide-react"
 import { useState } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { apiService } from "@/api/index"
+import { toast } from "sonner"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+    dob: "",
+    gender: "",
+    agreeTerms: false
+  })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const router = useRouter()
+
+  const handleInputChange = (field: string, value: string | boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ""
+      }))
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = "Họ và tên là bắt buộc"
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email là bắt buộc"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Email không hợp lệ"
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Số điện thoại là bắt buộc"
+    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ""))) {
+      newErrors.phone = "Số điện thoại phải có 10-11 chữ số"
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Mật khẩu là bắt buộc"
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự"
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = "Xác nhận mật khẩu là bắt buộc"
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Mật khẩu không khớp"
+    }
+
+    if (!formData.agreeTerms) {
+      newErrors.agreeTerms = "Bạn phải đồng ý với điều khoản sử dụng"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
+      toast.error("Vui lòng kiểm tra lại thông tin")
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const registerData = {
+        phone: formData.phone,
+        password: formData.password,
+        fullName: formData.fullName,
+        email: formData.email,
+        dob: formData.dob ? new Date(formData.dob).toISOString().split('T')[0] : undefined,
+        gender: formData.gender || undefined,
+        roleId: 2 // Always Patient role
+      }
+
+      const response = await apiService.createUser(registerData)
+      toast.success("Đăng ký thành công! Vui lòng đăng nhập.")
+      router.push("/login")
+    } catch (error: any) {
+      if (error.message.includes("Phone already exists")) {
+        setErrors({ phone: "Số điện thoại đã được sử dụng" })
+        toast.error("Số điện thoại đã được sử dụng")
+      } else {
+        toast.error(error.message || "Đăng ký thất bại. Vui lòng thử lại.")
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen">
       <div className="flex w-full flex-col justify-center bg-gradient-to-br from-background via-background to-muted/20 px-6 py-12 lg:w-1/2 lg:px-20">
         <div className="mx-auto w-full max-w-md space-y-8">
-          <Link
-            href="/"
+          <button
+            onClick={() => router.push("/")}
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
           >
             <ArrowLeft className="h-4 w-4" />
             Quay lại trang chủ
-          </Link>
+          </button>
 
           <div className="flex items-center gap-4">
             <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
@@ -43,64 +147,87 @@ export default function RegisterPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                   <UserPlus className="h-5 w-5 text-primary" />
                 </div>
-                <CardTitle className="text-3xl font-bold">Đăng ký tài khoản</CardTitle>
+                <CardTitle className="text-3xl font-bold">Đăng ký bệnh nhân</CardTitle>
               </div>
               <CardDescription className="text-base leading-relaxed">
-                Tạo tài khoản mới để trải nghiệm dịch vụ chăm sóc sức khỏe tốt nhất
+                Tạo tài khoản bệnh nhân để đặt lịch khám và sử dụng dịch vụ y tế
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <form className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2.5">
                   <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="fullname">
                     <User className="h-4 w-4 text-primary" />
-                    Họ và tên
+                    Họ và tên <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="fullname"
                     type="text"
-                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    value={formData.fullName}
+                    onChange={(e) => handleInputChange("fullName", e.target.value)}
+                    className={`h-12 w-full rounded-xl border-2 px-4 text-sm transition-all focus:outline-none focus:ring-4 focus:ring-primary/10 ${errors.fullName
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-input bg-background focus:border-primary"
+                      }`}
                     placeholder="Nhập họ và tên đầy đủ"
                   />
+                  {errors.fullName && <p className="text-sm text-red-500">{errors.fullName}</p>}
                 </div>
 
                 <div className="space-y-2.5">
                   <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="email">
                     <Mail className="h-4 w-4 text-primary" />
-                    Email
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="email"
                     type="email"
-                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    className={`h-12 w-full rounded-xl border-2 px-4 text-sm transition-all focus:outline-none focus:ring-4 focus:ring-primary/10 ${errors.email
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-input bg-background focus:border-primary"
+                      }`}
                     placeholder="example@email.com"
                   />
+                  {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
                 </div>
 
                 <div className="space-y-2.5">
                   <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="phone">
                     <Phone className="h-4 w-4 text-primary" />
-                    Số điện thoại
+                    Số điện thoại <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="phone"
                     type="tel"
-                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    className={`h-12 w-full rounded-xl border-2 px-4 text-sm transition-all focus:outline-none focus:ring-4 focus:ring-primary/10 ${errors.phone
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-input bg-background focus:border-primary"
+                      }`}
                     placeholder="0123 456 789"
                   />
+                  {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
                 </div>
 
                 <div className="space-y-2.5">
                   <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="password">
                     <Lock className="h-4 w-4 text-primary" />
-                    Mật khẩu
+                    Mật khẩu <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 pr-12 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                      placeholder="Tối thiểu 8 ký tự"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      className={`h-12 w-full rounded-xl border-2 px-4 pr-12 text-sm transition-all focus:outline-none focus:ring-4 focus:ring-primary/10 ${errors.password
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-input bg-background focus:border-primary"
+                        }`}
+                      placeholder="Tối thiểu 6 ký tự"
                     />
                     <button
                       type="button"
@@ -110,18 +237,24 @@ export default function RegisterPage() {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
                 </div>
 
                 <div className="space-y-2.5">
                   <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="confirm-password">
                     <Lock className="h-4 w-4 text-primary" />
-                    Xác nhận mật khẩu
+                    Xác nhận mật khẩu <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       id="confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
-                      className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 pr-12 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      className={`h-12 w-full rounded-xl border-2 px-4 pr-12 text-sm transition-all focus:outline-none focus:ring-4 focus:ring-primary/10 ${errors.confirmPassword
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-input bg-background focus:border-primary"
+                        }`}
                       placeholder="Nhập lại mật khẩu"
                     />
                     <button
@@ -132,33 +265,83 @@ export default function RegisterPage() {
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
+                </div>
+
+
+                {/* Date of Birth */}
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="dob">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    Ngày sinh
+                  </label>
+                  <input
+                    id="dob"
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) => handleInputChange("dob", e.target.value)}
+                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                  />
+                </div>
+
+                {/* Gender */}
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="gender">
+                    <User className="h-4 w-4 text-primary" />
+                    Giới tính
+                  </label>
+                  <select
+                    id="gender"
+                    value={formData.gender}
+                    onChange={(e) => handleInputChange("gender", e.target.value)}
+                    className="h-12 w-full rounded-xl border-2 border-input bg-background px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                  >
+                    <option value="">Chọn giới tính</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
                 </div>
 
                 <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
                   <input
                     type="checkbox"
                     id="terms"
+                    checked={formData.agreeTerms}
+                    onChange={(e) => handleInputChange("agreeTerms", e.target.checked)}
                     className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-primary"
                   />
                   <label htmlFor="terms" className="text-sm leading-relaxed">
                     Tôi đồng ý với{" "}
-                    <Link href="#" className="font-semibold text-primary hover:underline">
+                    <button type="button" className="font-semibold text-primary hover:underline">
                       Điều khoản sử dụng
-                    </Link>{" "}
+                    </button>{" "}
                     và{" "}
-                    <Link href="#" className="font-semibold text-primary hover:underline">
+                    <button type="button" className="font-semibold text-primary hover:underline">
                       Chính sách bảo mật
-                    </Link>{" "}
+                    </button>{" "}
                     của Diamond Health
                   </label>
                 </div>
+                {errors.agreeTerms && <p className="text-sm text-red-500">{errors.agreeTerms}</p>}
 
                 <Button
-                  className="h-14 w-full bg-gradient-to-r from-primary to-primary/90 text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02]"
+                  type="submit"
+                  disabled={isLoading}
+                  className="h-14 w-full bg-gradient-to-r from-primary to-primary/90 text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
-                  <UserPlus className="mr-2 h-5 w-5" />
-                  Tạo tài khoản
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Đang tạo tài khoản...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-5 w-5" />
+                      Tạo tài khoản
+                    </>
+                  )}
                 </Button>
 
                 <div className="relative">
@@ -198,9 +381,13 @@ export default function RegisterPage() {
 
                 <div className="text-center text-sm">
                   <span className="text-muted-foreground">Đã có tài khoản? </span>
-                  <Link href="/login" className="font-bold text-primary hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/login")}
+                    className="font-bold text-primary hover:underline"
+                  >
                     Đăng nhập ngay
-                  </Link>
+                  </button>
                 </div>
               </form>
             </CardContent>
@@ -227,15 +414,15 @@ export default function RegisterPage() {
           <div className="max-w-lg space-y-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-5 py-2.5 text-sm font-semibold backdrop-blur-sm">
               <Sparkles className="h-4 w-4" />
-              Tham gia cộng đồng sức khỏe
+              Dành cho bệnh nhân
             </div>
 
             <h2 className="text-5xl font-bold leading-tight text-balance">
-              Bắt đầu hành trình chăm sóc sức khỏe của bạn
+              Chăm sóc sức khỏe của bạn một cách dễ dàng
             </h2>
 
             <p className="text-xl leading-relaxed opacity-95">
-              Đăng ký ngay để trải nghiệm dịch vụ y tế hiện đại với đội ngũ bác sĩ chuyên nghiệp và tận tâm.
+              Đăng ký tài khoản bệnh nhân để đặt lịch khám, quản lý hồ sơ sức khỏe và nhận dịch vụ y tế chất lượng cao.
             </p>
 
             <div className="grid gap-6 pt-6">
@@ -251,7 +438,7 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <h3 className="mb-2 text-lg font-bold">Hồ sơ sức khỏe cá nhân</h3>
-                  <p className="leading-relaxed opacity-90">Quản lý thông tin sức khỏe và lịch sử khám bệnh của bạn</p>
+                  <p className="leading-relaxed opacity-90">Lưu trữ và quản lý thông tin sức khỏe, lịch sử khám bệnh của bạn</p>
                 </div>
               </div>
 
@@ -266,8 +453,8 @@ export default function RegisterPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="mb-2 text-lg font-bold">Đặt lịch linh hoạt</h3>
-                  <p className="leading-relaxed opacity-90">Chọn thời gian khám phù hợp với lịch trình của bạn</p>
+                  <h3 className="mb-2 text-lg font-bold">Đặt lịch khám dễ dàng</h3>
+                  <p className="leading-relaxed opacity-90">Chọn bác sĩ và thời gian khám phù hợp với lịch trình của bạn</p>
                 </div>
               </div>
 
@@ -282,8 +469,8 @@ export default function RegisterPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="mb-2 text-lg font-bold">Nhắc nhở thông minh</h3>
-                  <p className="leading-relaxed opacity-90">Nhận thông báo về lịch khám và chăm sóc sức khỏe</p>
+                  <h3 className="mb-2 text-lg font-bold">Nhắc nhở lịch khám</h3>
+                  <p className="leading-relaxed opacity-90">Nhận thông báo nhắc nhở về lịch khám và chăm sóc sức khỏe</p>
                 </div>
               </div>
             </div>
