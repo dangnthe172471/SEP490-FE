@@ -15,6 +15,7 @@ import {
   ArrowDown,
   FileText,
   TestTube,
+  Building2,
 } from "lucide-react"
 import {
   Bar,
@@ -37,6 +38,7 @@ const navigation = [
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
   { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
+  { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
 ]
 
 // Mock data for charts
@@ -234,7 +236,7 @@ export default function ManagementDashboard() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={120}
                       fill="#8884d8"
                       dataKey="value"
@@ -265,7 +267,7 @@ export default function ManagementDashboard() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={120}
                       fill="#8884d8"
                       dataKey="value"
