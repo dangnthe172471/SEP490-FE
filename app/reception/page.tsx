@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Users, Clock, UserPlus, CalendarPlus, Activity } from "lucide-react"
+import { Calendar, Users, Clock, UserPlus, CalendarPlus, Activity, MessageCircle } from "lucide-react"
 import { mockAppointments, mockPatients } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
 
@@ -12,6 +12,7 @@ const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
   { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
   { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
   { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]
 
