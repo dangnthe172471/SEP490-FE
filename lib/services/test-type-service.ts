@@ -1,6 +1,6 @@
 import { TestTypeDto, CreateTestTypeRequest, UpdateTestTypeRequest, PagedResponse } from '@/lib/types/test-type'
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:7168'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7168'
 const API_BASE_URL = `${API_ORIGIN}/api/TestTypes`
 
 class TestTypeService {
