@@ -1,6 +1,10 @@
 "use client"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { managerService } from "@/lib/services/manager-service"
+import type { DoctorDto, ShiftResponseDto } from "@/lib/types/manager-type"
+
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +34,7 @@ import {
     Grid3x3,
     List,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 const navigation = [
@@ -41,15 +45,27 @@ const navigation = [
     { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
 ]
 
+
 // Mock data for staff
-const mockStaff = [
-    { id: "S001", name: "BS. Trần Văn B", role: "doctor", department: "Nội khoa", status: "active" },
-    { id: "S002", name: "BS. Lê Thị D", role: "doctor", department: "Nhi khoa", status: "active" },
-    { id: "S003", name: "Y tá Nguyễn Thị E", role: "nurse", department: "Nội khoa", status: "active" },
-    { id: "S004", name: "Y tá Phạm Thị F", role: "nurse", department: "Nhi khoa", status: "active" },
-    { id: "S005", name: "Dược sĩ Hoàng Văn G", role: "pharmacist", department: "Nhà thuốc", status: "active" },
-    { id: "S006", name: "Lễ tân Trần Thị H", role: "receptionist", department: "Lễ tân", status: "active" },
-]
+// const mockStaff = [
+//     { id: "S001", name: "BS. Trần Văn B", role: "doctor", department: "Nội khoa", status: "active" },
+//     { id: "S002", name: "BS. Lê Thị D", role: "doctor", department: "Nhi khoa", status: "active" },
+//     { id: "S003", name: "Y tá Nguyễn Thị E", role: "nurse", department: "Nội khoa", status: "active" },
+//     { id: "S004", name: "Y tá Phạm Thị F", role: "nurse", department: "Nhi khoa", status: "active" },
+//     { id: "S005", name: "Dược sĩ Hoàng Văn G", role: "pharmacist", department: "Nhà thuốc", status: "active" },
+//     { id: "S006", name: "Lễ tân Trần Thị H", role: "receptionist", department: "Lễ tân", status: "active" },
+// ]
+function formatTime(timeString: string) {
+    if (!timeString) return "";
+    const [hours, minutes] = timeString.split(":").map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+}
 
 // Mock schedules
 const mockSchedules = [
@@ -103,11 +119,9 @@ const mockSchedules = [
     },
 ]
 
-const SHIFT_TYPES = [
-    { name: "Ca sáng", time: "08:00 - 12:00" },
-    { name: "Ca chiều", time: "13:00 - 17:00" },
-    { name: "Ca tối", time: "17:00 - 21:00" },
-]
+
+
+
 
 export default function StaffSchedulePage() {
     const router = useRouter()
@@ -117,7 +131,7 @@ export default function StaffSchedulePage() {
     const [selectedDateTo, setSelectedDateTo] = useState("")
     const [selectedShifts, setSelectedShifts] = useState<string[]>([])
     const [doctorsByShift, setDoctorsByShift] = useState<Record<string, string[]>>({})
-    const [doctorSearchByShift, setDoctorSearchByShift] = useState<Record<string, string>>({})
+    // const [doctorSearchByShift, setDoctorSearchByShift] = useState<Record<string, string>>({})
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
     const [isAddStaffDialogOpen, setIsAddStaffDialogOpen] = useState(false)
     const [selectedSchedule, setSelectedSchedule] = useState<(typeof mockSchedules)[0] | null>(null)
@@ -126,14 +140,37 @@ export default function StaffSchedulePage() {
     const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set())
     const [viewMode, setViewMode] = useState<"list" | "month">("list")
     const [currentMonth, setCurrentMonth] = useState(new Date(2024, 6, 1))
+    const [shifts, setShifts] = useState<ShiftResponseDto[]>([])
+    useEffect(() => {
+        managerService.getAllShifts().then(setShifts).catch(() => {
+            console.error("Không thể tải danh sách ca làm việc")
+        })
+    }, [])
+
+    const [doctors, setDoctors] = useState<DoctorDto[]>([])
+    const [keyword, setKeyword] = useState("")
+    const [doctorSearchByShift, setDoctorSearchByShift] = useState<Record<string, string>>({})
+    const [doctorsByShiftList, setDoctorsByShiftList] = useState<Record<string, DoctorDto[]>>({})
+
+
+    useEffect(() => {
+        const timeout = setTimeout(async () => {
+            const data = keyword
+                ? await managerService.searchDoctors(keyword)
+                // : await managerService.getAllDoctors()
+                : await managerService.searchDoctors("")
+            setDoctors(data)
+        }, 300)
+        return () => clearTimeout(timeout)
+    }, [keyword])
 
     const getStaffName = (staffId: string) => {
-        return mockStaff.find((s) => s.id === staffId)?.name || "Unknown"
+        return doctors.find((s) => s.doctorID.toString() === staffId)?.fullName || "Unknown"
     }
 
     const getStaffRole = (staffId: string) => {
-        const staff = mockStaff.find((s) => s.id === staffId)
-        return staff?.role || "unknown"
+        const staff = doctors.find((s) => s.doctorID.toString() === staffId)
+        return staff?.specialty || "unknown"
     }
 
     const getRoleLabel = (role: string) => {
@@ -192,39 +229,70 @@ export default function StaffSchedulePage() {
         })
     }
 
-    const handleCreateSchedule = () => {
-        if (!selectedDateFrom || !selectedDateTo || selectedShifts.length === 0) return
+    const [loading, setLoading] = useState(false)
 
-        const fromDate = new Date(selectedDateFrom)
-        const toDate = new Date(selectedDateTo)
-        const newSchedules = []
-
-        // Generate schedules for each day in the range
-        for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split("T")[0]
-
-            const newSchedule = {
-                id: `SCH${Date.now()}${Math.random()}`,
-                date: dateStr,
-                shifts: SHIFT_TYPES.filter((shift) => selectedShifts.includes(shift.name)).map((shift, idx) => ({
-                    id: `SHIFT${Date.now()}${idx}`,
-                    name: shift.name,
-                    time: shift.time,
-                    staff: doctorsByShift[shift.name] || [],
-                })),
-            }
-
-            newSchedules.push(newSchedule)
+    const handleCreateSchedule = async () => {
+        // Kiểm tra đầu vào cơ bản
+        if (!selectedDateFrom || !selectedDateTo) {
+            alert("Vui lòng chọn đầy đủ khoảng thời gian (từ ngày - đến ngày)!")
+            return
         }
 
-        setSchedules([...schedules, ...newSchedules])
-        setSelectedDateFrom("")
-        setSelectedDateTo("")
-        setSelectedShifts([])
-        setDoctorsByShift({})
-        setDoctorSearchByShift({})
-        setIsCreateDialogOpen(false)
+        if (selectedShifts.length === 0) {
+            alert("Vui lòng chọn ít nhất một ca làm việc!")
+            return
+        }
+
+        //  Chuyển định dạng ngày chuẩn ISO (BE dùng DateOnly)
+        const effectiveFrom = new Date(selectedDateFrom).toISOString().split("T")[0]
+        const effectiveTo = new Date(selectedDateTo).toISOString().split("T")[0]
+
+        // Lấy danh sách bác sĩ theo từng ca (shift)
+        const Shifts = shifts
+            .filter((shift) => selectedShifts.includes(shift.shiftType))
+            .map((shift) => ({
+                shiftID: shift.shiftID, // 🔹 ID thật của ca
+                doctorIDs: doctorsByShift[shift.shiftType]?.map(Number) || [], // 🔹 danh sách ID bác sĩ
+            }))
+            .filter((item) => item.doctorIDs.length > 0) // 🔹 chỉ giữ lại ca có bác sĩ
+
+        if (Shifts.length === 0) {
+            alert("Vui lòng chọn ít nhất một bác sĩ cho mỗi ca làm việc!")
+            return
+        }
+
+        // Chuẩn bị payload gửi về BE
+        const payload = {
+            effectiveFrom,
+            effectiveTo,
+            Shifts,
+        }
+        console.log("📦 Payload gửi sang BE:", JSON.stringify(payload, null, 2))
+
+
+        // Gửi request đến BE
+        try {
+            setLoading(true)
+            const res = await managerService.createSchedule(payload)
+
+            // BE phản hồi thành công
+            alert(res.message || "Tạo lịch làm việc thành công 🎉")
+
+            // Reset lại toàn bộ form
+            setSelectedDateFrom("")
+            setSelectedDateTo("")
+            setSelectedShifts([])
+            setDoctorsByShift({})
+            setIsCreateDialogOpen(false)
+        } catch (err: any) {
+            console.error("Lỗi khi tạo lịch làm việc:", err)
+            alert(err.message || "Đã xảy ra lỗi khi tạo lịch làm việc!")
+        } finally {
+            setLoading(false)
+        }
     }
+
+
 
     const handleAddStaffToShift = () => {
         if (!selectedSchedule || !selectedShift || !selectedStaffId) return
@@ -304,7 +372,9 @@ export default function StaffSchedulePage() {
     const handleNextMonth = () => {
         setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))
     }
+    /*Test API */
 
+    /*End Test API */
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
@@ -350,68 +420,72 @@ export default function StaffSchedulePage() {
                                 <div>
                                     <label className="text-sm font-medium mb-3 block">Chọn ca làm việc và bác sĩ</label>
                                     <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-                                        {SHIFT_TYPES.map((shift) => (
-                                            <div key={shift.name} className="border rounded-lg p-3 bg-white space-y-3">
+                                        {shifts.map((shift) => (
+                                            <div key={shift.shiftType} className="border rounded-lg p-3 bg-white space-y-3">
                                                 <label className="flex items-center gap-3 cursor-pointer">
                                                     <input
                                                         type="checkbox"
-                                                        checked={selectedShifts.includes(shift.name)}
-                                                        onChange={() => toggleShiftSelection(shift.name)}
+                                                        checked={selectedShifts.includes(shift.shiftType)}
+                                                        onChange={() => toggleShiftSelection(shift.shiftType)}
                                                         className="w-4 h-4"
                                                     />
                                                     <div>
-                                                        <p className="text-sm font-semibold">{shift.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{shift.time}</p>
+                                                        <p className="text-sm font-semibold">{shift.shiftType}</p>
+                                                        <p className="text-xs text-muted-foreground"> {formatTime(shift.startTime)} – {formatTime(shift.endTime)}</p>
                                                     </div>
                                                 </label>
 
-                                                {selectedShifts.includes(shift.name) && (
+                                                {selectedShifts.includes(shift.shiftType) && (
                                                     <div className="ml-7 space-y-3 border-t pt-3">
-                                                        <p className="text-xs font-medium text-muted-foreground">Chọn bác sĩ cho {shift.name}</p>
+                                                        <p className="text-xs font-medium text-muted-foreground">Chọn bác sĩ cho ca {shift.shiftType}</p>
                                                         <div className="relative">
                                                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                                             <Input
                                                                 placeholder="Tìm bác sĩ..."
-                                                                value={doctorSearchByShift[shift.name] || ""}
-                                                                onChange={(e) =>
-                                                                    setDoctorSearchByShift((prev) => ({
-                                                                        ...prev,
-                                                                        [shift.name]: e.target.value,
-                                                                    }))
-                                                                }
+                                                                value={doctorSearchByShift[shift.shiftType] || ""}
+                                                                onChange={async (e) => {
+                                                                    const keyword = e.target.value
+                                                                    setDoctorSearchByShift((prev) => ({ ...prev, [shift.shiftType]: keyword }))
+
+                                                                    try {
+                                                                        const result = keyword
+                                                                            ? await managerService.searchDoctors(keyword)
+                                                                            : await managerService.getAllDoctors()
+
+                                                                        // ✅ Lưu danh sách bác sĩ cho đúng ca làm việc
+                                                                        setDoctorsByShiftList((prev) => ({
+                                                                            ...prev,
+                                                                            [shift.shiftType]: result,
+                                                                        }))
+                                                                    } catch (err) {
+                                                                        console.error("Không thể tìm bác sĩ:", err)
+                                                                    }
+                                                                }}
                                                                 className="pl-9 text-sm"
                                                             />
+
                                                         </div>
                                                         <div className="space-y-2 max-h-40 overflow-y-auto">
-                                                            {mockStaff
-                                                                .filter((staff) => staff.role === "doctor")
-                                                                .filter((doctor) => {
-                                                                    const searchTerm = (doctorSearchByShift[shift.name] || "").toLowerCase()
-                                                                    return (
-                                                                        searchTerm === "" ||
-                                                                        doctor.name.toLowerCase().includes(searchTerm) ||
-                                                                        doctor.department.toLowerCase().includes(searchTerm)
-                                                                    )
-                                                                })
-                                                                .map((doctor) => (
-                                                                    <label
-                                                                        key={doctor.id}
-                                                                        className="flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/50 rounded"
-                                                                    >
-                                                                        <Checkbox
-                                                                            checked={(doctorsByShift[shift.name] || []).includes(doctor.id)}
-                                                                            onCheckedChange={() => toggleDoctorForShift(shift.name, doctor.id)}
-                                                                        />
-                                                                        <div>
-                                                                            <p className="text-sm font-medium">{doctor.name}</p>
-                                                                            <p className="text-xs text-muted-foreground">{doctor.department}</p>
-                                                                        </div>
-                                                                    </label>
-                                                                ))}
+                                                            {(doctorsByShiftList[shift.shiftType] || doctors).map((doctor) => (
+                                                                <label
+                                                                    key={doctor.doctorID}
+                                                                    className="flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/50 rounded"
+                                                                >
+                                                                    <Checkbox
+                                                                        checked={(doctorsByShift[shift.shiftType] || []).includes(doctor.doctorID.toString())}
+                                                                        onCheckedChange={() => toggleDoctorForShift(shift.shiftType, doctor.doctorID.toString())}
+                                                                    />
+                                                                    <div>
+                                                                        <p className="text-sm font-medium">{doctor.fullName}</p>
+                                                                        <p className="text-xs text-muted-foreground">{doctor.specialty}</p>
+                                                                    </div>
+                                                                </label>
+                                                            ))}
                                                         </div>
-                                                        {(doctorsByShift[shift.name] || []).length > 0 && (
+
+                                                        {(doctorsByShift[shift.shiftType] || []).length > 0 && (
                                                             <p className="text-xs text-muted-foreground">
-                                                                Đã chọn {(doctorsByShift[shift.name] || []).length} bác sĩ
+                                                                Đã chọn {(doctorsByShift[shift.shiftType] || []).length} bác sĩ
                                                             </p>
                                                         )}
                                                     </div>
@@ -437,10 +511,14 @@ export default function StaffSchedulePage() {
                                     </Button>
                                     <Button
                                         onClick={handleCreateSchedule}
-                                        disabled={!selectedDateFrom || !selectedDateTo || selectedShifts.length === 0}
+                                        disabled={
+                                            loading || !selectedDateFrom || !selectedDateTo || selectedShifts.length === 0
+                                        }
+                                        className="w-full bg-primary text-white hover:bg-primary/90"
                                     >
-                                        Tạo lịch
+                                        {loading ? "Đang tạo lịch..." : "Tạo lịch làm việc"}
                                     </Button>
+
                                 </div>
                             </div>
                         </DialogContent>
@@ -570,9 +648,9 @@ export default function StaffSchedulePage() {
                                                                                         <SelectValue placeholder="Chọn nhân viên..." />
                                                                                     </SelectTrigger>
                                                                                     <SelectContent>
-                                                                                        {mockStaff.map((staff) => (
-                                                                                            <SelectItem key={staff.id} value={staff.id}>
-                                                                                                {staff.name} ({getRoleLabel(staff.role)})
+                                                                                        {doctors.map((staff) => (
+                                                                                            <SelectItem key={staff.doctorID} value={staff.doctorID.toString()}>
+                                                                                                {staff.fullName} ({getRoleLabel(staff.specialty)})
                                                                                             </SelectItem>
                                                                                         ))}
                                                                                     </SelectContent>
@@ -763,7 +841,7 @@ export default function StaffSchedulePage() {
                                         new Set(
                                             schedules.flatMap((s) =>
                                                 s.shifts.flatMap((shift) =>
-                                                    shift.staff.filter((staffId) => mockStaff.find((s) => s.id === staffId)?.role === "doctor"),
+                                                    shift.staff.filter((staffId) => doctors.find((s) => s.doctorID.toString() === staffId)?.specialty === "doctor"),
                                                 ),
                                             ),
                                         ).size
