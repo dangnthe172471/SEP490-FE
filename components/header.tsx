@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Menu, X, Phone, Clock, User as UserIcon, LogOut } from "lucide-react"
+import { Menu, X, Phone, Clock, User as UserIcon, LogOut, MessageCircle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { getCurrentUser, logout, getRoleName, User } from "@/lib/auth"
@@ -46,9 +46,10 @@ export function Header() {
   }, [])
 
   const handleLogout = () => {
-    logout()
+    // Clear all data
     setCurrentUser(null)
-    router.push('/')
+    logout()
+    // logout() already redirects to home, no need for router.push
   }
 
   const isActive = (href: string) => {
@@ -57,13 +58,20 @@ export function Header() {
   }
 
   const getNavItems = () => {
-    return [
+    const items = [
       { href: "/", label: "Trang chủ" },
       { href: "/chuyen-khoa", label: "Chuyên khoa" },
       { href: "/bac-si", label: "Đội ngũ bác sĩ" },
       { href: "/danh-gia", label: "Đánh giá" },
       { href: "/lien-he", label: "Liên hệ" },
     ]
+
+    // Add chat link for patient role only
+    if (currentUser && currentUser.role === 'patient') {
+      items.push({ href: "/chat", label: "Chat hỗ trợ" })
+    }
+
+    return items
   }
 
   const LoginButton = ({ className = "", isMobile = false }: { className?: string, isMobile?: boolean }) => (
@@ -133,17 +141,22 @@ export function Header() {
 
           {/* Desktop navigation */}
           <nav className="hidden items-center gap-6 md:flex">
-            {getNavItems().map((item) => (
-              <button
-                key={item.href}
-                onClick={() => router.push(item.href)}
-                className={`relative text-sm font-medium transition-all duration-200 hover:text-primary ${isActive(item.href) ? "text-primary" : ""
-                  }`}
-              >
-                {item.label}
-                {isActive(item.href) && <span className="absolute -bottom-[21px] left-0 h-0.5 w-full bg-primary" />}
-              </button>
-            ))}
+            {getNavItems().map((item) => {
+              const isChatItem = item.href === '/chat'
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => router.push(item.href)}
+                  className={`relative text-sm font-medium transition-all duration-200 hover:text-primary ${isActive(item.href) ? "text-primary" : ""
+                    } ${isChatItem ? "flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full hover:bg-primary/20" : ""
+                    }`}
+                >
+                  {isChatItem && <MessageCircle className="h-3 w-3" />}
+                  {item.label}
+                  {isActive(item.href) && !isChatItem && <span className="absolute -bottom-[21px] left-0 h-0.5 w-full bg-primary" />}
+                </button>
+              )
+            })}
           </nav>
 
           <div className="flex items-center gap-4">
@@ -174,6 +187,12 @@ export function Header() {
                     <UserIcon className="mr-2 h-4 w-4" />
                     <span>Hồ sơ</span>
                   </DropdownMenuItem>
+                  {currentUser.role === 'patient' && (
+                    <DropdownMenuItem onClick={() => router.push('/chat')}>
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      <span>Chat hỗ trợ</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -199,19 +218,24 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="animate-in slide-in-from-top-2 border-t py-4 md:hidden">
             <nav className="flex flex-col gap-4">
-              {getNavItems().map((item) => (
-                <button
-                  key={item.href}
-                  onClick={() => {
-                    router.push(item.href)
-                    setMobileMenuOpen(false)
-                  }}
-                  className={`text-sm font-medium transition-all duration-200 hover:text-primary hover:translate-x-1 ${isActive(item.href) ? "text-primary font-semibold" : ""
-                    }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+              {getNavItems().map((item) => {
+                const isChatItem = item.href === '/chat'
+                return (
+                  <button
+                    key={item.href}
+                    onClick={() => {
+                      router.push(item.href)
+                      setMobileMenuOpen(false)
+                    }}
+                    className={`text-sm font-medium transition-all duration-200 hover:text-primary hover:translate-x-1 ${isActive(item.href) ? "text-primary font-semibold" : ""
+                      } ${isChatItem ? "flex items-center gap-2 bg-primary/10 px-3 py-2 rounded-lg hover:bg-primary/20" : ""
+                      }`}
+                  >
+                    {isChatItem && <MessageCircle className="h-4 w-4" />}
+                    {item.label}
+                  </button>
+                )
+              })}
               {!isClient ? (
                 <LoginButton
                   isMobile={true}
@@ -230,6 +254,35 @@ export function Header() {
                       <p className="text-xs text-muted-foreground">{getRoleName(currentUser.role)}</p>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        router.push('/profile')
+                        setMobileMenuOpen(false)
+                      }}
+                      className="w-full justify-start"
+                    >
+                      <UserIcon className="mr-2 h-4 w-4" />
+                      Hồ sơ
+                    </Button>
+
+                    {currentUser.role === 'patient' && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          router.push('/chat')
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-full justify-start bg-primary/10 hover:bg-primary/20"
+                      >
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Chat hỗ trợ
+                      </Button>
+                    )}
+                  </div>
+
                   <Button
                     variant="outline"
                     onClick={handleLogout}
