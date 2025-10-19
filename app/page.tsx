@@ -1,4 +1,3 @@
-import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -22,7 +21,6 @@ import Link from "next/link"
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
 
       <main className="flex-1">
         {/* Hero Section */}
