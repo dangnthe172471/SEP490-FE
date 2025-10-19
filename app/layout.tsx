@@ -5,7 +5,8 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Suspense } from "react"
 import { Toaster } from "@/components/ui/sonner"
-import { Header } from "@/components/header"
+import { Toaster as UIToaster } from "@/components/ui/toaster"
+
 
 const inter = Inter({
   subsets: ["latin", "vietnamese"],
@@ -28,7 +29,6 @@ export default function RootLayout({
     <html lang="vi">
       <body className={`${inter.variable} font-sans antialiased`}>
         <Suspense fallback={<div>Loading...</div>}>
-          <Header />
           {children}
           <Analytics />
           <Toaster />
