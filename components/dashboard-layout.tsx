@@ -123,15 +123,17 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
               return (
                 <Button
                   key={item.href}
+                  asChild
                   variant={isActive ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start",
+                    "w-full justify-start transition-colors",
                     isActive && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
                   )}
-                  onClick={() => router.push(item.href)}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <Link href={item.href} prefetch aria-current={isActive ? "page" : undefined}>
+                    <Icon className="mr-3 h-5 w-5" />
+                    {item.name}
+                  </Link>
                 </Button>
               )
             })}

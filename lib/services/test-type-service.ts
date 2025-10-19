@@ -1,6 +1,7 @@
 import { TestTypeDto, CreateTestTypeRequest, UpdateTestTypeRequest, PagedResponse } from '@/lib/types/test-type'
 
-const API_BASE_URL = 'https://localhost:7168/api/TestTypes'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:7168'
+const API_BASE_URL = `${API_ORIGIN}/api/TestTypes`
 
 class TestTypeService {
     private async request<T>(
@@ -61,7 +62,24 @@ class TestTypeService {
             params.append('searchTerm', searchTerm)
         }
 
-        return this.request<PagedResponse<TestTypeDto>>(`/paged?${params.toString()}`)
+        const raw = await this.request<any>(`/paged?${params.toString()}`)
+
+        // Map BE PagedResponse (Items, TotalCount, PageNumber, PageSize, TotalPages) -> FE PagedResponse
+        const items = raw?.items ?? raw?.Items ?? []
+        const totalCount = raw?.totalCount ?? raw?.TotalCount ?? 0
+        const respPageNumber = raw?.pageNumber ?? raw?.PageNumber ?? pageNumber
+        const respPageSize = raw?.pageSize ?? raw?.PageSize ?? pageSize
+        const totalPages = raw?.totalPages ?? raw?.TotalPages ?? Math.ceil(totalCount / Math.max(1, respPageSize))
+
+        return {
+            data: items as TestTypeDto[],
+            totalCount,
+            pageNumber: respPageNumber,
+            pageSize: respPageSize,
+            totalPages,
+            hasPreviousPage: respPageNumber > 1,
+            hasNextPage: respPageNumber < totalPages,
+        }
     }
 
     // Get test type by ID
