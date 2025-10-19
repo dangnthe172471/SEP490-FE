@@ -16,6 +16,7 @@ import {
   FileText,
   CalendarIcon,
   Clock,
+  TestTube,
 } from "lucide-react"
 import {
   Bar,
@@ -39,6 +40,7 @@ const navigation = [
   { name: "Lịch làm việc", href: "/management/staff-schedule", icon: CalendarIcon },
   { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
+  { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
 ]
 
 // Mock data for charts
