@@ -15,6 +15,7 @@ import {
   ArrowDown,
   FileText,
   TestTube,
+  Pill,
 } from "lucide-react"
 import {
   Bar,
@@ -37,6 +38,7 @@ const navigation = [
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
   { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
+  { name: "Thuốc", href: "/management/medicines", icon: Pill }
 ]
 
 // Mock data for charts

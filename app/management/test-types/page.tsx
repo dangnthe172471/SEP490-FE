@@ -24,7 +24,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { BarChart3, FileText, TrendingUp, Plus, Edit2, Trash2, Search, TestTube, Loader2 } from "lucide-react"
+import { BarChart3, FileText, TrendingUp, Plus, Edit2, Trash2, Search, TestTube, Loader2, Pill, } from "lucide-react"
 import { useState, useEffect } from "react"
 import { testTypeService } from "@/lib/services/test-type-service"
 import { TestTypeDto, CreateTestTypeRequest, UpdateTestTypeRequest } from "@/lib/types/test-type"
@@ -35,6 +35,7 @@ const navigation = [
     { name: "Báo cáo", href: "/management/reports", icon: FileText },
     { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
     { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
+    { name: "Thuốc", href: "/management/medicines", icon: Pill },
 ]
 
 interface FormData {

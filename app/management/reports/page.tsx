@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { BarChart3, TrendingUp, FileText, Download, Calendar, TestTube } from "lucide-react"
+import { BarChart3, TrendingUp, FileText, Download, Calendar, TestTube, Pill, } from "lucide-react"
 import { useState } from "react"
 
 const navigation = [
@@ -12,6 +12,7 @@ const navigation = [
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
   { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
+  { name: "Thuốc", href: "/management/medicines", icon: Pill },
 ]
 
 const reports = [
