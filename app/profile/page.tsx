@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { Header } from "@/components/header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -23,7 +24,8 @@ import {
     Settings,
     LogOut,
     ArrowLeft,
-    Home
+    Home,
+    MessageCircle
 } from "lucide-react"
 import { getCurrentUser, logout, User as UserType } from "@/lib/auth"
 import { apiService } from "@/api/index"
@@ -76,61 +78,54 @@ export default function ProfilePage() {
     useEffect(() => {
         const user = getCurrentUser()
         if (!user) {
-            router.push('/login')
+            router.push('/')
             return
         }
         setCurrentUser(user)
         fetchPatientData()
     }, [router])
 
+    // Listen for storage changes (logout from other tabs)
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const user = getCurrentUser()
+            if (!user) {
+                // Clear all data and redirect
+                setPatientProfile(null)
+                setAppointments([])
+                setMedicalRecords([])
+                setCurrentUser(null)
+                router.push('/')
+            }
+        }
+
+        window.addEventListener('storage', handleStorageChange)
+        return () => window.removeEventListener('storage', handleStorageChange)
+    }, [router])
+
     const fetchPatientData = async () => {
         try {
             setIsLoading(true)
+
+            // Check if user still exists
+            const user = getCurrentUser()
+            if (!user) {
+                // Clear all data and redirect
+                setPatientProfile(null)
+                setAppointments([])
+                setMedicalRecords([])
+                setCurrentUser(null)
+                router.push('/')
+                return
+            }
+
             // Fetch patient profile
             const profile = await apiService.fetchUserProfile()
             setPatientProfile(profile)
 
-            // Mock data for appointments and medical records
-            // In real app, these would come from API
-            setAppointments([
-                {
-                    id: 1,
-                    date: "2024-01-15",
-                    time: "09:00",
-                    doctor: "BS. Nguyễn Văn A",
-                    department: "Tim mạch",
-                    status: "Đã hoàn thành",
-                    notes: "Khám định kỳ"
-                },
-                {
-                    id: 2,
-                    date: "2024-01-20",
-                    time: "14:30",
-                    doctor: "BS. Trần Thị B",
-                    department: "Nội khoa",
-                    status: "Đã đặt lịch",
-                    notes: "Tái khám"
-                }
-            ])
-
-            setMedicalRecords([
-                {
-                    id: 1,
-                    date: "2024-01-15",
-                    doctor: "BS. Nguyễn Văn A",
-                    diagnosis: "Huyết áp cao",
-                    treatment: "Điều chỉnh chế độ ăn uống và tập luyện",
-                    prescription: "Amlodipine 5mg - 1 viên/ngày"
-                },
-                {
-                    id: 2,
-                    date: "2023-12-10",
-                    doctor: "BS. Lê Văn C",
-                    diagnosis: "Cảm cúm",
-                    treatment: "Nghỉ ngơi, uống nhiều nước",
-                    prescription: "Paracetamol 500mg - 2 viên/lần, 3 lần/ngày"
-                }
-            ])
+            // Set empty arrays for appointments and medical records
+            setAppointments([])
+            setMedicalRecords([])
         } catch (error) {
             console.error('Error fetching patient data:', error)
             toast.error("Không thể tải thông tin bệnh nhân")
@@ -140,8 +135,14 @@ export default function ProfilePage() {
     }
 
     const handleLogout = () => {
+        // Clear all profile data
+        setPatientProfile(null)
+        setAppointments([])
+        setMedicalRecords([])
+        setCurrentUser(null)
+
         logout()
-        router.push('/')
+        // logout() already redirects to home, no need for router.push
     }
 
 
@@ -218,6 +219,7 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+            <Header />
             <div className="container mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-8">
@@ -303,7 +305,16 @@ export default function ProfilePage() {
                                     </p>
 
                                     {/* Quick Actions */}
-                                    <div className="mt-4 pt-4 border-t">
+                                    <div className="mt-4 pt-4 border-t space-y-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => router.push('/chat')}
+                                            className="w-full flex items-center gap-2"
+                                        >
+                                            <MessageCircle className="h-4 w-4" />
+                                            Chat hỗ trợ
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
