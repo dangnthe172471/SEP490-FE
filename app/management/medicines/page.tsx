@@ -90,6 +90,9 @@ export default function MedicinesManagementPage() {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const [statusFilter, setStatusFilter] = useState<"All" | "Providing" | "Stopped">("All"); // <-- NEW
+  const [sortBy, setSortBy] = useState<"" | "az" | "za">("");                                 // <-- NEW
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -120,17 +123,31 @@ export default function MedicinesManagementPage() {
   const isProvider = (role || "").toLowerCase() === "pharmacy provider";
   const blocked = role !== null && !isProvider;
 
-  // Load theo phân trang
-  const loadMine = async (_page = pageNumber, _size = pageSize) => {
+  // Load theo phân trang + filter/sort
+  const loadMine = async (
+    _page = pageNumber,
+    _size = pageSize,
+    _status: "All" | "Providing" | "Stopped" = statusFilter,
+    _sort: "" | "az" | "za" = sortBy
+  ) => {
     if (!token || !isProvider) {
       setLoading(false);
       return;
     }
     try {
       setLoading(true);
-      const result: PagedResult<ReadMedicineDto> = await medicineService.getMinePaged(token, _page, _size);
 
-      // CHUẨN HOÁ trạng thái đầu vào để UI chỉ có 2 giá trị
+      const effectiveStatus = _status === "All" ? undefined : _status; // chỉ gửi khi khác All
+      const effectiveSort = _sort || undefined;                        // "" thì không gửi
+
+      const result: PagedResult<ReadMedicineDto> = await medicineService.getMinePaged(
+        token,
+        _page,
+        _size,
+        effectiveStatus as "Providing" | "Stopped" | undefined,
+        effectiveSort as "az" | "za" | undefined
+      );
+
       const normalizedItems = (result.items || []).map((m) => ({
         ...m,
         status: normalizeStatus(m.status),
@@ -156,7 +173,7 @@ export default function MedicinesManagementPage() {
 
   useEffect(() => {
     if (token && isProvider) {
-      loadMine(1, pageSize);
+      loadMine(1, pageSize, statusFilter, sortBy);
     } else if (blocked) {
       setLoading(false);
       toast({
@@ -168,7 +185,15 @@ export default function MedicinesManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, role]);
 
-  // lọc client-side trên TRANG HIỆN TẠI
+  // Khi đổi filter/sort -> reset về trang 1 và reload
+  useEffect(() => {
+    if (token && isProvider) {
+      loadMine(1, pageSize, statusFilter, sortBy);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, sortBy]);
+
+  // lọc client-side trên TRANG HIỆN TẠI (search)
   const filteredMedicines = useMemo(() => {
     const q = (searchTerm || "").toLowerCase().trim();
     if (!q) return medicines;
@@ -227,7 +252,7 @@ export default function MedicinesManagementPage() {
           status: payloadStatus,
         };
         await medicineService.update(editingId, updateData, token);
-        await loadMine(pageNumber, pageSize); // refresh trang hiện tại
+        await loadMine(pageNumber, pageSize, statusFilter, sortBy); // refresh trang hiện tại với filter/sort
         toast({ title: "Thành công", description: "Cập nhật thuốc thành công" });
       } else {
         const createData: CreateMedicineDto = {
@@ -236,7 +261,7 @@ export default function MedicinesManagementPage() {
           status: payloadStatus,
         };
         await medicineService.create(createData, token);
-        await loadMine(1, pageSize); // về trang 1 để dễ thấy item mới
+        await loadMine(1, pageSize, statusFilter, sortBy); // về trang 1, giữ filter/sort
         toast({ title: "Thành công", description: "Tạo thuốc thành công" });
       }
 
@@ -271,14 +296,14 @@ export default function MedicinesManagementPage() {
   const canPrev = pageNumber > 1;
   const canNext = pageNumber < totalPages;
 
-  const goFirst = () => canPrev && loadMine(1, pageSize);
-  const goPrev = () => canPrev && loadMine(pageNumber - 1, pageSize);
-  const goNext = () => canNext && loadMine(pageNumber + 1, pageSize);
-  const goLast = () => canNext && loadMine(totalPages, pageSize);
+  const goFirst = () => canPrev && loadMine(1, pageSize, statusFilter, sortBy);
+  const goPrev = () => canPrev && loadMine(pageNumber - 1, pageSize, statusFilter, sortBy);
+  const goNext = () => canNext && loadMine(pageNumber + 1, pageSize, statusFilter, sortBy);
+  const goLast = () => canNext && loadMine(totalPages, pageSize, statusFilter, sortBy);
 
   const handleChangePageSize = (value: number) => {
     setPageSize(value);
-    loadMine(1, value); // reset về trang 1 khi đổi page size
+    loadMine(1, value, statusFilter, sortBy); // reset về trang 1 khi đổi page size
   };
 
   return (
@@ -399,8 +424,8 @@ export default function MedicinesManagementPage() {
             <CardDescription>Tìm theo tên, tác dụng phụ hoặc nhà cung cấp (trên trang hiện tại)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[240px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Tìm kiếm thuốc..."
@@ -409,8 +434,31 @@ export default function MedicinesManagementPage() {
                   className="pl-10"
                 />
               </div>
+
+              {/* ✅ Filter trạng thái */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "All" | "Providing" | "Stopped")}
+                className="w-[160px] rounded-md border border-input bg-background px-2 py-2 text-sm"
+              >
+                <option value="All">All statuses</option>
+                <option value="Providing">Providing</option>
+                <option value="Stopped">Stopped</option>
+              </select>
+
+              {/* ✅ Sort A→Z / Z→A */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as "" | "az" | "za")}
+                className="w-[140px] rounded-md border border-input bg-background px-2 py-2 text-sm"
+              >
+                <option value="">Sort: default</option>
+                <option value="az">Name A → Z</option>
+                <option value="za">Name Z → A</option>
+              </select>
+
               <Button variant="outline" onClick={() => setSearchTerm("")}>
-                Xóa
+                Xóa tìm kiếm
               </Button>
             </div>
           </CardContent>
@@ -510,10 +558,8 @@ export default function MedicinesManagementPage() {
                 {/* Pagination controls */}
                 <div className="mt-4 flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">
-                    Đang xem{" "}
-                    <b>{(pageNumber - 1) * pageSize + (medicines.length > 0 ? 1 : 0)}</b>–
-                    <b>{Math.min((pageNumber - 1) * pageSize + medicines.length, totalCount)}</b> trên{" "}
-                    <b>{totalCount}</b>
+                    Đang xem <b>{(pageNumber - 1) * pageSize + (medicines.length > 0 ? 1 : 0)}</b>–
+                    <b>{Math.min((pageNumber - 1) * pageSize + medicines.length, totalCount)}</b> trên <b>{totalCount}</b>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="outline" size="sm" onClick={goFirst} disabled={!canPrev}>

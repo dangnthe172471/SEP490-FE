@@ -21,10 +21,24 @@ async function readBodySafe(res: Response) {
 }
 
 export const medicineService = {
-  // ✅ mới: gọi API phân trang
-  async getMinePaged(token: string, pageNumber = 1, pageSize = 10): Promise<PagedResult<ReadMedicineDto>> {
+
+  async getMinePaged(
+    token: string,
+    pageNumber = 1,
+    pageSize = 10,
+    status?: "Providing" | "Stopped",
+    sort?: "az" | "za"
+  ): Promise<PagedResult<ReadMedicineDto>> {
     if (!token) throw new Error("Thiếu token xác thực.");
-    const url = `${API_BASE_URL}/Medicine/mine?pageNumber=${pageNumber}&pageSize=${pageSize}`;
+
+    const params = new URLSearchParams({
+      pageNumber: String(pageNumber),
+      pageSize: String(pageSize),
+    });
+    if (status) params.set("status", status);     
+    if (sort) params.set("sort", sort);   
+
+    const url = `${API_BASE_URL}/Medicine/mine?${params.toString()}`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
@@ -40,7 +54,6 @@ export const medicineService = {
     return payload as PagedResult<ReadMedicineDto>;
   },
 
-  // Hàm cũ: vẫn giữ để tương thích (nếu nơi khác còn dùng)
   async getMine(token: string): Promise<ReadMedicineDto[]> {
     if (!token) throw new Error("Thiếu token xác thực.");
     const url = `${API_BASE_URL}/Medicine/mine`;
