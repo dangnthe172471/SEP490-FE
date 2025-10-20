@@ -56,6 +56,7 @@ function mapBackendRoleToFrontend(backendRole: string): UserRole {
         'Pharmacy Provider': 'pharmacy',
         'Admin': 'admin',
         'Manager': 'management',
+        'Clinic Manager': 'management',
         'Patient': 'patient'
     }
     return roleMapping[backendRole] || 'patient'

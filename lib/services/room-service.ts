@@ -7,8 +7,18 @@ class RoomService {
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const url = `${API_BASE_URL}${endpoint}`
 
-        const defaultHeaders = {
+        // 🔥 LẤY TOKEN TỪ LOCALSTORAGE
+        const token = typeof window !== 'undefined'
+            ? localStorage.getItem('token') || localStorage.getItem('auth_token')
+            : null
+
+        const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
+        }
+
+        // 🔥 THÊM AUTHORIZATION HEADER NẾU CÓ TOKEN
+        if (token) {
+            defaultHeaders['Authorization'] = `Bearer ${token}`
         }
 
         const config: RequestInit = {
@@ -80,5 +90,3 @@ class RoomService {
 }
 
 export const roomService = new RoomService()
-
-
