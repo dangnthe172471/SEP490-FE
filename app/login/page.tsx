@@ -108,7 +108,7 @@ export default function LoginPage() {
                     <label className="text-sm font-semibold" htmlFor="password">
                       Mật khẩu
                     </label>
-                    <Link href="#" className="text-sm font-semibold text-primary hover:underline">
+                    <Link href="/forgot-password" className="text-sm font-semibold text-primary hover:underline">
                       Quên mật khẩu?
                     </Link>
                   </div>
