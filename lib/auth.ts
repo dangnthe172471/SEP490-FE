@@ -53,7 +53,7 @@ function mapBackendRoleToFrontend(backendRole: string): UserRole {
         'Doctor': 'doctor',
         'Nurse': 'nurse',
         'Receptionist': 'reception',
-        'PharmacyProvider': 'pharmacy',
+        'Pharmacy Provider': 'pharmacy',
         'Admin': 'admin',
         'Manager': 'management',
         'Patient': 'patient'
