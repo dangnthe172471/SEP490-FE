@@ -204,6 +204,12 @@ export default function LoginPage() {
                     Đăng ký ngay
                   </Link>
                 </div>
+
+                <div className="text-center text-sm">
+                  <Link href="/forgot-password" className="font-bold text-primary hover:underline">
+                    Quên mật khẩu?
+                  </Link>
+                </div>
               </form>
             </CardContent>
           </Card>

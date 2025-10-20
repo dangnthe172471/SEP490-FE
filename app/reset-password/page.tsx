@@ -1,47 +1,49 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Eye, EyeOff, Key, Loader2 } from "lucide-react"
-import Link from "next/link"
-import { useState, useEffect } from "react"
-import { toast } from "sonner"
-import { useRouter, useSearchParams } from "next/navigation"
 
 export default function ResetPasswordPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    newPassword: "",
-    confirmPassword: ""
-  })
   const router = useRouter()
   const searchParams = useSearchParams()
-  const phone = searchParams.get("phone")
-  const otp = searchParams.get("otp")
+  const email = searchParams.get("email")
+  const token = searchParams.get("token")
 
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [formData, setFormData] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  })
+
+  // Kiểm tra nếu thiếu email/token thì quay lại
   useEffect(() => {
-    if (!phone || !otp) {
-      router.push("/forgot-password")
-      return
+    if (!email || !token) {
+      router.replace("/forgot-password")
     }
-  }, [phone, otp, router])
+  }, [email, token, router])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }))
   }
 
   const validatePassword = (password: string) => {
-    if (password.length < 6) {
-      return "Mật khẩu phải có ít nhất 6 ký tự"
-    }
+    if (password.length < 6) return "Mật khẩu phải có ít nhất 6 ký tự"
+    if (!/[A-Z]/.test(password)) return "Mật khẩu phải chứa ít nhất một chữ hoa"
+    if (!/[a-z]/.test(password)) return "Mật khẩu phải chứa ít nhất một chữ thường"
+    if (!/[0-9]/.test(password)) return "Mật khẩu phải chứa ít nhất một số"
     return null
   }
 
@@ -67,57 +69,51 @@ export default function ResetPasswordPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`http://localhost:5001/api/auth/reset-password`, {
+      const response = await fetch("https://localhost:7168/api/auth/reset-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: phone,
-          otpCode: otp,
-          newPassword: formData.newPassword
+          email,
+          token,
+          newPassword: formData.newPassword,
         }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        toast.success(data.message)
-        // Redirect to login page
+        toast.success(data.message || "Đặt lại mật khẩu thành công!")
         router.push("/login?message=password-reset-success")
       } else {
-        toast.error(data.message || "Có lỗi xảy ra khi đặt lại mật khẩu")
+        toast.error(data.message || "Token không hợp lệ hoặc đã hết hạn")
       }
     } catch (error) {
-      toast.error("Có lỗi xảy ra khi đặt lại mật khẩu")
+      console.error(error)
+      toast.error("Lỗi kết nối đến máy chủ")
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (!phone || !otp) {
-    return null
-  }
+  if (!email || !token) return null
 
   return (
     <div className="flex min-h-screen">
+      {/* Form Section */}
       <div className="flex w-full flex-col justify-center bg-gradient-to-br from-background via-background to-muted/20 px-6 py-12 lg:w-1/2 lg:px-20">
         <div className="mx-auto w-full max-w-md space-y-10">
           <Link
-            href="/verify-otp"
+            href="/forgot-password"
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
           >
             <ArrowLeft className="h-4 w-4" />
             Quay lại
           </Link>
 
+          {/* Logo */}
           <div className="flex items-center gap-4">
             <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
-              <img
-                src="/images/logo.png"
-                alt="Logo"
-                className="object-contain"
-              />
+              <img src="/images/logo.png" alt="Logo" className="object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="text-2xl font-bold leading-none text-foreground">Diamond Health</span>
@@ -125,16 +121,19 @@ export default function ResetPasswordPage() {
             </div>
           </div>
 
+          {/* Reset Password Form */}
           <Card className="border-none bg-white shadow-2xl ring-1 ring-black/5">
             <CardHeader className="space-y-3 pb-8">
               <CardTitle className="text-3xl font-bold">Đặt lại mật khẩu</CardTitle>
               <CardDescription className="text-base leading-relaxed">
                 Nhập mật khẩu mới cho tài khoản{" "}
-                <span className="font-semibold text-primary">{phone}</span>
+                <span className="font-semibold text-primary">{email}</span>
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-8">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* New Password */}
                 <div className="space-y-3">
                   <Label htmlFor="newPassword" className="text-sm font-semibold">
                     Mật khẩu mới
@@ -162,6 +161,7 @@ export default function ResetPasswordPage() {
                   </div>
                 </div>
 
+                {/* Confirm Password */}
                 <div className="space-y-3">
                   <Label htmlFor="confirmPassword" className="text-sm font-semibold">
                     Xác nhận mật khẩu
@@ -189,20 +189,22 @@ export default function ResetPasswordPage() {
                   </div>
                 </div>
 
+                {/* Password Rules */}
                 <div className="rounded-lg bg-muted/50 p-4">
                   <h4 className="mb-2 text-sm font-semibold">Yêu cầu mật khẩu:</h4>
                   <ul className="space-y-1 text-xs text-muted-foreground">
                     <li>• Ít nhất 6 ký tự</li>
-                    <li>• Nên bao gồm chữ hoa, chữ thường và số</li>
-                    <li>• Tránh sử dụng thông tin cá nhân</li>
+                    <li>• Có chữ hoa, chữ thường và số</li>
+                    <li>• Không chứa thông tin cá nhân</li>
                   </ul>
                 </div>
 
+                {/* Submit Button */}
                 <Button
                   type="submit"
                   className="h-14 w-full bg-primary text-base font-semibold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
                   size="lg"
-                  disabled={isLoading || !formData.newPassword || !formData.confirmPassword}
+                  disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
@@ -230,6 +232,7 @@ export default function ResetPasswordPage() {
         </div>
       </div>
 
+      {/* Image Section */}
       <div className="relative hidden lg:block lg:w-1/2">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-primary/80 to-indigo-500">
           <img

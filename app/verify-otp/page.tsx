@@ -10,22 +10,21 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 
-export default function VerifyOtpPage() {
+export default function VerifyEmailOtpPage() {
   const [otp, setOtp] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(300) // 5 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(300) // 5 phút
   const [canResend, setCanResend] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const phone = searchParams.get("phone")
+  const email = searchParams.get("email")
 
   useEffect(() => {
-    if (!phone) {
+    if (!email) {
       router.push("/forgot-password")
       return
     }
 
-    // Start countdown timer
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -37,7 +36,7 @@ export default function VerifyOtpPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [phone, router])
+  }, [email, router])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -59,29 +58,22 @@ export default function VerifyOtpPage() {
     }
 
     setIsLoading(true)
-
     try {
-      const response = await fetch(`http://localhost:5001/api/auth/verify-otp`, {
+      const response = await fetch(`https://localhost:7168/api/auth/verify-email-otp`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          phone: phone,
-          otpCode: otp 
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, otpCode: otp }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
         toast.success(data.message)
-        // Redirect to reset password page
-        router.push(`/reset-password?phone=${encodeURIComponent(phone!)}&otp=${encodeURIComponent(otp)}`)
+        router.push(`/reset-password?email=${encodeURIComponent(email!)}&token=${encodeURIComponent(data.resetToken)}`)
       } else {
-        toast.error(data.message || "Mã OTP không đúng")
+        toast.error(data.message || "Mã OTP không đúng hoặc đã hết hạn")
       }
-    } catch (error) {
+    } catch {
       toast.error("Có lỗi xảy ra khi xác thực mã OTP")
     } finally {
       setIsLoading(false)
@@ -89,39 +81,34 @@ export default function VerifyOtpPage() {
   }
 
   const handleResendOtp = async () => {
-    if (!phone) return
+    if (!email) return
 
     setIsLoading(true)
-
     try {
-      const response = await fetch(`http://localhost:5001/api/auth/forgot-password`, {
+      const response = await fetch(`https://localhost:7168/api/auth/forgot-password`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        toast.success("Mã OTP mới đã được gửi")
+        toast.success("Mã OTP mới đã được gửi qua email")
         setTimeLeft(300)
         setCanResend(false)
         setOtp("")
       } else {
-        toast.error(data.message || "Có lỗi xảy ra khi gửi lại mã OTP")
+        toast.error(data.message || "Không thể gửi lại mã OTP")
       }
-    } catch (error) {
+    } catch {
       toast.error("Có lỗi xảy ra khi gửi lại mã OTP")
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (!phone) {
-    return null
-  }
+  if (!email) return null
 
   return (
     <div className="flex min-h-screen">
@@ -137,11 +124,7 @@ export default function VerifyOtpPage() {
 
           <div className="flex items-center gap-4">
             <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
-              <img
-                src="/images/logo.png"
-                alt="Logo"
-                className="object-contain"
-              />
+              <img src="/images/logo.png" alt="Logo" className="object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="text-2xl font-bold leading-none text-foreground">Diamond Health</span>
@@ -151,18 +134,16 @@ export default function VerifyOtpPage() {
 
           <Card className="border-none bg-white shadow-2xl ring-1 ring-black/5">
             <CardHeader className="space-y-3 pb-8">
-              <CardTitle className="text-3xl font-bold">Xác thực OTP</CardTitle>
+              <CardTitle className="text-3xl font-bold">Xác thực Email OTP</CardTitle>
               <CardDescription className="text-base leading-relaxed">
-                Nhập mã OTP 6 chữ số đã được gửi đến số điện thoại{" "}
-                <span className="font-semibold text-primary">{phone}</span>
+                Nhập mã OTP 6 chữ số đã được gửi đến email{" "}
+                <span className="font-semibold text-primary">{email}</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-3">
-                  <Label htmlFor="otp" className="text-sm font-semibold">
-                    Mã OTP
-                  </Label>
+                  <Label htmlFor="otp" className="text-sm font-semibold">Mã OTP</Label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -211,28 +192,17 @@ export default function VerifyOtpPage() {
                     Gửi lại mã OTP
                   </Button>
                 )}
-
-                <div className="text-center text-sm">
-                  <span className="text-muted-foreground">Không nhận được mã? </span>
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    className="font-bold text-primary hover:underline"
-                    disabled={!canResend || isLoading}
-                  >
-                    Gửi lại
-                  </button>
-                </div>
               </form>
             </CardContent>
           </Card>
 
           <p className="text-center text-sm leading-relaxed text-muted-foreground">
-            Mã OTP có hiệu lực trong 5 phút. Vui lòng kiểm tra tin nhắn SMS.
+            Mã OTP có hiệu lực trong 5 phút. Vui lòng kiểm tra email của bạn.
           </p>
         </div>
       </div>
 
+      {/* Right panel */}
       <div className="relative hidden lg:block lg:w-1/2">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-primary/80 to-indigo-500">
           <img
@@ -241,19 +211,15 @@ export default function VerifyOtpPage() {
             className="h-full w-full object-cover opacity-15"
           />
         </div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,255,255,0.2)_0%,transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(255,255,255,0.15)_0%,transparent_50%)]"></div>
-        <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-gradient-to-br from-white/15 to-transparent blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-gradient-to-tr from-white/15 to-transparent blur-3xl"></div>
         <div className="relative flex h-full flex-col justify-center px-20 text-primary-foreground">
           <div className="max-w-lg space-y-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-5 py-2.5 text-sm font-semibold backdrop-blur-sm">
               <Shield className="h-4 w-4" />
               Xác thực bảo mật
             </div>
-            <h2 className="text-5xl font-bold leading-tight text-balance">Xác thực mã OTP</h2>
+            <h2 className="text-5xl font-bold leading-tight">Xác thực mã OTP</h2>
             <p className="text-xl leading-relaxed opacity-95">
-              Nhập mã xác thực 6 chữ số đã được gửi đến số điện thoại của bạn để tiếp tục.
+              Nhập mã xác thực 6 chữ số đã được gửi đến email của bạn để tiếp tục.
             </p>
           </div>
         </div>

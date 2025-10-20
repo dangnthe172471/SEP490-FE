@@ -4,54 +4,54 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Loader2, Phone } from "lucide-react"
+import { ArrowLeft, Loader2, Mail } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
 export default function ForgotPasswordPage() {
-  const [phone, setPhone] = useState("")
+  const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!phone.trim()) {
-      toast.error("Vui lòng nhập số điện thoại")
+    if (!email) {
+      toast.error("Vui lòng nhập email.")
       return
     }
 
-    // Basic phone validation
-    const phoneRegex = /^[0-9]{10,11}$/
-    if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
-      toast.error("Số điện thoại không hợp lệ")
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      toast.error("Email không hợp lệ. Vui lòng kiểm tra lại.")
       return
     }
 
     setIsLoading(true)
 
     try {
-      const response = await fetch(`http://localhost:5001/api/auth/forgot-password`, {
+      const response = await fetch(`https://localhost:7168/api/Auth/forgot-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({ email }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        toast.success(data.message)
-        // Redirect to OTP verification page with phone number
-        router.push(`/verify-otp?phone=${encodeURIComponent(phone.trim())}`)
+        toast.success(data.message || "Đã gửi mã OTP. Vui lòng kiểm tra email của bạn.")
+        router.push(`/verify-otp?email=${encodeURIComponent(email)}`)
       } else {
-        toast.error(data.message || "Có lỗi xảy ra")
+        toast.error(data.message || "Có lỗi xảy ra khi yêu cầu mã OTP.")
       }
     } catch (error) {
-      toast.error("Có lỗi xảy ra khi gửi yêu cầu")
+      console.error("Forgot Password Error:", error)
+      toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.")
     } finally {
       setIsLoading(false)
     }
@@ -59,8 +59,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen">
+      {/* LEFT SIDE: Form */}
       <div className="flex w-full flex-col justify-center bg-gradient-to-br from-background via-background to-muted/20 px-6 py-12 lg:w-1/2 lg:px-20">
         <div className="mx-auto w-full max-w-md space-y-10">
+          {/* Back to Login Link */}
           <Link
             href="/login"
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
@@ -69,6 +71,7 @@ export default function ForgotPasswordPage() {
             Quay lại đăng nhập
           </Link>
 
+          {/* Logo/Brand Info */}
           <div className="flex items-center gap-4">
             <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
               <img
@@ -83,33 +86,35 @@ export default function ForgotPasswordPage() {
             </div>
           </div>
 
+          {/* Main Card */}
           <Card className="border-none bg-white shadow-2xl ring-1 ring-black/5">
             <CardHeader className="space-y-3 pb-8">
               <CardTitle className="text-3xl font-bold">Quên mật khẩu</CardTitle>
               <CardDescription className="text-base leading-relaxed">
-                Nhập số điện thoại để nhận mã OTP đặt lại mật khẩu
+                Nhập địa chỉ email để nhận mã <strong>OTP</strong> đặt lại mật khẩu.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-3">
-                  <Label htmlFor="phone" className="text-sm font-semibold">
-                    Số điện thoại
+                  <Label htmlFor="email" className="text-sm font-semibold">
+                    Email
                   </Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      id="phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="h-12 pl-10"
-                      placeholder="Nhập số điện thoại"
+                      placeholder="Nhập địa chỉ email"
                       disabled={isLoading}
                     />
                   </div>
                 </div>
 
+                {/* Submit Button */}
                 <Button
                   type="submit"
                   className="h-14 w-full bg-primary text-base font-semibold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
@@ -126,6 +131,7 @@ export default function ForgotPasswordPage() {
                   )}
                 </Button>
 
+                {/* Login Link */}
                 <div className="text-center text-sm">
                   <span className="text-muted-foreground">Nhớ mật khẩu? </span>
                   <Link href="/login" className="font-bold text-primary hover:underline">
@@ -137,11 +143,12 @@ export default function ForgotPasswordPage() {
           </Card>
 
           <p className="text-center text-sm leading-relaxed text-muted-foreground">
-            Mã OTP sẽ được gửi qua tin nhắn SMS đến số điện thoại của bạn
+            Mã OTP sẽ được gửi đến email của bạn và có hiệu lực trong 5 phút.
           </p>
         </div>
       </div>
 
+      {/* RIGHT SIDE: Decorative Panel */}
       <div className="relative hidden lg:block lg:w-1/2">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-primary/80 to-indigo-500">
           <img
@@ -154,15 +161,16 @@ export default function ForgotPasswordPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(255,255,255,0.15)_0%,transparent_50%)]"></div>
         <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-gradient-to-br from-white/15 to-transparent blur-3xl"></div>
         <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-gradient-to-tr from-white/15 to-transparent blur-3xl"></div>
+
         <div className="relative flex h-full flex-col justify-center px-20 text-primary-foreground">
           <div className="max-w-lg space-y-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-5 py-2.5 text-sm font-semibold backdrop-blur-sm">
-              <Phone className="h-4 w-4" />
-              Xác thực bảo mật
+              <Mail className="h-4 w-4" />
+              Xác thực qua Email
             </div>
             <h2 className="text-5xl font-bold leading-tight text-balance">Đặt lại mật khẩu an toàn</h2>
             <p className="text-xl leading-relaxed opacity-95">
-              Chúng tôi sẽ gửi mã xác thực qua SMS để đảm bảo tính bảo mật cho tài khoản của bạn.
+              Chúng tôi sẽ gửi mã xác thực qua email để đảm bảo tính bảo mật cho tài khoản của bạn.
             </p>
           </div>
         </div>
