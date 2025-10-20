@@ -64,7 +64,7 @@ function getRoleFromClaims(payload: any): string | null {
 export default function MedicinesManagementPage() {
   const [token, setToken] = useState<string>("");
   const [role, setRole] = useState<string | null>(null);
-  const [medicines, setMedicines] = useState<ReadMedicineDto[]>([]);
+  const [medicines, setMedicines] = useState<ReadMedicineDto[] | unknown>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -104,9 +104,18 @@ export default function MedicinesManagementPage() {
     try {
       setLoading(true);
       const data = await medicineService.getMine(token);
-      setMedicines(data);
+
+      // ✅ CHUẨN HOÁ: ép về mảng để tránh .filter is not a function
+      const list: ReadMedicineDto[] = Array.isArray(data)
+        ? data
+        : Array.isArray((data as any)?.items)
+        ? (data as any).items
+        : [];
+
+      setMedicines(list);
     } catch (error: any) {
       console.error("Failed to load medicines:", error);
+      setMedicines([]); // luôn là mảng để UI không vỡ
       toast({
         title: "Lỗi",
         description: error?.message || "Không thể tải danh sách thuốc",
@@ -131,16 +140,20 @@ export default function MedicinesManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, role]);
 
+  // ✅ an toàn hoá mảng trước khi dùng
+  const safeMedicines: ReadMedicineDto[] = Array.isArray(medicines) ? (medicines as ReadMedicineDto[]) : [];
+
   const filteredMedicines = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return medicines.filter((medicine) => {
-      return (
-        medicine.medicineName.toLowerCase().includes(q) ||
-        (medicine.sideEffects?.toLowerCase().includes(q) ?? false) ||
-        (medicine.providerName?.toLowerCase().includes(q) ?? false)
-      );
+    const q = (searchTerm || "").toLowerCase().trim();
+    if (!q) return safeMedicines;
+
+    return safeMedicines.filter((medicine) => {
+      const name = (medicine.medicineName || "").toLowerCase();
+      const side = (medicine.sideEffects || "").toLowerCase();
+      const provider = (medicine.providerName || "").toLowerCase();
+      return name.includes(q) || side.includes(q) || provider.includes(q);
     });
-  }, [medicines, searchTerm]);
+  }, [safeMedicines, searchTerm]);
 
   const handleOpenDialog = (medicine?: ReadMedicineDto) => {
     if (medicine) {
@@ -201,10 +214,7 @@ export default function MedicinesManagementPage() {
         await medicineService.update(editingId, updateData, token);
         await loadMine();
 
-        toast({
-          title: "Thành công",
-          description: "Cập nhật thuốc thành công",
-        });
+        toast({ title: "Thành công", description: "Cập nhật thuốc thành công" });
       } else {
         const createData: CreateMedicineDto = {
           medicineName: formData.medicineName,
@@ -214,10 +224,7 @@ export default function MedicinesManagementPage() {
         await medicineService.create(createData, token);
         await loadMine();
 
-        toast({
-          title: "Thành công",
-          description: "Tạo thuốc thành công",
-        });
+        toast({ title: "Thành công", description: "Tạo thuốc thành công" });
       }
 
       handleCloseDialog();
@@ -236,13 +243,13 @@ export default function MedicinesManagementPage() {
   const getStatusBadgeVariant = (status?: string) => {
     switch ((status || "").toLowerCase()) {
       case "available":
-        return "default";
+        return "default" as const;
       case "unavailable":
-        return "secondary";
+        return "secondary" as const;
       case "discontinued":
-        return "destructive";
+        return "destructive" as const;
       default:
-        return "outline";
+        return "outline" as const;
     }
   };
 
@@ -345,7 +352,7 @@ export default function MedicinesManagementPage() {
               <CardTitle className="text-sm font-medium">Tổng số thuốc</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{medicines.length}</div>
+              <div className="text-2xl font-bold">{safeMedicines.length}</div>
               <p className="text-xs text-muted-foreground">Thuốc trong kho của bạn</p>
             </CardContent>
           </Card>
@@ -355,7 +362,7 @@ export default function MedicinesManagementPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {medicines.filter((m) => (m.status || "").toLowerCase() === "available").length}
+                {safeMedicines.filter((m) => (m.status || "").toLowerCase() === "available").length}
               </div>
               <p className="text-xs text-muted-foreground">Thuốc có sẵn</p>
             </CardContent>
