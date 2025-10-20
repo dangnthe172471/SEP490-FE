@@ -8,6 +8,7 @@ import type {
   ReadMedicineDto,
   CreateMedicineDto,
   UpdateMedicineDto,
+  PagedResult,
 } from "@/lib/types/medicine";
 
 async function readBodySafe(res: Response) {
@@ -20,6 +21,26 @@ async function readBodySafe(res: Response) {
 }
 
 export const medicineService = {
+  // ✅ mới: gọi API phân trang
+  async getMinePaged(token: string, pageNumber = 1, pageSize = 10): Promise<PagedResult<ReadMedicineDto>> {
+    if (!token) throw new Error("Thiếu token xác thực.");
+    const url = `${API_BASE_URL}/Medicine/mine?pageNumber=${pageNumber}&pageSize=${pageSize}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    const payload = await readBodySafe(res);
+    if (!res.ok) {
+      const msg =
+        (payload && typeof payload === "object" && "message" in payload
+          ? (payload as any).message
+          : payload) || `Failed to fetch medicines (${res.status})`;
+      throw new Error(String(msg));
+    }
+    return payload as PagedResult<ReadMedicineDto>;
+  },
+
+  // Hàm cũ: vẫn giữ để tương thích (nếu nơi khác còn dùng)
   async getMine(token: string): Promise<ReadMedicineDto[]> {
     if (!token) throw new Error("Thiếu token xác thực.");
     const url = `${API_BASE_URL}/Medicine/mine`;

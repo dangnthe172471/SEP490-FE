@@ -16,9 +16,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, FileText, TrendingUp, Plus, Edit2, Search, Package, Loader2, TestTube } from "lucide-react";
+import {
+  BarChart3,
+  FileText,
+  TrendingUp,
+  Plus,
+  Edit2,
+  Search,
+  Package,
+  Loader2,
+  TestTube,
+  ChevronsLeft,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
+} from "lucide-react";
 import { medicineService } from "@/lib/services/medicine-service";
-import type { ReadMedicineDto, CreateMedicineDto, UpdateMedicineDto } from "@/lib/types/medicine";
+import type { ReadMedicineDto, CreateMedicineDto, UpdateMedicineDto, PagedResult } from "@/lib/types/medicine";
 import { useToast } from "@/hooks/use-toast";
 
 const navigation = [
@@ -32,7 +46,7 @@ const navigation = [
 interface FormData {
   medicineName: string;
   sideEffects: string;
-  status: string;
+  status: "Providing" | "Stopped";
 }
 
 /** Giải mã JWT (base64url) an toàn, KHÔNG xác minh chữ ký (chỉ client-side parse) */
@@ -61,17 +75,28 @@ function getRoleFromClaims(payload: any): string | null {
   return typeof role === "string" ? role : Array.isArray(role) ? role[0] : null;
 }
 
+/** Chuẩn hoá trạng thái: chỉ 2 giá trị hợp lệ cho UI */
+function normalizeStatus(raw?: string): "Providing" | "Stopped" {
+  return (raw || "").toLowerCase() === "providing" ? "Providing" : "Stopped";
+}
+
 export default function MedicinesManagementPage() {
   const [token, setToken] = useState<string>("");
   const [role, setRole] = useState<string | null>(null);
-  const [medicines, setMedicines] = useState<ReadMedicineDto[] | unknown>([]);
+
+  const [medicines, setMedicines] = useState<ReadMedicineDto[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<FormData>({
     medicineName: "",
     sideEffects: "",
-    status: "Available",
+    status: "Providing",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,7 +104,7 @@ export default function MedicinesManagementPage() {
 
   // Lấy token từ localStorage & rút role từ JWT
   useEffect(() => {
-    const t = localStorage.getItem("auth_token") || ""; // <-- đúng key bạn đang lưu
+    const t = localStorage.getItem("auth_token") || "";
     setToken(t);
 
     if (t) {
@@ -95,27 +120,30 @@ export default function MedicinesManagementPage() {
   const isProvider = (role || "").toLowerCase() === "pharmacy provider";
   const blocked = role !== null && !isProvider;
 
-  // Load danh sách thuốc của provider hiện tại (chỉ khi có token & đúng role)
-  const loadMine = async () => {
+  // Load theo phân trang
+  const loadMine = async (_page = pageNumber, _size = pageSize) => {
     if (!token || !isProvider) {
       setLoading(false);
       return;
     }
     try {
       setLoading(true);
-      const data = await medicineService.getMine(token);
+      const result: PagedResult<ReadMedicineDto> = await medicineService.getMinePaged(token, _page, _size);
 
-      // ✅ CHUẨN HOÁ: ép về mảng để tránh .filter is not a function
-      const list: ReadMedicineDto[] = Array.isArray(data)
-        ? data
-        : Array.isArray((data as any)?.items)
-        ? (data as any).items
-        : [];
+      // CHUẨN HOÁ trạng thái đầu vào để UI chỉ có 2 giá trị
+      const normalizedItems = (result.items || []).map((m) => ({
+        ...m,
+        status: normalizeStatus(m.status),
+      }));
 
-      setMedicines(list);
+      setMedicines(normalizedItems);
+      setTotalCount(result.totalCount);
+      setTotalPages(result.totalPages);
+      setPageNumber(result.pageNumber);
+      setPageSize(result.pageSize);
     } catch (error: any) {
       console.error("Failed to load medicines:", error);
-      setMedicines([]); // luôn là mảng để UI không vỡ
+      setMedicines([]);
       toast({
         title: "Lỗi",
         description: error?.message || "Không thể tải danh sách thuốc",
@@ -128,7 +156,7 @@ export default function MedicinesManagementPage() {
 
   useEffect(() => {
     if (token && isProvider) {
-      loadMine();
+      loadMine(1, pageSize);
     } else if (blocked) {
       setLoading(false);
       toast({
@@ -140,20 +168,17 @@ export default function MedicinesManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, role]);
 
-  // ✅ an toàn hoá mảng trước khi dùng
-  const safeMedicines: ReadMedicineDto[] = Array.isArray(medicines) ? (medicines as ReadMedicineDto[]) : [];
-
+  // lọc client-side trên TRANG HIỆN TẠI
   const filteredMedicines = useMemo(() => {
     const q = (searchTerm || "").toLowerCase().trim();
-    if (!q) return safeMedicines;
-
-    return safeMedicines.filter((medicine) => {
-      const name = (medicine.medicineName || "").toLowerCase();
-      const side = (medicine.sideEffects || "").toLowerCase();
-      const provider = (medicine.providerName || "").toLowerCase();
+    if (!q) return medicines;
+    return medicines.filter((m) => {
+      const name = (m.medicineName || "").toLowerCase();
+      const side = (m.sideEffects || "").toLowerCase();
+      const provider = (m.providerName || "").toLowerCase();
       return name.includes(q) || side.includes(q) || provider.includes(q);
     });
-  }, [safeMedicines, searchTerm]);
+  }, [medicines, searchTerm]);
 
   const handleOpenDialog = (medicine?: ReadMedicineDto) => {
     if (medicine) {
@@ -161,14 +186,14 @@ export default function MedicinesManagementPage() {
       setFormData({
         medicineName: medicine.medicineName,
         sideEffects: medicine.sideEffects || "",
-        status: medicine.status || "Available",
+        status: normalizeStatus(medicine.status),
       });
     } else {
       setEditingId(null);
       setFormData({
         medicineName: "",
         sideEffects: "",
-        status: "Available",
+        status: "Providing",
       });
     }
     setIsDialogOpen(true);
@@ -177,93 +202,83 @@ export default function MedicinesManagementPage() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingId(null);
-    setFormData({
-      medicineName: "",
-      sideEffects: "",
-      status: "Available",
-    });
+    setFormData({ medicineName: "", sideEffects: "", status: "Providing" });
   };
 
   const handleSave = async () => {
     if (!formData.medicineName.trim()) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng nhập tên thuốc",
-        variant: "destructive",
-      });
+      toast({ title: "Lỗi", description: "Vui lòng nhập tên thuốc", variant: "destructive" });
       return;
     }
     if (!token) {
-      toast({
-        title: "Lỗi",
-        description: "Thiếu token. Hãy đăng nhập lại.",
-        variant: "destructive",
-      });
+      toast({ title: "Lỗi", description: "Thiếu token. Hãy đăng nhập lại.", variant: "destructive" });
       return;
     }
 
     try {
       setSaving(true);
 
+      const payloadStatus: "Providing" | "Stopped" = normalizeStatus(formData.status);
+
       if (editingId) {
         const updateData: UpdateMedicineDto = {
           medicineName: formData.medicineName,
           sideEffects: formData.sideEffects,
-          status: formData.status,
+          status: payloadStatus,
         };
         await medicineService.update(editingId, updateData, token);
-        await loadMine();
-
+        await loadMine(pageNumber, pageSize); // refresh trang hiện tại
         toast({ title: "Thành công", description: "Cập nhật thuốc thành công" });
       } else {
         const createData: CreateMedicineDto = {
           medicineName: formData.medicineName,
           sideEffects: formData.sideEffects,
-          status: formData.status,
+          status: payloadStatus,
         };
         await medicineService.create(createData, token);
-        await loadMine();
-
+        await loadMine(1, pageSize); // về trang 1 để dễ thấy item mới
         toast({ title: "Thành công", description: "Tạo thuốc thành công" });
       }
 
       handleCloseDialog();
     } catch (error: any) {
       console.error("Failed to save medicine:", error);
-      toast({
-        title: "Lỗi",
-        description: error?.message || "Không thể lưu thuốc",
-        variant: "destructive",
-      });
+      toast({ title: "Lỗi", description: error?.message || "Không thể lưu thuốc", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
   const getStatusBadgeVariant = (status?: string) => {
-    switch ((status || "").toLowerCase()) {
-      case "available":
+    switch (normalizeStatus(status)) {
+      case "Providing":
         return "default" as const;
-      case "unavailable":
-        return "secondary" as const;
-      case "discontinued":
+      case "Stopped":
         return "destructive" as const;
-      default:
-        return "outline" as const;
     }
   };
 
   const getStatusLabel = (status?: string) => {
-    switch ((status || "").toLowerCase()) {
-      case "available":
-        return "Có sẵn";
-      case "unavailable":
-        return "Không có sẵn";
-      case "discontinued":
-        return "Ngừng sản xuất";
-      default:
-        return status || "Không xác định";
+    switch (normalizeStatus(status)) {
+      case "Providing":
+        return "Providing";
+      case "Stopped":
+        return "Stopped";
     }
+  };
+
+  // handlers phân trang
+  const canPrev = pageNumber > 1;
+  const canNext = pageNumber < totalPages;
+
+  const goFirst = () => canPrev && loadMine(1, pageSize);
+  const goPrev = () => canPrev && loadMine(pageNumber - 1, pageSize);
+  const goNext = () => canNext && loadMine(pageNumber + 1, pageSize);
+  const goLast = () => canNext && loadMine(totalPages, pageSize);
+
+  const handleChangePageSize = (value: number) => {
+    setPageSize(value);
+    loadMine(1, value); // reset về trang 1 khi đổi page size
   };
 
   return (
@@ -311,12 +326,11 @@ export default function MedicinesManagementPage() {
                   <label className="text-sm font-medium">Trạng thái</label>
                   <select
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, status: normalizeStatus(e.target.value) })}
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value="Available">Có sẵn</option>
-                    <option value="Unavailable">Không có sẵn</option>
-                    <option value="Discontinued">Ngừng sản xuất</option>
+                    <option value="Providing">Providing</option>
+                    <option value="Stopped">Stopped</option>
                   </select>
                 </div>
                 <div className="flex gap-2 justify-end">
@@ -352,28 +366,28 @@ export default function MedicinesManagementPage() {
               <CardTitle className="text-sm font-medium">Tổng số thuốc</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{safeMedicines.length}</div>
-              <p className="text-xs text-muted-foreground">Thuốc trong kho của bạn</p>
+              <div className="text-2xl font-bold">{totalCount}</div>
+              <p className="text-xs text-muted-foreground">Tổng số thuốc thuộc nhà cung cấp của bạn</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Có sẵn</CardTitle>
+              <CardTitle className="text-sm font-medium">Đang cung cấp (trang hiện tại)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {safeMedicines.filter((m) => (m.status || "").toLowerCase() === "available").length}
+                {medicines.filter((m) => normalizeStatus(m.status) === "Providing").length}
               </div>
-              <p className="text-xs text-muted-foreground">Thuốc có sẵn</p>
+              <p className="text-xs text-muted-foreground">Đếm theo dữ liệu trang đang xem</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Kết quả tìm kiếm</CardTitle>
+              <CardTitle className="text-sm font-medium">Kết quả tìm kiếm (trang hiện tại)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{filteredMedicines.length}</div>
-              <p className="text-xs text-muted-foreground">Thuốc phù hợp</p>
+              <p className="text-xs text-muted-foreground">Lọc theo ô tìm kiếm trên trang hiện tại</p>
             </CardContent>
           </Card>
         </div>
@@ -382,7 +396,7 @@ export default function MedicinesManagementPage() {
         <Card>
           <CardHeader>
             <CardTitle>Tìm kiếm</CardTitle>
-            <CardDescription>Tìm theo tên, tác dụng phụ hoặc nhà cung cấp</CardDescription>
+            <CardDescription>Tìm theo tên, tác dụng phụ hoặc nhà cung cấp (trên trang hiện tại)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex gap-2">
@@ -405,8 +419,29 @@ export default function MedicinesManagementPage() {
         {/* Medicines Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Danh sách thuốc</CardTitle>
-            <CardDescription>Hiển thị {filteredMedicines.length} thuốc</CardDescription>
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <CardTitle>Danh sách thuốc</CardTitle>
+                <CardDescription>
+                  Trang <b>{pageNumber}</b>/<b>{totalPages}</b> · Hiển thị <b>{medicines.length}</b> / Trang · Tổng{" "}
+                  <b>{totalCount}</b>
+                </CardDescription>
+              </div>
+              {/* Page size */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Số dòng/trang</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handleChangePageSize(Number(e.target.value))}
+                  className="w-[84px] rounded-md border border-input bg-background px-2 py-1 text-sm"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -415,61 +450,90 @@ export default function MedicinesManagementPage() {
                 <span className="ml-2">Đang tải...</span>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Tên thuốc</TableHead>
-                      <TableHead>Tác dụng phụ</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                      <TableHead>Nhà cung cấp</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMedicines.length > 0 ? (
-                      filteredMedicines.map((medicine) => (
-                        <TableRow key={medicine.medicineId}>
-                          <TableCell>
-                            <Badge variant="outline">{medicine.medicineId}</Badge>
-                          </TableCell>
-                          <TableCell className="font-medium">{medicine.medicineName}</TableCell>
-                          <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
-                            {medicine.sideEffects || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getStatusBadgeVariant(medicine.status)}>
-                              {getStatusLabel(medicine.status)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{medicine.providerName || "-"}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenDialog(medicine)}
-                                className="gap-1"
-                                disabled={saving || blocked}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                                Sửa
-                              </Button>
-                            </div>
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Tên thuốc</TableHead>
+                        <TableHead>Tác dụng phụ</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Nhà cung cấp</TableHead>
+                        <TableHead className="text-right">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMedicines.length > 0 ? (
+                        filteredMedicines.map((medicine) => (
+                          <TableRow key={medicine.medicineId}>
+                            <TableCell>
+                              <Badge variant="outline">{medicine.medicineId}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{medicine.medicineName}</TableCell>
+                            <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                              {medicine.sideEffects || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusBadgeVariant(medicine.status)}>
+                                {getStatusLabel(medicine.status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">{medicine.providerName || "-"}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenDialog(medicine)}
+                                  className="gap-1"
+                                  disabled={saving || blocked}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                  Sửa
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            {searchTerm ? "Không tìm thấy thuốc nào trong trang hiện tại" : "Chưa có thuốc nào"}
                           </TableCell>
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          {searchTerm ? "Không tìm thấy thuốc nào" : "Chưa có thuốc nào"}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Pagination controls */}
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Đang xem{" "}
+                    <b>{(pageNumber - 1) * pageSize + (medicines.length > 0 ? 1 : 0)}</b>–
+                    <b>{Math.min((pageNumber - 1) * pageSize + medicines.length, totalCount)}</b> trên{" "}
+                    <b>{totalCount}</b>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={goFirst} disabled={!canPrev}>
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={goPrev} disabled={!canPrev}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="px-3 text-sm">
+                      Trang <b>{pageNumber}</b> / <b>{totalPages}</b>
+                    </span>
+                    <Button variant="outline" size="sm" onClick={goNext} disabled={!canNext}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={goLast} disabled={!canNext}>
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
