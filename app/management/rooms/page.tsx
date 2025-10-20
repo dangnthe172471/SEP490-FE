@@ -24,9 +24,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { BarChart3, FileText, TrendingUp, Plus, Edit2, Trash2, Search, Building2, Loader2, TestTube } from "lucide-react"
+import { BarChart3, FileText, TrendingUp, Plus, Edit2, Trash2, Search, Building2, Loader2, TestTube, Lock } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 import { roomService } from "@/lib/services/room-service"
 import { RoomDto, CreateRoomRequest, UpdateRoomRequest } from "@/lib/types/room"
 
@@ -51,6 +52,7 @@ export default function RoomsManagementPage() {
     const [deleteId, setDeleteId] = useState<number | null>(null)
     const [formData, setFormData] = useState<FormData>({ roomName: "" })
     const [loading, setLoading] = useState(true)
+    const [isAuthorized, setIsAuthorized] = useState(false)
     const [pageNumber, setPageNumber] = useState(1)
     const [pageSize, setPageSize] = useState(10)
     const [totalPages, setTotalPages] = useState(1)
@@ -58,8 +60,42 @@ export default function RoomsManagementPage() {
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const { toast } = useToast()
+    const router = useRouter()
 
     const filteredRooms = rooms
+
+    // Kiểm tra quyền truy cập khi component mount
+    useEffect(() => {
+        if (typeof window === "undefined") return
+
+        const userStr = localStorage.getItem("currentUser")
+
+        if (!userStr) {
+            // Không có user đã đăng nhập, redirect về login
+            router.push('/login')
+            return
+        }
+
+        try {
+            const user = JSON.parse(userStr)
+
+            // Kiểm tra xem user có role management không
+            if (user.role !== 'management') {
+                toast({
+                    title: "Truy cập bị từ chối",
+                    description: "Bạn không có quyền truy cập trang này. Chỉ Quản lý mới có thể xem.",
+                    variant: "destructive"
+                })
+                // Redirect về homepage
+                router.push('/')
+                return
+            }
+
+            setIsAuthorized(true)
+        } catch (error) {
+            router.push('/login')
+        }
+    }, [router, toast])
 
     const loadRooms = async () => {
         try {
@@ -76,8 +112,10 @@ export default function RoomsManagementPage() {
     }
 
     useEffect(() => {
-        loadRooms()
-    }, [pageNumber, pageSize, searchTerm])
+        if (isAuthorized) {
+            loadRooms()
+        }
+    }, [isAuthorized, pageNumber, pageSize, searchTerm])
 
     const handleOpenDialog = (room?: RoomDto) => {
         if (room) {
@@ -142,6 +180,28 @@ export default function RoomsManagementPage() {
             setIsDeleteDialogOpen(false)
             setDeleteId(null)
         }
+    }
+
+    // Hiển thị loading screen khi kiểm tra quyền
+    if (!isAuthorized) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <Card className="w-full max-w-md">
+                    <CardContent className="pt-6">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <Lock className="h-12 w-12 text-destructive" />
+                            <h3 className="text-lg font-semibold">Truy cập bị từ chối</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Bạn không có quyền truy cập trang này. Chỉ Quản lý mới có thể xem danh sách phòng.
+                            </p>
+                            <Button onClick={() => router.push('/')} className="mt-4">
+                                Về trang chủ
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )
     }
 
     return (
@@ -357,5 +417,3 @@ export default function RoomsManagementPage() {
         </DashboardLayout>
     )
 }
-
-

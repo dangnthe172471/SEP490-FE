@@ -4,14 +4,21 @@ const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7168'
 const API_BASE_URL = `${API_ORIGIN}/api/TestTypes`
 
 class TestTypeService {
-    private async request<T>(
-        endpoint: string,
-        options: RequestInit = {}
-    ): Promise<T> {
+    private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const url = `${API_BASE_URL}${endpoint}`
 
-        const defaultHeaders = {
+        // 🔥 LẤY TOKEN TỪ LOCALSTORAGE
+        const token = typeof window !== 'undefined'
+            ? localStorage.getItem('token') || localStorage.getItem('auth_token')
+            : null
+
+        const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
+        }
+
+        // 🔥 THÊM AUTHORIZATION HEADER NẾU CÓ TOKEN
+        if (token) {
+            defaultHeaders['Authorization'] = `Bearer ${token}`
         }
 
         const config: RequestInit = {
@@ -22,49 +29,32 @@ class TestTypeService {
             },
         }
 
-        try {
-            const response = await fetch(url, config)
+        const response = await fetch(url, config)
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}))
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
-            }
-
-            // Handle NoContent responses (like DELETE)
-            if (response.status === 204) {
-                return {} as T
-            }
-
-            return await response.json()
-        } catch (error) {
-            console.error('API request failed:', error)
-            throw error
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
         }
+
+        if (response.status === 204) {
+            return {} as T
+        }
+
+        return response.json()
     }
 
-    // Get all test types
     async getAll(): Promise<TestTypeDto[]> {
         return this.request<TestTypeDto[]>('')
     }
 
-    // Get paged test types
-    async getPaged(
-        pageNumber: number = 1,
-        pageSize: number = 10,
-        searchTerm?: string
-    ): Promise<PagedResponse<TestTypeDto>> {
+    async getPaged(pageNumber = 1, pageSize = 10, searchTerm?: string): Promise<PagedResponse<TestTypeDto>> {
         const params = new URLSearchParams({
             pageNumber: pageNumber.toString(),
             pageSize: pageSize.toString(),
         })
-
-        if (searchTerm) {
-            params.append('searchTerm', searchTerm)
-        }
-
+        if (searchTerm) params.append('searchTerm', searchTerm)
         const raw = await this.request<any>(`/paged?${params.toString()}`)
 
-        // Map BE PagedResponse (Items, TotalCount, PageNumber, PageSize, TotalPages) -> FE PagedResponse
         const items = raw?.items ?? raw?.Items ?? []
         const totalCount = raw?.totalCount ?? raw?.TotalCount ?? 0
         const respPageNumber = raw?.pageNumber ?? raw?.PageNumber ?? pageNumber
@@ -82,32 +72,20 @@ class TestTypeService {
         }
     }
 
-    // Get test type by ID
     async getById(id: number): Promise<TestTypeDto> {
         return this.request<TestTypeDto>(`/${id}`)
     }
 
-    // Create new test type
     async create(data: CreateTestTypeRequest): Promise<number> {
-        return this.request<number>('', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        })
+        return this.request<number>('', { method: 'POST', body: JSON.stringify(data) })
     }
 
-    // Update test type
     async update(id: number, data: UpdateTestTypeRequest): Promise<TestTypeDto> {
-        return this.request<TestTypeDto>(`/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        })
+        return this.request<TestTypeDto>(`/${id}`, { method: 'PUT', body: JSON.stringify(data) })
     }
 
-    // Delete test type
     async delete(id: number): Promise<void> {
-        return this.request<void>(`/${id}`, {
-            method: 'DELETE',
-        })
+        return this.request<void>(`/${id}`, { method: 'DELETE' })
     }
 }
 
