@@ -115,31 +115,30 @@ export default function ChuyenKhoaPage() {
                   <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-110">
                     <UserRound className="h-10 w-10" />
                   </div>
-                  <h3 className="mb-4 text-2xl font-bold">Sản - Phụ khoa</h3>
+                  <h3 className="mb-4 text-2xl font-bold">Da liễu</h3>
                   <p className="mb-8 leading-relaxed text-muted-foreground">
-                    Nhu cầu khám thai định kỳ, tư vấn sức khỏe sinh sản, điều trị các bệnh phụ khoa (viêm nhiễm). Chuyên
-                    khoa này có tính định kỳ và khách hàng trung thành cao.
+                    Chuyên khoa Da liễu cung cấp dịch vụ chẩn đoán, tư vấn và điều trị các bệnh lý về da như mụn trứng cá, viêm da, dị ứng, nấm da và các vấn đề về lão hóa da. Hỗ trợ chăm sóc và điều trị thẩm mỹ da chuyên sâu.
                   </p>
                   <div className="space-y-4 text-sm">
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                      <span className="leading-relaxed">Khám thai định kỳ và siêu âm</span>
+                      <span className="leading-relaxed">Khám và điều trị mụn trứng cá</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                      <span className="leading-relaxed">Tư vấn sức khỏe sinh sản</span>
+                      <span className="leading-relaxed">Điều trị viêm da, dị ứng da</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                      <span className="leading-relaxed">Điều trị bệnh phụ khoa</span>
+                      <span className="leading-relaxed">Tư vấn và chăm sóc da liễu chuyên sâu</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                      <span className="leading-relaxed">Tư vấn kế hoạch hóa gia đình</span>
+                      <span className="leading-relaxed">Điều trị nám, tàn nhang, lão hóa da</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                      <span className="leading-relaxed">Chăm sóc sức khỏe phụ nữ</span>
+                      <span className="leading-relaxed">Điều trị nấm da, vảy nến, rụng tóc</span>
                     </div>
                   </div>
                   <Button variant="link" className="mt-8 p-0 text-base font-semibold text-primary hover:gap-2">
@@ -148,6 +147,7 @@ export default function ChuyenKhoaPage() {
                   </Button>
                 </CardContent>
               </Card>
+
             </div>
           </div>
         </section>

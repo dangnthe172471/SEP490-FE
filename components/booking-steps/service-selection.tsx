@@ -19,12 +19,9 @@ interface Doctor {
 }
 
 const services: Service[] = [
-    { id: "1", name: "Khám tư vấn da sần võ cam", price: "0 đ" },
-    { id: "2", name: "Khám tư vấn giãn mở dưới da", price: "0 đ" },
-    { id: "3", name: "Khám tư vấn rạn da", price: "0 đ" },
-    { id: "4", name: "Khám tư vấn nội tổng quát", price: "0 đ" },
-    { id: "5", name: "Khám tư vấn nhi khoa", price: "0 đ" },
-    { id: "6", name: "Khám tư vấn sản phụ khoa", price: "0 đ" },
+    { id: "1", name: "Khám tư vấn nội tổng quát", price: "0 đ" },
+    { id: "2", name: "Khám tư vấn nhi khoa", price: "0 đ" },
+    { id: "3", name: "Khám tư vấn da liễu", price: "0 đ" },
 ]
 
 const doctorsBySpecialty: Record<string, Doctor[]> = {
@@ -51,17 +48,17 @@ const doctorsBySpecialty: Record<string, Doctor[]> = {
             achievements: ["Phó giáo sư", "Bác sĩ ưu tú"],
         },
     ],
-    "Khám tư vấn sản phụ khoa": [
+    "Khám tư vấn da liễu": [
         {
             name: "BS. Trần Thị B",
-            specialty: "Sản phụ khoa",
+            specialty: "Da liễu",
             experience: "12 năm kinh nghiệm",
             education: "Đại học Y Dược TP.HCM",
             achievements: ["Thạc sĩ Y học", "Chuyên gia tư vấn"],
         },
         {
             name: "BS. Vũ Thị F",
-            specialty: "Sản phụ khoa",
+            specialty: "Da liễu",
             experience: "14 năm kinh nghiệm",
             education: "Đại học Y Dược TP.HCM",
             achievements: ["Thạc sĩ Y học", "Chuyên gia tư vấn"],

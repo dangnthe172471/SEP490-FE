@@ -1,3 +1,4 @@
+"use client"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -5,7 +6,28 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Calendar, Award, GraduationCap, Briefcase } from "lucide-react"
 import Image from "next/image"
 
+import { managerService } from "@/lib/services/manager-service"
+import type { DoctorDto, ShiftResponseDto } from "@/lib/types/manager-type"
+import { useEffect, useState } from "react"
 export default function BacSiPage() {
+  const [doctors, setDoctors] = useState<DoctorDto[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const data = await managerService.getAllDoctors()
+        setDoctors(data)
+      } catch (err) {
+        console.error("Lỗi tải danh sách bác sĩ:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDoctors()
+  }, [])
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -31,51 +53,13 @@ export default function BacSiPage() {
         {/* Doctors Grid */}
         <section className="bg-white py-24 md:py-32">
           <div className="container mx-auto px-4">
+            {loading ? (
+              <p className="text-center text-muted-foreground">Đang tải danh sách bác sĩ...</p>
+            ) : doctors.length === 0 ? (
+              <p className="text-center text-muted-foreground">Chưa có bác sĩ nào.</p>
+            ) : (
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  name: "BS. Nguyễn Văn A",
-                  specialty: "Nội tổng quát",
-                  experience: "15 năm kinh nghiệm",
-                  education: "Đại học Y Hà Nội",
-                  achievements: ["Bác sĩ ưu tú", "Chứng chỉ hành nghề"],
-                },
-                {
-                  name: "BS. Trần Thị B",
-                  specialty: "Sản phụ khoa",
-                  experience: "12 năm kinh nghiệm",
-                  education: "Đại học Y Dược TP.HCM",
-                  achievements: ["Thạc sĩ Y học", "Chuyên gia tư vấn"],
-                },
-                {
-                  name: "BS. Lê Văn C",
-                  specialty: "Nội tổng quát",
-                  experience: "18 năm kinh nghiệm",
-                  education: "Đại học Y Hà Nội",
-                  achievements: ["Tiến sĩ Y học", "Giảng viên đại học"],
-                },
-                {
-                  name: "BS. Phạm Thị D",
-                  specialty: "Nhi khoa",
-                  experience: "10 năm kinh nghiệm",
-                  education: "Đại học Y Dược TP.HCM",
-                  achievements: ["Bác sĩ chuyên khoa I", "Chứng chỉ hành nghề"],
-                },
-                {
-                  name: "BS. Hoàng Văn E",
-                  specialty: "Nội tổng quát",
-                  experience: "20 năm kinh nghiệm",
-                  education: "Đại học Y Hà Nội",
-                  achievements: ["Phó giáo sư", "Bác sĩ ưu tú"],
-                },
-                {
-                  name: "BS. Vũ Thị F",
-                  specialty: "Sản phụ khoa",
-                  experience: "14 năm kinh nghiệm",
-                  education: "Đại học Y Dược TP.HCM",
-                  achievements: ["Thạc sĩ Y học", "Chuyên gia tư vấn"],
-                },
-              ].map((doctor, index) => (
+              {doctors.map((doctor, index) => (
                 <Card
                   key={index}
                   className="group overflow-hidden border-none bg-white shadow-xl ring-1 ring-black/5 transition-all hover:-translate-y-2 hover:shadow-2xl"
@@ -83,35 +67,36 @@ export default function BacSiPage() {
                   <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10">
                     <Image
                       src={`/professional-vietnamese-doctor-in-white-coat-smili.jpg?key=uj04j&height=400&width=400&query=professional Vietnamese doctor in white coat smiling portrait ${doctor.specialty}`}
-                      alt={doctor.name}
+                      alt={doctor.fullName}
                       fill
                       className="object-cover transition-transform group-hover:scale-105"
                     />
                   </div>
                   <CardContent className="p-6">
-                    <h3 className="mb-2 text-xl font-bold">{doctor.name}</h3>
+                    <h3 className="mb-2 text-xl font-bold">{doctor.fullName}</h3>
                     <p className="mb-4 text-sm font-semibold text-primary">{doctor.specialty}</p>
 
                     <div className="space-y-3 text-sm">
                       <div className="flex items-start gap-2">
                         <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="text-muted-foreground">{doctor.experience}</span>
+                        <span className="text-muted-foreground">experience</span>
                       </div>
                       <div className="flex items-start gap-2">
                         <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="text-muted-foreground">{doctor.education}</span>
+                        <span className="text-muted-foreground"> education </span>
                       </div>
                       <div className="flex items-start gap-2">
                         <Award className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                         <div className="flex flex-wrap gap-2">
-                          {doctor.achievements.map((achievement, i) => (
+                          {/* {doctor.achievements.map((achievement, i) => (
                             <span
                               key={i}
                               className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
                             >
                               {achievement}
                             </span>
-                          ))}
+                          ))} */}
+                          achievements
                         </div>
                       </div>
                     </div>
@@ -123,7 +108,7 @@ export default function BacSiPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </div>)}
           </div>
         </section>
 
