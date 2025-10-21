@@ -13,7 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 export default function VerifyEmailOtpPage() {
   const [otp, setOtp] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(300) // 5 phút
+  const [timeLeft, setTimeLeft] = useState(120) // 5 phút
   const [canResend, setCanResend] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
