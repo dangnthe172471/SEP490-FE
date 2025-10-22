@@ -1,5 +1,6 @@
 // Authentication and authorization utilities
-import { apiService, ApiError } from '../api/index'
+import { authService } from './services/auth.service'
+import { ApiError } from './types/api'
 
 export type UserRole = "doctor" | "nurse" | "reception" | "pharmacy" | "admin" | "management" | "patient"
 
@@ -38,7 +39,7 @@ export function setCurrentUser(user: User | null) {
 
 export function logout() {
     setCurrentUser(null)
-    apiService.clearToken()
+    authService.clearToken()
 
     if (typeof window !== 'undefined') {
         localStorage.removeItem('token')
@@ -63,7 +64,7 @@ function mapBackendRoleToFrontend(backendRole: string): UserRole {
 
 export async function login(phone: string, password: string): Promise<User> {
     try {
-        const response = await apiService.authenticateUser({ phone, password })
+        const response = await authService.login({ phone, password })
         const user: User = {
             id: response.user.userId.toString(),
             email: response.user.email || response.user.phone || '',

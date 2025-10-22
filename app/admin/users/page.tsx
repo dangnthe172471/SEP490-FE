@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Activity, Users, Settings, Shield, Search, UserPlus, Mail, Phone, Loader2, CheckCircle, AlertCircle, Trash2, Edit3 } from "lucide-react"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { apiService, UserDto } from "@/api/index"
+import { userService } from "@/lib/services/user.service"
+import { UserDto } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { DateFormatter } from "@/components/date-formatter"
@@ -21,7 +22,7 @@ type User = UserDto & {
   status: string // Thêm status cho UI
   department: string // Thêm department cho UI
   joinDate: string // Thêm joinDate cho UI
-} 
+}
 
 const navigation = [
   { name: "Tổng quan", href: "/admin", icon: Activity },
@@ -43,11 +44,11 @@ export default function AdminUsersPage() {
     setLoading(true)
     setError(null)
     try {
-      const usersData = await apiService.fetchAllUsers()
-      
+      const usersData = await userService.getAllUsers()
+
       // Xử lý dữ liệu: chuyển đổi UserDto thành User interface
       const processedUsers: User[] = usersData
-        .filter(user => user != null) 
+        .filter(user => user != null)
         .map((user, index) => ({
           ...user,
           // Mapping các trường cần thiết cho UI
@@ -57,12 +58,12 @@ export default function AdminUsersPage() {
           department: getDepartmentByRole(user.role),
           joinDate: "2025-01-01T00:00:00.000Z", // Mặc định là ngày cố định
         }))
-      
+
       setUsers(processedUsers)
     } catch (err: any) {
       console.error("Lỗi khi lấy dữ liệu người dùng:", err)
       setError(err.message || "Không thể tải dữ liệu người dùng từ server.")
-      setUsers([]) 
+      setUsers([])
     } finally {
       setLoading(false)
     }
@@ -138,12 +139,12 @@ export default function AdminUsersPage() {
     if (!searchQuery) return users
 
     const lowerCaseQuery = searchQuery.toLowerCase()
-    
+
     return users.filter(
-      (user) => 
+      (user) =>
         // **Đã sửa lỗi: Sử dụng ?. và ?? để xử lý các giá trị null/undefined**
-        (user.name?.toLowerCase().includes(lowerCaseQuery) ?? false) || 
-        (user.email?.toLowerCase().includes(lowerCaseQuery) ?? false) || 
+        (user.name?.toLowerCase().includes(lowerCaseQuery) ?? false) ||
+        (user.email?.toLowerCase().includes(lowerCaseQuery) ?? false) ||
         (user.id?.toLowerCase().includes(lowerCaseQuery) ?? false) ||
         (user.phone?.toLowerCase().includes(lowerCaseQuery) ?? false)
     )
@@ -198,9 +199,9 @@ export default function AdminUsersPage() {
                   <Phone className="h-4 w-4" />
                   <span>{user.phone || "N/A"}</span>
                 </div>
-            <p className="text-xs text-muted-foreground">
-              Ngày tham gia: <DateFormatter dateString={user.joinDate} fallback="N/A" />
-            </p>
+                <p className="text-xs text-muted-foreground">
+                  Ngày tham gia: <DateFormatter dateString={user.joinDate} fallback="N/A" />
+                </p>
               </div>
             </div>
             <div className="flex gap-2 ml-4">
@@ -293,62 +294,62 @@ export default function AdminUsersPage() {
 
           {/* Users List Tabs (Chỉ hiển thị khi đã tải xong và không có lỗi) */}
           {!loading && !error && (
-              <Tabs defaultValue="all" className="space-y-4">
+            <Tabs defaultValue="all" className="space-y-4">
               <TabsList>
-                  <TabsTrigger value="all">Tất cả ({filteredUsers.length})</TabsTrigger>
-                  <TabsTrigger value="active">Hoạt động ({activeUsers.length})</TabsTrigger>
-                  <TabsTrigger value="doctors">Bác sĩ ({doctorUsers.length})</TabsTrigger>
-                  <TabsTrigger value="staff">Nhân viên ({staffUsers.length})</TabsTrigger>
+                <TabsTrigger value="all">Tất cả ({filteredUsers.length})</TabsTrigger>
+                <TabsTrigger value="active">Hoạt động ({activeUsers.length})</TabsTrigger>
+                <TabsTrigger value="doctors">Bác sĩ ({doctorUsers.length})</TabsTrigger>
+                <TabsTrigger value="staff">Nhân viên ({staffUsers.length})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="all" className="space-y-4">
-                  {filteredUsers.length === 0 ? (
+                {filteredUsers.length === 0 ? (
                   <Card>
-                      <CardContent className="py-12 text-center">
+                    <CardContent className="py-12 text-center">
                       <p className="text-muted-foreground">Không tìm thấy người dùng nào</p>
-                      </CardContent>
+                    </CardContent>
                   </Card>
-                  ) : (
+                ) : (
                   filteredUsers.map((user) => <UserCard key={user.id} user={user} />)
-                  )}
+                )}
               </TabsContent>
 
               <TabsContent value="active" className="space-y-4">
-                  {activeUsers.length === 0 ? (
+                {activeUsers.length === 0 ? (
                   <Card>
-                      <CardContent className="py-12 text-center">
+                    <CardContent className="py-12 text-center">
                       <p className="text-muted-foreground">Không có người dùng hoạt động</p>
-                      </CardContent>
+                    </CardContent>
                   </Card>
-                  ) : (
+                ) : (
                   activeUsers.map((user) => <UserCard key={user.id} user={user} />)
-                  )}
+                )}
               </TabsContent>
 
               <TabsContent value="doctors" className="space-y-4">
-                  {doctorUsers.length === 0 ? (
+                {doctorUsers.length === 0 ? (
                   <Card>
-                      <CardContent className="py-12 text-center">
+                    <CardContent className="py-12 text-center">
                       <p className="text-muted-foreground">Không có bác sĩ nào</p>
-                      </CardContent>
+                    </CardContent>
                   </Card>
-                  ) : (
+                ) : (
                   doctorUsers.map((user) => <UserCard key={user.id} user={user} />)
-                  )}
+                )}
               </TabsContent>
 
               <TabsContent value="staff" className="space-y-4">
-                  {staffUsers.length === 0 ? (
+                {staffUsers.length === 0 ? (
                   <Card>
-                      <CardContent className="py-12 text-center">
+                    <CardContent className="py-12 text-center">
                       <p className="text-muted-foreground">Không có nhân viên nào</p>
-                      </CardContent>
+                    </CardContent>
                   </Card>
-                  ) : (
+                ) : (
                   staffUsers.map((user) => <UserCard key={user.id} user={user} />)
-                  )}
+                )}
               </TabsContent>
-              </Tabs>
+            </Tabs>
           )}
         </div>
       </ClientOnly>

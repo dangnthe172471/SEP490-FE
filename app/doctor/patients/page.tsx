@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, FileText, Users, Activity, Search, Phone, Mail } from "lucide-react"
+import { Calendar, FileText, Users, Activity, Search, Phone, Mail, ArrowRightLeft } from "lucide-react"
 import { mockPatients } from "@/lib/mock-data"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -15,6 +15,7 @@ const navigation = [
   { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
   { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
   { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
+  { name: "Yêu cầu đổi ca", href: "/doctor/shift-swap", icon: ArrowRightLeft },
 ]
 
 export default function DoctorPatientsPage() {
@@ -119,7 +120,7 @@ export default function DoctorPatientsPage() {
                           )}
                         </div>
                         {(patient.allergies && patient.allergies.length > 0) ||
-                        (patient.chronicConditions && patient.chronicConditions.length > 0) ? (
+                          (patient.chronicConditions && patient.chronicConditions.length > 0) ? (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {patient.allergies?.map((allergy) => (
                               <Badge key={allergy} variant="destructive" className="text-xs">

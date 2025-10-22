@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, FileText, Users, Activity, ArrowLeft, Pill, TestTube, Brain } from "lucide-react"
+import { Calendar, FileText, Users, Activity, ArrowLeft, Pill, TestTube, Brain, ArrowRightLeft } from "lucide-react"
 import { mockMedicalRecords, mockPatients } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
 
@@ -15,6 +15,7 @@ const navigation = [
   { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
   { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
   { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
+  { name: "Yêu cầu đổi ca", href: "/doctor/shift-swap", icon: ArrowRightLeft },
 ]
 
 export default function MedicalRecordDetailPage({ params }: { params: Promise<{ id: string }> }) {

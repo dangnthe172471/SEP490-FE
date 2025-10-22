@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 import { getCurrentUser, logout, User as UserType } from "@/lib/auth"
 import { showConfirmAlert } from "@/lib/sweetalert-config"
-import { apiService } from "@/api/index"
+import { authService } from "@/lib/services/auth.service"
 import { toast } from "sonner"
 import { BasicInfoEditModal } from "@/components/basic-info-edit-modal"
 import { MedicalInfoEditModal } from "@/components/medical-info-edit-modal"
@@ -122,7 +122,7 @@ export default function ProfilePage() {
 
             // Fetch patient profile from API only
             try {
-                const profile = await apiService.fetchUserProfile()
+                const profile = await authService.getProfile()
                 setPatientProfile(profile)
             } catch (apiError) {
                 console.error('API Error:', apiError)
