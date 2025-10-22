@@ -28,6 +28,7 @@ import {
     MessageCircle
 } from "lucide-react"
 import { getCurrentUser, logout, User as UserType } from "@/lib/auth"
+import { showConfirmAlert } from "@/lib/sweetalert-config"
 import { apiService } from "@/api/index"
 import { toast } from "sonner"
 import { BasicInfoEditModal } from "@/components/basic-info-edit-modal"
@@ -119,9 +120,14 @@ export default function ProfilePage() {
                 return
             }
 
-            // Fetch patient profile
-            const profile = await apiService.fetchUserProfile()
-            setPatientProfile(profile)
+            // Fetch patient profile from API only
+            try {
+                const profile = await apiService.fetchUserProfile()
+                setPatientProfile(profile)
+            } catch (apiError) {
+                console.error('API Error:', apiError)
+                toast.error("Không thể tải thông tin hồ sơ. Vui lòng thử lại sau.")
+            }
 
             // Set empty arrays for appointments and medical records
             setAppointments([])
@@ -134,15 +140,23 @@ export default function ProfilePage() {
         }
     }
 
-    const handleLogout = () => {
-        // Clear all profile data
-        setPatientProfile(null)
-        setAppointments([])
-        setMedicalRecords([])
-        setCurrentUser(null)
+    const handleLogout = async () => {
+        const result = await showConfirmAlert(
+            'Xác nhận đăng xuất',
+            'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?'
+        )
 
-        logout()
-        // logout() already redirects to home, no need for router.push
+        if (result.isConfirmed) {
+            // Clear all profile data
+            setPatientProfile(null)
+            setAppointments([])
+            setMedicalRecords([])
+            setCurrentUser(null)
+
+            logout()
+            // Redirect về trang chủ
+            router.push('/')
+        }
     }
 
 

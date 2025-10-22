@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7168'
 
 
 export interface LoginRequest {
@@ -124,9 +124,7 @@ class ApiService {
                 // Handle 401 Unauthorized - token might be expired
                 if (response.status === 401) {
                     this.clearToken()
-                    if (typeof window !== 'undefined') {
-                        window.location.href = '/login'
-                    }
+                    // Không redirect tự động, để component xử lý
                 }
 
                 let errorMessage = `HTTP ${response.status}`
@@ -145,7 +143,7 @@ class ApiService {
                 } catch {
                     errorMessage = `HTTP ${response.status} - ${response.statusText}`
                 }
-                
+
                 throw new ApiError(
                     errorMessage,
                     response.status,

@@ -44,7 +44,7 @@ export function logout() {
         localStorage.removeItem('token')
         localStorage.removeItem('auth_token')
         window.dispatchEvent(new Event('storage'))
-        window.location.href = '/'
+        // Không redirect tự động, để component xử lý
     }
 }
 
@@ -74,7 +74,10 @@ export async function login(phone: string, password: string): Promise<User> {
         return user
     } catch (error: unknown) {
         if (error instanceof ApiError) {
-            if (error.status === 401) throw new Error("Số điện thoại hoặc mật khẩu không đúng")
+            if (error.status === 401) {
+                // Giữ nguyên message từ backend (có thể là tài khoản bị khóa)
+                throw new Error(error.message)
+            }
             throw new Error(`Lỗi đăng nhập: ${error.message}`)
         }
         throw new Error("Không thể kết nối đến server. Vui lòng thử lại sau.")
