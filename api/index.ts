@@ -205,6 +205,10 @@ class ApiService {
         return this.request<UserDto[]>('/api/users')
     }
 
+    async fetchAllPatients(): Promise<UserDto[]> {
+        return this.request<UserDto[]>('/api/users/patients')
+    }
+
     async fetchSecureUsers(): Promise<UserDto[]> {
         return this.request<UserDto[]>('/api/users/test-secure')
     }
