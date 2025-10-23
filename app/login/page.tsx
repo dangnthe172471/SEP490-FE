@@ -108,7 +108,7 @@ export default function LoginPage() {
                     <label className="text-sm font-semibold" htmlFor="password">
                       Mật khẩu
                     </label>
-                    <Link href="#" className="text-sm font-semibold text-primary hover:underline">
+                    <Link href="/forgot-password" className="text-sm font-semibold text-primary hover:underline">
                       Quên mật khẩu?
                     </Link>
                   </div>
@@ -202,6 +202,12 @@ export default function LoginPage() {
                   <span className="text-muted-foreground">Chưa có tài khoản? </span>
                   <Link href="/register" className="font-bold text-primary hover:underline">
                     Đăng ký ngay
+                  </Link>
+                </div>
+
+                <div className="text-center text-sm">
+                  <Link href="/forgot-password" className="font-bold text-primary hover:underline">
+                    Quên mật khẩu?
                   </Link>
                 </div>
               </form>

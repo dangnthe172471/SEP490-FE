@@ -29,6 +29,30 @@ export interface RegisterRequest {
     roleId: number
 }
 
+export interface CreateUserRequest {
+    phone: string
+    password: string
+    fullName: string
+    email?: string
+    dob?: string
+    gender?: string
+    roleId: number
+    allergies?: string
+    medicalHistory?: string
+}
+
+export interface UpdateUserRequest {
+    phone?: string
+    fullName?: string
+    email?: string
+    dob?: string
+    gender?: string
+    roleId?: number
+    password?: string
+    allergies?: string
+    medicalHistory?: string
+}
+
 export interface RegisterResponse {
     userId: number
 }
@@ -41,6 +65,7 @@ export interface UserDto {
     role?: string
     gender?: string
     dob?: string
+    isActive?: boolean
     allergies?: string
     medicalHistory?: string
 }
@@ -61,7 +86,7 @@ class ApiService {
     private token: string | null = null
 
     constructor() {
-        this.baseURL = API_BASE_URL!
+        this.baseURL = API_BASE_URL || 'http://localhost:7168'
         // Get token from localStorage on client side
         if (typeof window !== 'undefined') {
             this.token = localStorage.getItem('auth_token')
@@ -72,6 +97,14 @@ class ApiService {
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
+        // Refresh token from localStorage before each request
+        if (typeof window !== 'undefined') {
+            const storedToken = localStorage.getItem('auth_token')
+            if (storedToken !== this.token) {
+                this.token = storedToken
+            }
+        }
+
         const url = `${this.baseURL}${endpoint}`
 
         const config: RequestInit = {
@@ -88,9 +121,33 @@ class ApiService {
             const response = await fetch(url, config)
 
             if (!response.ok) {
-                const errorText = await response.text()
+                // Handle 401 Unauthorized - token might be expired
+                if (response.status === 401) {
+                    this.clearToken()
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/login'
+                    }
+                }
+
+                let errorMessage = `HTTP ${response.status}`
+                try {
+                    const errorText = await response.text()
+                    if (errorText) {
+                        // Try to parse as JSON first (for structured error responses)
+                        try {
+                            const errorJson = JSON.parse(errorText)
+                            errorMessage = errorJson.message || errorJson.error || errorText
+                        } catch {
+                            // If not JSON, use as string
+                            errorMessage = errorText
+                        }
+                    }
+                } catch {
+                    errorMessage = `HTTP ${response.status} - ${response.statusText}`
+                }
+                
                 throw new ApiError(
-                    errorText || `HTTP ${response.status}`,
+                    errorMessage,
                     response.status,
                     response.statusText
                 )
@@ -135,6 +192,14 @@ class ApiService {
         })
     }
 
+    // Admin create user with full control
+    async createUserAdmin(userData: CreateUserRequest): Promise<UserDto> {
+        return this.request<UserDto>('/api/users', {
+            method: 'POST',
+            body: JSON.stringify(userData),
+        })
+    }
+
     // User management methods
     async fetchAllUsers(): Promise<UserDto[]> {
         return this.request<UserDto[]>('/api/users')
@@ -152,7 +217,25 @@ class ApiService {
         return this.request<UserDto>('/api/auth/profile')
     }
 
+    // Get user by ID
+    async fetchUserById(userId: number): Promise<UserDto> {
+        return this.request<UserDto>(`/api/users/${userId}`)
+    }
 
+    // Update user
+    async updateUser(userId: number, userData: UpdateUserRequest): Promise<UserDto> {
+        return this.request<UserDto>(`/api/users/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify(userData)
+        })
+    }
+
+    // Delete user
+    async deleteUser(userId: number): Promise<void> {
+        return this.request<void>(`/api/users/${userId}`, {
+            method: 'DELETE'
+        })
+    }
 
     async updateBasicInfo(data: {
         fullName: string
@@ -191,6 +274,13 @@ class ApiService {
 
     getToken(): string | null {
         return this.token
+    }
+
+    // Toggle user status (Lock/Unlock)
+    async toggleUserStatus(userId: number): Promise<UserDto> {
+        return this.request<UserDto>(`/api/users/${userId}/toggle-status`, {
+            method: 'PATCH',
+        })
     }
 
     clearToken() {
