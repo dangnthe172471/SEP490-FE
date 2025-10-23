@@ -107,4 +107,43 @@ export function getDashboardPath(role: UserRole): string {
     return paths[role]
 }
 
+// --- PHẦN CODE MỚI THÊM VÀO ---
+
+/**
+ * Kiểm tra nhanh xem người dùng đã đăng nhập hay chưa.
+ * Trả về true nếu có cả user object và token.
+ */
+export function isLoggedIn(): boolean {
+    if (typeof window === "undefined") return false
+
+    const user = getCurrentUser()
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token')
+
+    return !!user && !!token
+}
+
+/**
+ * Kiểm tra xem người dùng hiện tại có thuộc một vai trò (hoặc nhóm vai trò) cụ thể hay không.
+ * @param allowedRoles Một vai trò (UserRole) hoặc một mảng các vai trò ([UserRole, UserRole]).
+ * @returns boolean
+ */
+export function hasRole(allowedRoles: UserRole | UserRole[]): boolean {
+    const user = getCurrentUser()
+    if (!user) return false
+
+    if (Array.isArray(allowedRoles)) {
+        return allowedRoles.includes(user.role)
+    }
+
+    return user.role === allowedRoles
+}
+
+/**
+ * Lấy token xác thực hiện tại từ localStorage.
+ */
+export function getToken(): string | null {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem('token') || localStorage.getItem('auth_token')
+}
+
 

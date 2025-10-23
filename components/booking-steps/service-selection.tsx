@@ -1,184 +1,140 @@
+// components/booking-steps/service-selection.tsx
+// (This version is correct)
+
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Stethoscope, Award, Briefcase, GraduationCap, Check } from "lucide-react"
+import { Stethoscope, Award, Briefcase, GraduationCap, Check, Loader2 } from "lucide-react"
+import { DoctorInfoDto, PagedResponse } from "@/lib/types/appointment"
 
-interface Service {
-    id: string
-    name: string
-    price: string
-}
-
-interface Doctor {
-    name: string
-    specialty: string
-    experience: string
-    education: string
-    achievements: string[]
-}
-
-const services: Service[] = [
-    { id: "1", name: "Khám tư vấn nội tổng quát", price: "0 đ" },
-    { id: "2", name: "Khám tư vấn nhi khoa", price: "0 đ" },
-    { id: "3", name: "Khám tư vấn da liễu", price: "0 đ" },
-]
-
-const doctorsBySpecialty: Record<string, Doctor[]> = {
-    "Khám tư vấn nội tổng quát": [
-        {
-            name: "BS. Nguyễn Văn A",
-            specialty: "Nội tổng quát",
-            experience: "15 năm kinh nghiệm",
-            education: "Đại học Y Hà Nội",
-            achievements: ["Bác sĩ ưu tú", "Chứng chỉ hành nghề"],
-        },
-        {
-            name: "BS. Lê Văn C",
-            specialty: "Nội tổng quát",
-            experience: "18 năm kinh nghiệm",
-            education: "Đại học Y Hà Nội",
-            achievements: ["Tiến sĩ Y học", "Giảng viên đại học"],
-        },
-        {
-            name: "BS. Hoàng Văn E",
-            specialty: "Nội tổng quát",
-            experience: "20 năm kinh nghiệm",
-            education: "Đại học Y Hà Nội",
-            achievements: ["Phó giáo sư", "Bác sĩ ưu tú"],
-        },
-    ],
-    "Khám tư vấn da liễu": [
-        {
-            name: "BS. Trần Thị B",
-            specialty: "Da liễu",
-            experience: "12 năm kinh nghiệm",
-            education: "Đại học Y Dược TP.HCM",
-            achievements: ["Thạc sĩ Y học", "Chuyên gia tư vấn"],
-        },
-        {
-            name: "BS. Vũ Thị F",
-            specialty: "Da liễu",
-            experience: "14 năm kinh nghiệm",
-            education: "Đại học Y Dược TP.HCM",
-            achievements: ["Thạc sĩ Y học", "Chuyên gia tư vấn"],
-        },
-    ],
-    "Khám tư vấn nhi khoa": [
-        {
-            name: "BS. Phạm Thị D",
-            specialty: "Nhi khoa",
-            experience: "10 năm kinh nghiệm",
-            education: "Đại học Y Dược TP.HCM",
-            achievements: ["Bác sĩ chuyên khoa I", "Chứng chỉ hành nghề"],
-        },
-    ],
-}
-
+// Define props: accepts onSelect callback and getDoctors API function
 interface ServiceSelectionProps {
-    onSelect: (service: string, price: string, doctor: string) => void
+    onSelect: (service: string, price: string, doctorName: string, doctorId: number) => void // Expects 4 args
+    getDoctors: (page?: number, size?: number, term?: string) => Promise<PagedResponse<DoctorInfoDto>>
 }
 
-export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
-    const [selected, setSelected] = useState<string | null>(null)
-    const [selectedDoctor, setSelectedDoctor] = useState<string | null>(null)
+export function ServiceSelection({ onSelect, getDoctors }: ServiceSelectionProps) {
+    const [selectedDoctor, setSelectedDoctor] = useState<DoctorInfoDto | null>(null)
 
-    const selectedService = services.find((s) => s.id === selected)
-    const doctors = selectedService ? doctorsBySpecialty[selectedService.name] || [] : []
+    // State for API data
+    const [doctors, setDoctors] = useState<DoctorInfoDto[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
-    const handleSelectDoctor = (doctorName: string) => {
-        setSelectedDoctor(doctorName)
-        if (selectedService) {
-            onSelect(selectedService.name, selectedService.price, doctorName)
+    // Fetch doctors when component mounts
+    useEffect(() => {
+        const fetchAllDoctors = async () => {
+            setIsLoading(true)
+            setError(null)
+            try {
+                // Call API function passed via props
+                const response = await getDoctors(1, 100) // Fetch up to 100 doctors
+                setDoctors(response.data)
+            } catch (err: any) {
+                setError(err.message || "Không thể tải danh sách bác sĩ.")
+            } finally {
+                setIsLoading(false)
+            }
         }
+        fetchAllDoctors()
+    }, [getDoctors]) // Re-run if getDoctors changes (though it likely won't)
+
+    // Handler when a doctor card is clicked
+    const handleDoctorSelect = (doctor: DoctorInfoDto) => {
+        setSelectedDoctor(doctor) // Update state to highlight selection
+
+        // Determine service name from doctor's specialty
+        const service = doctor.specialty || "Khám tổng quát";
+        const price = "150000"; // Placeholder price
+
+        // Call parent's onSelect with the 4 required pieces of data
+        onSelect(
+            service,          // Specialty
+            price,
+            doctor.fullName,  // Name
+            doctor.doctorId   // ID
+        )
     }
 
+    // Loading state display
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">Đang tải danh sách bác sĩ...</p>
+            </div>
+        )
+    }
+
+    // Error state display
+    if (error) {
+        return <p className="text-red-500 text-center">{error}</p>
+    }
+
+    // Main render logic
     return (
         <div className="space-y-6">
-            <div className="space-y-2">
-                <label className="block text-sm font-semibold text-foreground">Chọn chuyên khoa</label>
-                <select
-                    value={selected || ""}
-                    onChange={(e) => {
-                        setSelected(e.target.value)
-                        setSelectedDoctor(null)
-                    }}
-                    className="w-full px-4 py-3 rounded-lg border-2 border-border bg-white text-foreground focus:border-primary focus:outline-none transition-colors"
-                >
-                    <option value="">-- Chọn chuyên khoa --</option>
-                    {services.map((service) => (
-                        <option key={service.id} value={service.id}>
-                            {service.name}
-                        </option>
-                    ))}
-                </select>
-            </div>
+             <h3 className="text-lg font-semibold text-foreground">Chọn bác sĩ</h3>
+             <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2">
+                 {doctors.length === 0 && (
+                      <div className="p-4 rounded-lg bg-muted/50 text-center text-sm text-muted-foreground">
+                         Không tìm thấy bác sĩ nào.
+                     </div>
+                 )}
 
-            {selected && doctors.length > 0 && (
-                <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-foreground">Chọn bác sĩ</h3>
-                    <div className="max-h-96 overflow-y-auto space-y-3 pr-2">
-                        {doctors.map((doctor, index) => (
-                            <Card
-                                key={index}
-                                onClick={() => handleSelectDoctor(doctor.name)}
-                                className={`border-2 cursor-pointer transition-all ${selectedDoctor === doctor.name
-                                        ? "border-primary bg-primary/5 shadow-md"
-                                        : "border-border hover:shadow-md hover:border-primary/50"
-                                    }`}
-                            >
-                                <CardContent className="p-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className="p-2 rounded-lg bg-primary/10">
-                                            <Stethoscope className="h-5 w-5 text-primary" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div>
-                                                    <h4 className="font-semibold text-foreground">{doctor.name}</h4>
-                                                    <p className="text-sm text-primary font-medium">{doctor.specialty}</p>
-                                                </div>
-                                                {selectedDoctor === doctor.name && (
-                                                    <div className="p-1 rounded-full bg-primary">
-                                                        <Check className="h-4 w-4 text-white" />
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <Briefcase className="h-3.5 w-3.5 shrink-0" />
-                                                    <span>{doctor.experience}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <GraduationCap className="h-3.5 w-3.5 shrink-0" />
-                                                    <span>{doctor.education}</span>
-                                                </div>
-                                                <div className="flex items-start gap-2">
-                                                    <Award className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {doctor.achievements.map((achievement, i) => (
-                                                            <span key={i} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                                                                {achievement}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {selected && doctors.length === 0 && (
-                <div className="p-4 rounded-lg bg-muted/50 text-center text-sm text-muted-foreground">
-                    Không có bác sĩ nào cho chuyên khoa này
-                </div>
-            )}
+                 {/* Map through fetched doctors and render cards */}
+                 {doctors.map((doctor) => (
+                     <Card
+                         key={doctor.doctorId}
+                         onClick={() => handleDoctorSelect(doctor)}
+                         className={`border-2 cursor-pointer transition-all ${selectedDoctor?.doctorId === doctor.doctorId
+                             ? "border-primary bg-primary/5 shadow-md" // Highlight if selected
+                             : "border-border hover:shadow-md hover:border-primary/50"
+                             }`}
+                     >
+                         <CardContent className="p-4">
+                             <div className="flex items-start gap-3">
+                                 {/* Icon */}
+                                 <div className="p-2 rounded-lg bg-primary/10">
+                                     <Stethoscope className="h-5 w-5 text-primary" />
+                                 </div>
+                                 {/* Doctor Info */}
+                                 <div className="flex-1 min-w-0">
+                                     <div className="flex items-start justify-between gap-2">
+                                         <div>
+                                             <h4 className="font-semibold text-foreground">{doctor.fullName}</h4>
+                                             {/* Display specialty */}
+                                             <p className="text-sm text-primary font-medium">{doctor.specialty}</p>
+                                         </div>
+                                         {/* Checkmark if selected */}
+                                         {selectedDoctor?.doctorId === doctor.doctorId && (
+                                             <div className="p-1 rounded-full bg-primary">
+                                                 <Check className="h-4 w-4 text-white" />
+                                             </div>
+                                         )}
+                                     </div>
+                                     {/* Additional details */}
+                                     <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                         <div className="flex items-center gap-2">
+                                             <Briefcase className="h-3.5 w-3.5 shrink-0" />
+                                             <span>{doctor.experienceYears} năm kinh nghiệm</span>
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                             <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+                                             <span>Đại học Y (ví dụ)</span>
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                             <Award className="h-3.5 w-3.5 shrink-0" />
+                                             <span>Phòng: {doctor.roomName || "N/A"}</span>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </CardContent>
+                     </Card>
+                 ))}
+             </div>
         </div>
     )
 }
