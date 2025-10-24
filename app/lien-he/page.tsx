@@ -117,23 +117,22 @@ export default function LienHePage() {
         throw new Error("Thông tin đăng nhập không hợp lệ. Vui lòng đăng nhập lại.")
       }
 
-      // ✅ BƯỚC 4: Chuẩn bị DateTime (ISO string)
+      // ✅ BƯỚC 4: Chuẩn bị DateTime (local time string)
       const [hours, minutes] = formData.time.split(':').map(Number)
 
       if (isNaN(hours) || isNaN(minutes)) {
         throw new Error("Thời gian không hợp lệ. Vui lòng chọn lại.")
       }
 
-      const appointmentDate = new Date(formData.date)
+      // Use local timezone format without UTC conversion
+      const appointmentDateStr = `${formData.date}T${formData.time}:00`
 
-      if (isNaN(appointmentDate.getTime())) {
-        throw new Error("Ngày khám không hợp lệ. Vui lòng chọn lại.")
-      }
-
-      appointmentDate.setHours(hours, minutes, 0, 0)
-      const appointmentDateStr = appointmentDate.toISOString()
-
-      console.log("📅 [DEBUG] Appointment DateTime:", appointmentDateStr)
+      console.log("📅 [DEBUG] Appointment DateTime:", {
+        selectedDate: formData.date,
+        selectedTime: formData.time,
+        appointmentDateStr: appointmentDateStr,
+        note: 'Using local timezone format without UTC conversion'
+      })
 
       // ✅ BƯỚC 5: Tạo request - Backend tự động lấy userId từ JWT token
       const requestData: CreateAppointmentByPatientRequest = {

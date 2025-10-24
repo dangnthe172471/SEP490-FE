@@ -36,7 +36,7 @@ export default function NewAppointmentPage() {
         patientName: '',
         doctorId: '',
         appointmentDate: '',
-        appointmentTime: '',
+        appointmentTime: '17:00', // Set default time to 5:00 PM
         reasonForVisit: '',
         notes: ''
     })
@@ -90,9 +90,16 @@ export default function NewAppointmentPage() {
                 throw new Error('Vui lòng điền đầy đủ thông tin bắt buộc')
             }
 
-            // Combine date and time
-            const appointmentDateTime = new Date(`${formData.appointmentDate}T${formData.appointmentTime}:00.000Z`)
-            const appointmentDateStr = appointmentDateTime.toISOString()
+            // Combine date and time (fix timezone issue)
+            // Use local timezone format without UTC conversion
+            const appointmentDateStr = `${formData.appointmentDate}T${formData.appointmentTime}:00`
+
+            console.log('📅 Date/Time Debug:', {
+                selectedDate: formData.appointmentDate,
+                selectedTime: formData.appointmentTime,
+                appointmentDateStr: appointmentDateStr,
+                note: 'Using local timezone format without UTC conversion'
+            })
 
             // Create appointment request
             const requestData = {

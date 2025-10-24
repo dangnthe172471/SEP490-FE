@@ -69,8 +69,12 @@ export function DateSelection({ onSelect, onChangeService }: DateSelectionProps)
         const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
         setSelectedDate(dateObj); // Update internal state
 
-        // Format date as "YYYY-MM-DD" before calling parent's onSelect
-        const dateStr = dateObj.toISOString().split('T')[0];
+        // Format date as "YYYY-MM-DD" without timezone conversion
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(dateObj.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${dayStr}`;
+
         onSelect(dateStr);
     };
 

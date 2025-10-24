@@ -30,6 +30,13 @@ export function TimeSelection({ onSelect, onChangeService }: TimeSelectionProps)
 
         // Extract the start time (HH:MM)
         const startTime = timeSlot.split(' - ')[0]; // e.g., "09:00"
+
+        console.log('🕐 TimeSelection Debug:', {
+            selectedTimeSlot: timeSlot,
+            extractedStartTime: startTime,
+            note: 'Extracting start time from time slot'
+        });
+
         onSelect(startTime) // Call parent's onSelect with just the start time
     }
 
