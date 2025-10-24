@@ -30,6 +30,7 @@ import {
 import { getCurrentUser, logout, User as UserType } from "@/lib/auth"
 import { showConfirmAlert } from "@/lib/sweetalert-config"
 import { authService } from "@/lib/services/auth.service"
+import { medicalHistoryService, MedicalRecord } from "@/lib/services/medical-history.service"
 import { toast } from "sonner"
 import { BasicInfoEditModal } from "@/components/basic-info-edit-modal"
 import { MedicalInfoEditModal } from "@/components/medical-info-edit-modal"
@@ -57,14 +58,6 @@ interface Appointment {
     notes?: string
 }
 
-interface MedicalRecord {
-    id: number
-    date: string
-    doctor: string
-    diagnosis: string
-    treatment: string
-    prescription?: string
-}
 
 export default function ProfilePage() {
     const [currentUser, setCurrentUser] = useState<UserType | null>(null)
@@ -129,9 +122,17 @@ export default function ProfilePage() {
                 toast.error("Không thể tải thông tin hồ sơ. Vui lòng thử lại sau.")
             }
 
-            // Set empty arrays for appointments and medical records
+            // Set empty arrays for appointments
             setAppointments([])
-            setMedicalRecords([])
+
+            // Fetch medical records from API
+            try {
+                const records = await medicalHistoryService.getMedicalHistory(parseInt(user.id))
+                setMedicalRecords(records)
+            } catch (error) {
+                console.error('Error fetching medical records:', error)
+                setMedicalRecords([])
+            }
         } catch (error) {
             console.error('Error fetching patient data:', error)
             toast.error("Không thể tải thông tin bệnh nhân")
@@ -511,13 +512,24 @@ export default function ProfilePage() {
                             <TabsContent value="medical" className="space-y-6">
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <FileText className="h-5 w-5" />
-                                            Lịch sử khám bệnh
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Hồ sơ khám bệnh và điều trị của bạn
-                                        </CardDescription>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <FileText className="h-5 w-5" />
+                                                    Lịch sử khám bệnh
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    Hồ sơ khám bệnh và điều trị của bạn
+                                                </CardDescription>
+                                            </div>
+                                            <Button
+                                                onClick={() => router.push('/medical-history')}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <FileText className="h-4 w-4" />
+                                                Xem chi tiết
+                                            </Button>
+                                        </div>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-4">
@@ -528,26 +540,37 @@ export default function ProfilePage() {
                                                 </div>
                                             ) : (
                                                 medicalRecords.map((record) => (
-                                                    <div key={record.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                                                    <div key={record.recordId} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                                                         <div className="flex items-center justify-between mb-3">
-                                                            <h3 className="font-medium">{record.doctor}</h3>
-                                                            <span className="text-sm text-muted-foreground">{formatDate(record.date)}</span>
+                                                            <h3 className="font-medium">{record.doctorName}</h3>
+                                                            <span className="text-sm text-muted-foreground">{formatDate(record.appointmentDate)}</span>
                                                         </div>
                                                         <div className="space-y-3">
                                                             <div>
                                                                 <label className="text-sm font-medium text-muted-foreground">Chẩn đoán</label>
-                                                                <p className="mt-1">{record.diagnosis}</p>
+                                                                <p className="mt-1">{record.diagnosis || "Chưa có thông tin"}</p>
                                                             </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium text-muted-foreground">Điều trị</label>
-                                                                <p className="mt-1">{record.treatment}</p>
-                                                            </div>
-                                                            {record.prescription && (
+                                                            {record.doctorNotes && (
+                                                                <div>
+                                                                    <label className="text-sm font-medium text-muted-foreground">Ghi chú bác sĩ</label>
+                                                                    <p className="mt-1">{record.doctorNotes}</p>
+                                                                </div>
+                                                            )}
+                                                            {record.prescriptions && record.prescriptions.length > 0 && (
                                                                 <div>
                                                                     <label className="text-sm font-medium text-muted-foreground">Đơn thuốc</label>
-                                                                    <p className="mt-1 text-sm bg-blue-50 p-2 rounded border-l-4 border-blue-400">
-                                                                        {record.prescription}
-                                                                    </p>
+                                                                    <div className="mt-1 space-y-1">
+                                                                        {record.prescriptions.map((prescription) => (
+                                                                            <div key={prescription.prescriptionId} className="text-sm bg-blue-50 p-2 rounded border-l-4 border-blue-400">
+                                                                                <p className="font-medium">{prescription.doctorName}</p>
+                                                                                {prescription.prescriptionDetails.map((detail) => (
+                                                                                    <p key={detail.prescriptionDetailId} className="text-xs">
+                                                                                        {detail.medicineName} - {detail.dosage} ({detail.duration})
+                                                                                    </p>
+                                                                                ))}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>

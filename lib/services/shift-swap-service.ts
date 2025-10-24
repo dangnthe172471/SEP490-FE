@@ -10,26 +10,62 @@ import type {
 
 export class ShiftSwapService extends BaseApiService {
     async createShiftSwapRequest(request: CreateShiftSwapRequest): Promise<ShiftSwapRequestResponse> {
-        const response = await this.request<ApiResponse<ShiftSwapRequestResponse>>('/api/DoctorShiftExchange/create-request', {
-            method: 'POST',
-            body: JSON.stringify(request)
-        });
+        try {
+            const response = await this.request<ApiResponse<ShiftSwapRequestResponse>>('/api/DoctorShiftExchange/create-request', {
+                method: 'POST',
+                body: JSON.stringify(request)
+            });
+
+            if (!response.success || !response.data) {
+                const errorMessage = response.message || "Failed to create shift swap request";
+                throw new Error(errorMessage);
+            }
+
+            return response.data;
+        } catch (error: any) {
+            // Re-throw with proper error message
+            if (error.message) {
+                throw new Error(error.message);
+            } else {
+                throw new Error("Failed to create shift swap request");
+            }
+        }
+    }
+
+
+    async getAllRequests(): Promise<ShiftSwapRequestResponse[]> {
+        const response = await this.request<ApiResponse<ShiftSwapRequestResponse[]>>('/api/ManagerShiftSwap/all-requests');
 
         if (!response.success || !response.data) {
-            throw new Error(response.message || "Failed to create shift swap request");
+            throw new Error(response.message || "Failed to fetch all requests");
         }
 
         return response.data;
     }
 
-    async getPendingRequests(): Promise<ShiftSwapRequestResponse[]> {
-        const response = await this.request<ApiResponse<ShiftSwapRequestResponse[]>>('/api/DoctorShiftExchange/pending-requests');
+    async reviewShiftSwapRequest(exchangeId: number, status: "Approved" | "Rejected", note?: string): Promise<boolean> {
+        try {
+            const response = await this.request<any>('/api/ManagerShiftSwap/review-request', {
+                method: 'POST',
+                body: JSON.stringify({
+                    exchangeId,
+                    status,
+                    managerNote: note
+                })
+            });
 
-        if (!response.success || !response.data) {
-            throw new Error(response.message || "Failed to fetch pending requests");
+            console.log("Review response:", response);
+
+            // Backend trả về { success: true, message: "Đã chấp nhận yêu cầu đổi ca thành công" }
+            if (response && response.success === true) {
+                return true;
+            } else {
+                throw new Error(response?.message || "Failed to review shift swap request");
+            }
+        } catch (error) {
+            console.error("Review request error:", error);
+            throw error;
         }
-
-        return response.data;
     }
 
     async getRequestsByDoctorId(doctorId: number): Promise<ShiftSwapRequestResponse[]> {
@@ -52,18 +88,6 @@ export class ShiftSwapService extends BaseApiService {
         return response.data;
     }
 
-    async reviewShiftSwapRequest(review: ReviewShiftSwapRequest): Promise<boolean> {
-        const response = await this.request<ApiResponse<any>>('/api/DoctorShiftExchange/review-request', {
-            method: 'POST',
-            body: JSON.stringify(review)
-        });
-
-        if (!response.success) {
-            throw new Error(response.message || "Failed to review request");
-        }
-
-        return true;
-    }
 
     async getDoctorShifts(doctorId: number, from: string, to: string): Promise<DoctorShift[]> {
         const response = await this.request<ApiResponse<DoctorShift[]>>(`/api/DoctorShiftExchange/doctor/${doctorId}/shifts?from=${from}&to=${to}`);

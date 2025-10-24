@@ -340,6 +340,76 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Test Tools Section */}
+        <section className="py-16 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                Test Tools
+              </h2>
+              <p className="text-lg text-gray-600">
+                Các công cụ test và debug cho development
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                    <Activity className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold">API Test</h3>
+                </div>
+                <p className="text-gray-600 mb-4">
+                  Test các API endpoints và kiểm tra kết nối backend
+                </p>
+                <Link href="/test-manager-api">
+                  <Button className="w-full">
+                    Test Manager API
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-green-100 rounded-lg mr-3">
+                    <Calendar className="h-6 w-6 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Shift Logic Test</h3>
+                </div>
+                <p className="text-gray-600 mb-4">
+                  Test logic đổi ca và kiểm tra cập nhật database
+                </p>
+                <Link href="/test-shift-logic">
+                  <Button className="w-full">
+                    Test Shift Logic
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-orange-100 rounded-lg mr-3">
+                    <Shield className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Validation Test</h3>
+                </div>
+                <p className="text-gray-600 mb-4">
+                  Test validation chỉ cho phép đổi lịch từ ngày mai
+                </p>
+                <Link href="/test-validation">
+                  <Button className="w-full">
+                    Test Validation
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </Card>
+            </div>
+          </div>
+        </section>
       </main>
 
       <Footer />

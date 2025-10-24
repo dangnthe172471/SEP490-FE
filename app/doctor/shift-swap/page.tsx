@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Calendar, Clock, Users, AlertCircle, CheckCircle, XCircle } from "lucide-react"
 import { shiftSwapService } from "@/lib/services/shift-swap-service"
 import { getCurrentUser } from "@/lib/auth"
 import { toast } from "sonner"
+import { showErrorAlert, showSuccessAlert } from "@/lib/sweetalert-config"
 import type { CreateShiftSwapRequest, ShiftSwapRequestResponse, DoctorShift, Doctor } from "@/lib/types/shift-swap"
 
 const navigation = [
@@ -33,6 +34,7 @@ export default function DoctorShiftSwapPage() {
     const [doctorsLoading, setDoctorsLoading] = useState(false)
     const [requestsLoading, setRequestsLoading] = useState(false)
 
+    const [swapType, setSwapType] = useState<"temporary" | "permanent">("temporary")
     const [formData, setFormData] = useState({
         targetDoctorId: "",
         myShiftId: "",
@@ -44,26 +46,43 @@ export default function DoctorShiftSwapPage() {
         const user = getCurrentUser()
         if (user) {
             setCurrentUser(user)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (currentUser) {
             fetchMyShifts()
             fetchMyRequests()
             fetchDoctorsBySpecialty()
         }
-    }, [])
+    }, [currentUser])
 
     const fetchDoctorsBySpecialty = async () => {
         if (!currentUser) return
 
         try {
-            // TODO: Get current doctor's specialty from API
-            // For now, using a placeholder specialty
-            const specialty = "Khoa Nội" // This should come from current user's doctor profile
+            setDoctorsLoading(true)
+            const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
+
+            const myShifts = await shiftSwapService.getDoctorShifts(doctorId, new Date().toISOString().split('T')[0], new Date().toISOString().split('T')[0])
+
+            let specialty = "Tim Mạch" // Default fallback
+            if (myShifts.length > 0 && myShifts[0].specialty) {
+                specialty = myShifts[0].specialty
+            }
+
             const doctorsList = await shiftSwapService.getDoctorsBySpecialty(specialty)
-            // Filter out current user - we'll need to get current user's doctor ID from API
-            const otherDoctors = doctorsList // For now, show all doctors in specialty
+            const otherDoctors = doctorsList.filter(doctor => doctor.doctorID !== doctorId)
             setDoctors(otherDoctors)
+
+            if (otherDoctors.length === 0) {
+                await showErrorAlert("Thông báo", "Không có bác sĩ nào khác trong cùng chuyên khoa")
+            }
         } catch (error) {
             console.error('Error fetching doctors by specialty:', error)
-            toast.error("Không thể tải danh sách bác sĩ")
+            await showErrorAlert("Lỗi", "Không thể tải danh sách bác sĩ: " + (error as Error).message)
+        } finally {
+            setDoctorsLoading(false)
         }
     }
 
@@ -76,11 +95,18 @@ export default function DoctorShiftSwapPage() {
             const to = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days from now
 
             const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
-            const shifts = await shiftSwapService.getDoctorShifts(doctorId, from, to)
-            setMyShifts(shifts)
+            const allShifts = await shiftSwapService.getDoctorShifts(doctorId, from, to)
+
+            // Chỉ lấy lịch có status "Active"
+            const activeShifts = allShifts.filter(shift => shift.status === "Active")
+            setMyShifts(activeShifts)
+
+            if (activeShifts.length === 0) {
+                await showErrorAlert("Thông báo", "Bạn chưa có ca làm việc nào đang hoạt động trong khoảng thời gian này")
+            }
         } catch (error) {
             console.error('Error fetching shifts:', error)
-            toast.error("Không thể tải lịch làm việc")
+            await showErrorAlert("Lỗi", "Không thể tải lịch làm việc: " + (error as Error).message)
         } finally {
             setLoading(false)
         }
@@ -96,7 +122,7 @@ export default function DoctorShiftSwapPage() {
             setMyRequests(requests)
         } catch (error) {
             console.error('Error fetching requests:', error)
-            toast.error("Không thể tải yêu cầu đổi ca")
+            await showErrorAlert("Lỗi", "Không thể tải yêu cầu đổi ca: " + (error as Error).message)
         } finally {
             setRequestsLoading(false)
         }
@@ -116,11 +142,14 @@ export default function DoctorShiftSwapPage() {
             const from = new Date().toISOString().split('T')[0]
             const to = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-            const shifts = await shiftSwapService.getDoctorShifts(parseInt(doctorId), from, to)
-            setTargetShifts(shifts)
+            const allShifts = await shiftSwapService.getDoctorShifts(parseInt(doctorId), from, to)
+
+            // Chỉ lấy lịch có status "Active"
+            const activeShifts = allShifts.filter(shift => shift.status === "Active")
+            setTargetShifts(activeShifts)
         } catch (error) {
             console.error('Error fetching target doctor shifts:', error)
-            toast.error("Không thể tải lịch làm việc của bác sĩ")
+            await showErrorAlert("Lỗi", "Không thể tải lịch làm việc của bác sĩ: " + (error as Error).message)
         } finally {
             setDoctorsLoading(false)
         }
@@ -134,15 +163,19 @@ export default function DoctorShiftSwapPage() {
             return
         }
 
-        if (!formData.targetDoctorId || !formData.myShiftId || !formData.targetShiftId || !formData.exchangeDate) {
+        if (!formData.targetDoctorId || !formData.myShiftId || !formData.targetShiftId) {
             toast.error("Vui lòng điền đầy đủ thông tin")
+            return
+        }
+
+        if (!formData.exchangeDate) {
+            toast.error("Vui lòng chọn ngày bắt đầu đổi ca")
             return
         }
 
         try {
             setLoading(true)
 
-            // Get doctor ID from user ID
             const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
 
             const request: CreateShiftSwapRequest = {
@@ -150,13 +183,45 @@ export default function DoctorShiftSwapPage() {
                 doctor2Id: parseInt(formData.targetDoctorId),
                 doctor1ShiftRefId: parseInt(formData.myShiftId),
                 doctor2ShiftRefId: parseInt(formData.targetShiftId),
-                exchangeDate: formData.exchangeDate
+                exchangeDate: formData.exchangeDate,
+                swapType: swapType
+            }
+
+            // Validate: Chỉ được đổi lịch từ ngày mai trở đi
+            const tomorrow = new Date()
+            tomorrow.setDate(tomorrow.getDate() + 1)
+            tomorrow.setHours(0, 0, 0, 0)
+
+            const selectedDate = new Date(formData.exchangeDate)
+            selectedDate.setHours(0, 0, 0, 0)
+
+            if (selectedDate < tomorrow) {
+                toast.error("Chỉ được đổi lịch từ ngày mai trở đi. Không thể đổi lịch hôm nay.")
+                return
+            }
+
+            const existingRequests = myRequests.filter(req =>
+                (req.doctor1Id === doctorId && req.doctor2Id === parseInt(formData.targetDoctorId)) ||
+                (req.doctor1Id === parseInt(formData.targetDoctorId) && req.doctor2Id === doctorId)
+            ).filter(req => {
+                if (swapType === "temporary") {
+                    return req.exchangeDate === formData.exchangeDate && req.status === "Pending"
+                } else {
+                    return req.swapType === "permanent" && req.exchangeDate === formData.exchangeDate && req.status === "Pending"
+                }
+            })
+
+            if (existingRequests.length > 0) {
+                const message = swapType === "temporary"
+                    ? "Đã có yêu cầu đổi ca giữa 2 bác sĩ này trong ngày này. Vui lòng chọn ngày khác hoặc bác sĩ khác."
+                    : "Đã có yêu cầu đổi ca vĩnh viễn giữa 2 bác sĩ này bắt đầu từ ngày này. Vui lòng chọn ngày khác hoặc bác sĩ khác."
+                toast.error(message)
+                return
             }
 
             await shiftSwapService.createShiftSwapRequest(request)
-            toast.success("Yêu cầu đổi ca đã được gửi thành công")
+            await showSuccessAlert("Yêu cầu đổi ca đã được gửi thành công")
 
-            // Reset form
             setFormData({
                 targetDoctorId: "",
                 myShiftId: "",
@@ -165,11 +230,22 @@ export default function DoctorShiftSwapPage() {
             })
             setTargetShifts([])
 
-            // Refresh requests
             fetchMyRequests()
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating request:', error)
-            toast.error("Không thể tạo yêu cầu đổi ca")
+
+            let errorMessage = "Không thể tạo yêu cầu đổi ca"
+            if (error.message) {
+                errorMessage = error.message
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message
+            }
+
+            if (errorMessage.includes("Invalid shift swap request")) {
+                errorMessage = "Yêu cầu đổi ca không hợp lệ. Có thể đã có yêu cầu đổi ca giữa 2 bác sĩ này trong ngày này, hoặc ca làm việc không tồn tại."
+            }
+
+            await showErrorAlert("Lỗi tạo yêu cầu", errorMessage)
         } finally {
             setLoading(false)
         }
@@ -178,11 +254,11 @@ export default function DoctorShiftSwapPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "Pending":
-                return <Badge variant="outline" className="text-yellow-600"><Clock className="w-3 h-3 mr-1" />Chờ duyệt</Badge>
+                return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 font-medium"><Clock className="w-3 h-3 mr-1" />Chờ duyệt</Badge>
             case "Approved":
-                return <Badge variant="default" className="text-green-600"><CheckCircle className="w-3 h-3 mr-1" />Đã chấp nhận</Badge>
+                return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 font-semibold text-sm px-3 py-1"><CheckCircle className="w-4 h-4 mr-1" />Đã chấp nhận</Badge>
             case "Rejected":
-                return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Bị từ chối</Badge>
+                return <Badge variant="destructive" className="font-medium"><XCircle className="w-3 h-3 mr-1" />Bị từ chối</Badge>
             default:
                 return <Badge variant="outline">{status}</Badge>
         }
@@ -210,6 +286,20 @@ export default function DoctorShiftSwapPage() {
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Loại đổi ca</Label>
+                                    <RadioGroup value={swapType} onValueChange={(value: "temporary" | "permanent") => setSwapType(value)}>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="temporary" id="temporary" />
+                                            <Label htmlFor="temporary">Đổi ca 1 ngày</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="permanent" id="permanent" />
+                                            <Label htmlFor="permanent">Đổi ca vĩnh viễn</Label>
+                                        </div>
+                                    </RadioGroup>
+                                </div>
+
                                 <div className="space-y-2">
                                     <Label htmlFor="targetDoctor">Bác sĩ muốn đổi ca</Label>
                                     <Select
@@ -245,10 +335,14 @@ export default function DoctorShiftSwapPage() {
                                             {myShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
                                                     {shift.shiftName} - {new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
+                                                    {shift.status === "Active" && " (Đang hoạt động)"}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    <p className="text-sm text-gray-600">
+                                        Chỉ hiển thị ca có trạng thái "Active" (Đang hoạt động)
+                                    </p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -265,27 +359,50 @@ export default function DoctorShiftSwapPage() {
                                             {targetShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
                                                     {shift.shiftName} - {new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
+                                                    {shift.status === "Active" && " (Đang hoạt động)"}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    <p className="text-sm text-gray-600">
+                                        Chỉ hiển thị ca có trạng thái "Active" (Đang hoạt động)
+                                    </p>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="exchangeDate">Ngày đổi ca</Label>
+                                    <Label htmlFor="exchangeDate">
+                                        {swapType === "temporary" ? "Ngày đổi ca" : "Ngày bắt đầu đổi ca"}
+                                    </Label>
                                     <Input
                                         id="exchangeDate"
                                         type="date"
                                         value={formData.exchangeDate}
                                         onChange={(e) => setFormData(prev => ({ ...prev, exchangeDate: e.target.value }))}
-                                        min={new Date().toISOString().split('T')[0]}
+                                        min={new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0]}
                                     />
+                                    <p className="text-sm text-gray-600">
+                                        Chỉ được chọn từ ngày mai trở đi. Không thể đổi lịch hôm nay.
+                                    </p>
+                                    {swapType === "temporary" ? (
+                                        <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                                            <strong>Đổi ca 1 ngày:</strong> Ca sẽ được đổi trong ngày {formData.exchangeDate ? new Date(formData.exchangeDate).toLocaleDateString('vi-VN') : 'đã chọn'} và trở về bình thường từ ngày hôm sau.
+                                        </p>
+                                    ) : (
+                                        <p className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                                            <strong>Đổi ca vĩnh viễn:</strong> Từ ngày {formData.exchangeDate ? new Date(formData.exchangeDate).toLocaleDateString('vi-VN') : 'đã chọn'} trở đi, ca của 2 bác sĩ sẽ đổi cho nhau.
+                                        </p>
+                                    )}
                                 </div>
 
 
 
                                 <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? "Đang tạo yêu cầu..." : "Tạo yêu cầu đổi ca"}
+                                    {loading
+                                        ? "Đang tạo yêu cầu..."
+                                        : swapType === "temporary"
+                                            ? "Tạo yêu cầu đổi ca 1 ngày"
+                                            : "Tạo yêu cầu đổi ca vĩnh viễn"
+                                    }
                                 </Button>
                             </form>
                         </CardContent>
@@ -301,6 +418,16 @@ export default function DoctorShiftSwapPage() {
                             <CardDescription>
                                 Danh sách các yêu cầu đổi ca đã gửi
                             </CardDescription>
+                            <div className="mt-2">
+                                <Button
+                                    onClick={fetchMyRequests}
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={requestsLoading}
+                                >
+                                    {requestsLoading ? "Đang tải..." : "Làm mới"}
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             {requestsLoading ? (
@@ -323,7 +450,18 @@ export default function DoctorShiftSwapPage() {
                                             <div className="text-sm text-muted-foreground space-y-1">
                                                 <p><strong>Ca của tôi:</strong> {request.doctor1ShiftName}</p>
                                                 <p><strong>Ca muốn đổi:</strong> {request.doctor2ShiftName}</p>
-                                                <p><strong>Ngày đổi:</strong> {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}</p>
+                                                {request.swapType?.toLowerCase() === "temporary" ? (
+                                                    <p><strong>Ngày đổi:</strong> {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}</p>
+                                                ) : (
+                                                    <p><strong>Ngày bắt đầu:</strong> {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}</p>
+                                                )}
+                                                <p><strong>Loại đổi ca:</strong> {
+                                                    request.swapType?.toLowerCase() === "permanent"
+                                                        ? "Đổi ca vĩnh viễn"
+                                                        : request.swapType?.toLowerCase() === "temporary"
+                                                            ? "Đổi ca 1 ngày"
+                                                            : "Không xác định"
+                                                }</p>
                                             </div>
                                         </div>
                                     ))}

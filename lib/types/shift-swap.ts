@@ -4,11 +4,13 @@ export interface CreateShiftSwapRequest {
     doctor1ShiftRefId: number;
     doctor2ShiftRefId: number;
     exchangeDate: string; // DateOnly as string
+    swapType: "temporary" | "permanent";
 }
 
 export interface ReviewShiftSwapRequest {
     exchangeId: number;
     status: "Approved" | "Rejected";
+    managerNote?: string;
 }
 
 export interface ShiftSwapRequestResponse {
@@ -25,6 +27,7 @@ export interface ShiftSwapRequestResponse {
     doctor2ShiftName: string;
     exchangeDate: string;
     status: string;
+    swapType?: "temporary" | "permanent";
 }
 
 export interface DoctorShift {
