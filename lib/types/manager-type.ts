@@ -10,6 +10,7 @@ export interface ShiftResponseDto {
     shiftType: string
     startTime: string
     endTime: string
+    doctors: DoctorDto[] 
 }
 
 export interface CreateScheduleRequest {
@@ -19,4 +20,15 @@ export interface CreateScheduleRequest {
         shiftID: number
         doctorIDs: number[]
     }[]
+}
+
+export interface DailyWorkScheduleDto {
+    date: string 
+    shifts: ShiftResponseDto[]
+}
+export interface PagedResult<T> {
+    items: T[]
+    totalItems: number
+    pageNumber: number
+    pageSize: number
 }

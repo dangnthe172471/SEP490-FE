@@ -6,11 +6,11 @@ import { managerService } from "@/lib/services/manager-service"
 import type { DoctorDto, ShiftResponseDto } from "@/lib/types/manager-type"
 import { Button } from "@/components/ui/button"
 import { List, Grid3x3, Plus } from "lucide-react"
-
 import ScheduleCreateDialog from "./components/ScheduleCreateDialog"
 import ScheduleListView from "./components/ScheduleListView"
 import ScheduleMonthView from "./components/ScheduleMonthView"
 import ScheduleSummary from "./components/ScheduleSummary"
+
 
 import { BarChart3, Calendar, Clock, FileText, TrendingUp } from "lucide-react"
 
@@ -35,7 +35,7 @@ export default function StaffSchedulePage() {
         managerService.getAllShifts().then(setShifts)
         managerService.searchDoctors("").then(setDoctors)
     }, [])
-
+  
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
@@ -73,6 +73,7 @@ export default function StaffSchedulePage() {
                         setSchedules={setSchedules}
                         doctors={doctors}
                     />
+
                 ) : (
                     <ScheduleMonthView schedules={schedules} />
                 )}
@@ -86,7 +87,9 @@ export default function StaffSchedulePage() {
                     doctors={doctors}
                     loading={loading}
                     setLoading={setLoading}
-                    onCreated={(newSchedule) => setSchedules([...schedules, newSchedule])}
+                    onCreated={() => {
+                        window.location.reload()
+                    }}
                 />
             </div>
         </DashboardLayout>
