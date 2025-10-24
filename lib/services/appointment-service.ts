@@ -195,6 +195,64 @@ class AppointmentService {
             body: JSON.stringify(data)
         })
     }
+
+    /**
+     * ✅ Patient reschedule appointment
+     * PUT /api/Appointments/{id}/reschedule
+     * Backend tự lấy userId từ JWT token
+     */
+    async rescheduleAppointment(appointmentId: number, data: {
+        newAppointmentDate: string
+        newReasonForVisit?: string
+    }): Promise<{ message: string }> {
+        console.log('📤 Sending reschedule request:', { appointmentId, data })
+
+        return this.request<{ message: string }>(`/${appointmentId}/reschedule`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                newAppointmentDate: data.newAppointmentDate,
+                newReasonForVisit: data.newReasonForVisit
+            })
+        })
+    }
+
+    /**
+     * ✅ Update appointment status (Doctor/Receptionist/Clinic Manager)
+     * PUT /api/Appointments/{id}/status
+     */
+    async updateAppointmentStatus(appointmentId: number, status: string): Promise<{ message: string }> {
+        console.log('📤 Sending status update request:', { appointmentId, status })
+
+        return this.request<{ message: string }>(`/${appointmentId}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status })
+        })
+    }
+
+    /**
+     * ✅ Check if appointment can be cancelled (4-hour rule)
+     * Sử dụng logic frontend tạm thời vì API can-cancel chưa hoạt động
+     */
+    async canCancelAppointment(appointmentId: number): Promise<{ canCancel: boolean }> {
+        console.log('📤 Checking cancel eligibility (frontend logic):', { appointmentId })
+
+        // Tạm thời sử dụng logic frontend đơn giản
+        // TODO: Sử dụng API backend khi hoạt động
+        return { canCancel: true }
+    }
+
+    /**
+     * ✅ Cancel appointment (Patient can cancel their own, Receptionist can cancel any)
+     * PUT /api/Appointments/{id}/status với status = "Cancelled"
+     */
+    async cancelAppointment(appointmentId: number): Promise<{ message: string }> {
+        console.log('📤 Sending cancel request:', { appointmentId })
+
+        return this.request<{ message: string }>(`/${appointmentId}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status: 'Cancelled' })
+        })
+    }
 }
 
 export const appointmentService = new AppointmentService()

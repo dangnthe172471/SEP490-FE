@@ -21,7 +21,6 @@ interface BookingModalProps {
     isOpen: boolean
     onClose: () => void
     onComplete: (data: BookingData) => void // Uses imported BookingData
-    getDoctors: (page?: number, size?: number, term?: string) => Promise<PagedResponse<DoctorInfoDto>> // Prop to pass API function
 }
 
 // Internal state structure
@@ -34,7 +33,7 @@ interface InternalBookingState {
     time?: string           // HH:MM
 }
 
-export function BookingModal({ isOpen, onClose, onComplete, getDoctors }: BookingModalProps) {
+export function BookingModal({ isOpen, onClose, onComplete }: BookingModalProps) {
     const [step, setStep] = useState(1)
     const [bookingData, setBookingData] = useState<InternalBookingState>({})
 
@@ -148,17 +147,23 @@ export function BookingModal({ isOpen, onClose, onComplete, getDoctors }: Bookin
 
                 {/* Content Area for Steps */}
                 <div className="overflow-y-auto flex-1 p-8">
-                    {/* Pass getDoctors function to ServiceSelection */}
+                    {/* ServiceSelection now uses Manager API directly */}
                     {step === 1 && (
                         <ServiceSelection
                             onSelect={handleServiceSelect}
-                            getDoctors={getDoctors} // Pass the function down
                         />
                     )}
                     {/* DateSelection receives YYYY-MM-DD */}
                     {step === 2 && <DateSelection onSelect={handleDateSelect} onChangeService={handleChangeService} />}
                     {/* TimeSelection receives HH:MM */}
-                    {step === 3 && <TimeSelection onSelect={handleTimeSelect} onChangeService={handleChangeService} />}
+                    {step === 3 && (
+                        <TimeSelection
+                            onSelect={handleTimeSelect}
+                            onChangeService={handleChangeService}
+                            doctorId={bookingData.doctorId}
+                            selectedDate={bookingData.date}
+                        />
+                    )}
                 </div>
 
                 {/* Footer with Progress Bar and Buttons */}

@@ -5,12 +5,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Users, UserPlus, Activity, Plus, Clock, Loader2, AlertCircle } from "lucide-react"
+import { Calendar, Users, UserPlus, Activity, Plus, Clock, Loader2, AlertCircle, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { useEffect, useState } from "react"
 import { AppointmentDto } from "@/lib/types/appointment"
 import { appointmentService } from "@/lib/services/appointment-service"
+import { CancelAppointmentModal } from "@/components/cancel-appointment-modal"
 
 const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
@@ -25,6 +26,10 @@ export default function ReceptionAppointmentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
+  const [cancelModal, setCancelModal] = useState<{
+    isOpen: boolean
+    appointment: AppointmentDto | null
+  }>({ isOpen: false, appointment: null })
 
   useEffect(() => {
     const currentUser = getCurrentUser()
@@ -71,28 +76,67 @@ export default function ReceptionAppointmentsPage() {
     })
   })
 
-  // Lọc lịch hẹn theo status - Sử dụng logic linh hoạt hơn
+  const handleCancel = (appointment: AppointmentDto) => {
+    setCancelModal({ isOpen: true, appointment })
+  }
+
+  const handleCancelSuccess = () => {
+    // Reload appointments
+    const fetchAppointments = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        let data: AppointmentDto[] = []
+        try {
+          data = await appointmentService.getAllAppointments()
+        } catch (err) {
+          console.warn('Không thể lấy tất cả lịch hẹn, thử lấy lịch hẹn của receptionist:', err)
+          data = await appointmentService.getMyReceptionistAppointments()
+        }
+
+        setAppointments(data)
+      } catch (err: any) {
+        console.error('❌ [ERROR] Failed to fetch appointments:', err)
+        setError(err.message || 'Không thể tải danh sách lịch hẹn')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchAppointments()
+  }
+
+  const canCancel = (appointment: AppointmentDto) => {
+    const status = appointment.status
+    // Backend valid statuses: "Pending", "Confirmed", "Completed", "Cancelled", "No-Show"
+    // Note: Actual 4-hour rule check is done in CancelAppointmentModal
+    const canCancelResult = status === 'Pending' || status === 'Confirmed'
+
+    // Debug logging
+    console.log('🔍 [DEBUG] canCancel check:', {
+      appointmentId: appointment.appointmentId,
+      status: appointment.status,
+      canCancel: canCancelResult,
+      note: 'Backend valid statuses: Pending, Confirmed, Completed, Cancelled, No-Show. 4-hour rule checked in modal.'
+    })
+
+    return canCancelResult
+  }
+
+  // Lọc lịch hẹn theo status - Sử dụng backend valid statuses
   const scheduledAppointments = appointments.filter((a) =>
-    !a.status ||
-    a.status === "scheduled" ||
-    a.status === "pending" ||
-    a.status === "confirmed" ||
-    a.status === "booked"
+    a.status === "Pending" ||
+    a.status === "Confirmed"
   )
   const inProgressAppointments = appointments.filter((a) =>
-    a.status === "in-progress" ||
-    a.status === "in_progress" ||
-    a.status === "ongoing"
+    a.status === "In-Progress" // Nếu có status này
   )
   const completedAppointments = appointments.filter((a) =>
-    a.status === "completed" ||
-    a.status === "done" ||
-    a.status === "finished"
+    a.status === "Completed"
   )
   const cancelledAppointments = appointments.filter((a) =>
-    a.status === "cancelled" ||
-    a.status === "canceled" ||
-    a.status === "cancelled"
+    a.status === "Cancelled"
   )
 
   const formatDate = (dateString: string) => {
@@ -116,19 +160,17 @@ export default function ReceptionAppointmentsPage() {
   const getStatusBadge = (status?: string) => {
     if (!status) return <Badge variant="secondary">Chưa xác nhận</Badge>
 
-    switch (status.toLowerCase()) {
-      case 'confirmed':
+    switch (status) {
+      case 'Pending':
+        return <Badge variant="secondary">Chờ xử lý</Badge>
+      case 'Confirmed':
         return <Badge variant="default" className="bg-green-500">Đã xác nhận</Badge>
-      case 'completed':
+      case 'Completed':
         return <Badge variant="default" className="bg-blue-500">Hoàn thành</Badge>
-      case 'cancelled':
+      case 'Cancelled':
         return <Badge variant="destructive">Đã hủy</Badge>
-      case 'pending':
-        return <Badge variant="secondary">Chờ xác nhận</Badge>
-      case 'scheduled':
-        return <Badge variant="outline">Đã đặt</Badge>
-      case 'in-progress':
-        return <Badge variant="secondary">Đang khám</Badge>
+      case 'No-Show':
+        return <Badge variant="outline" className="bg-orange-500">Không đến</Badge>
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
@@ -187,6 +229,26 @@ export default function ReceptionAppointmentsPage() {
             <Button size="sm" onClick={() => router.push(`/reception/appointments/${appointment.appointmentId}`)}>
               Chi tiết
             </Button>
+            {(() => {
+              const canCancelResult = canCancel(appointment)
+              console.log('🔍 [DEBUG] AppointmentCard render:', {
+                appointmentId: appointment.appointmentId,
+                status: appointment.status,
+                canCancel: canCancelResult,
+                willRenderButton: canCancelResult
+              })
+              return canCancelResult
+            })() && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleCancel(appointment)}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Hủy lịch
+                </Button>
+              )}
           </div>
         </div>
       </CardContent>
@@ -361,6 +423,16 @@ export default function ReceptionAppointmentsPage() {
               )}
             </TabsContent>
           </Tabs>
+        )}
+
+        {/* Cancel Modal */}
+        {cancelModal.appointment && (
+          <CancelAppointmentModal
+            isOpen={cancelModal.isOpen}
+            onClose={() => setCancelModal({ isOpen: false, appointment: null })}
+            appointment={cancelModal.appointment}
+            onSuccess={handleCancelSuccess}
+          />
         )}
       </div>
     </DashboardLayout>

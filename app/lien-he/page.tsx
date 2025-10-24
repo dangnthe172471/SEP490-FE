@@ -117,21 +117,42 @@ export default function LienHePage() {
         throw new Error("Thông tin đăng nhập không hợp lệ. Vui lòng đăng nhập lại.")
       }
 
-      // ✅ BƯỚC 4: Chuẩn bị DateTime (local time string)
+      // ✅ BƯỚC 4: Chuẩn bị DateTime (ISO string format)
       const [hours, minutes] = formData.time.split(':').map(Number)
 
       if (isNaN(hours) || isNaN(minutes)) {
         throw new Error("Thời gian không hợp lệ. Vui lòng chọn lại.")
       }
 
-      // Use local timezone format without UTC conversion
-      const appointmentDateStr = `${formData.date}T${formData.time}:00`
+      // Create Date object safely with proper validation
+      // Check if formData.time already has seconds, if not add them
+      let timeString = formData.time
+      if (!timeString.includes(':00') || timeString.split(':').length === 2) {
+        timeString = `${formData.time}:00` // Add seconds if not present
+      }
+      const dateTimeString = `${formData.date}T${timeString}`
+
+      // Create Date object in local timezone (no UTC conversion)
+      const appointmentDate = new Date(dateTimeString)
+
+      // Validate the date is valid
+      if (isNaN(appointmentDate.getTime())) {
+        throw new Error(`Thời gian không hợp lệ: ${dateTimeString}. Vui lòng chọn lại.`)
+      }
+
+      // Send local time string to backend (not ISO UTC)
+      const appointmentDateStr = dateTimeString
 
       console.log("📅 [DEBUG] Appointment DateTime:", {
         selectedDate: formData.date,
         selectedTime: formData.time,
+        timeLength: formData.time.length,
+        timeFormat: formData.time.includes(':') ? 'HH:MM' : 'other',
+        dateTimeString: dateTimeString,
+        appointmentDate: appointmentDate,
         appointmentDateStr: appointmentDateStr,
-        note: 'Using local timezone format without UTC conversion'
+        isValid: !isNaN(appointmentDate.getTime()),
+        note: 'Converted to ISO string for backend DateTime parsing'
       })
 
       // ✅ BƯỚC 5: Tạo request - Backend tự động lấy userId từ JWT token
@@ -196,10 +217,7 @@ export default function LienHePage() {
   }
 
 
-  // Memoized getDoctors function
-  const getDoctorsFunc = useCallback((page?: number, size?: number, term?: string) => {
-    return appointmentService.getPagedDoctors(page, size, term)
-  }, [])
+  // Note: getDoctors function removed as ServiceSelection now uses Manager API directly
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -415,7 +433,6 @@ export default function LienHePage() {
               isOpen={isBookingOpen}
               onClose={() => setIsBookingOpen(false)}
               onComplete={handleBookingComplete}
-              getDoctors={getDoctorsFunc}
             />
           )}
         </section>

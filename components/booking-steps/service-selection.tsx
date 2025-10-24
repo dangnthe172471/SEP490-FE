@@ -1,26 +1,63 @@
 // components/booking-steps/service-selection.tsx
-// (This version is correct)
+// Updated to use Manager API for doctors
 
 "use client"
 
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Stethoscope, Award, Briefcase, GraduationCap, Check, Loader2 } from "lucide-react"
-import { DoctorInfoDto, PagedResponse } from "@/lib/types/appointment"
+import { getToken } from "@/lib/auth"
 
-// Define props: accepts onSelect callback and getDoctors API function
-interface ServiceSelectionProps {
-    onSelect: (service: string, price: string, doctorName: string, doctorId: number) => void // Expects 4 args
-    getDoctors: (page?: number, size?: number, term?: string) => Promise<PagedResponse<DoctorInfoDto>>
+// Manager API DTOs
+export interface DoctorDTO {
+    doctorID: number
+    fullName: string
+    specialty: string
+    email: string
 }
 
-export function ServiceSelection({ onSelect, getDoctors }: ServiceSelectionProps) {
-    const [selectedDoctor, setSelectedDoctor] = useState<DoctorInfoDto | null>(null)
+// Define props: accepts onSelect callback
+interface ServiceSelectionProps {
+    onSelect: (service: string, price: string, doctorName: string, doctorId: number) => void // Expects 4 args
+}
+
+export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
+    const [selectedDoctor, setSelectedDoctor] = useState<DoctorDTO | null>(null)
 
     // State for API data
-    const [doctors, setDoctors] = useState<DoctorInfoDto[]>([])
+    const [doctors, setDoctors] = useState<DoctorDTO[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+
+    // Fetch doctors from Manager API
+    const fetchDoctors = async () => {
+        const token = getToken()
+        if (!token) {
+            setError('Không tìm thấy token xác thực. Vui lòng đăng nhập lại.')
+            return
+        }
+
+        try {
+            const response = await fetch('https://localhost:7168/api/Manager/doctors', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            setDoctors(data)
+            console.log('👨‍⚕️ Fetched doctors from Manager API:', data)
+        } catch (err: any) {
+            console.error('Error fetching doctors:', err)
+            setError(err.message || 'Không thể tải danh sách bác sĩ')
+        }
+    }
 
     // Fetch doctors when component mounts
     useEffect(() => {
@@ -28,9 +65,7 @@ export function ServiceSelection({ onSelect, getDoctors }: ServiceSelectionProps
             setIsLoading(true)
             setError(null)
             try {
-                // Call API function passed via props
-                const response = await getDoctors(1, 100) // Fetch up to 100 doctors
-                setDoctors(response.data)
+                await fetchDoctors()
             } catch (err: any) {
                 setError(err.message || "Không thể tải danh sách bác sĩ.")
             } finally {
@@ -38,10 +73,10 @@ export function ServiceSelection({ onSelect, getDoctors }: ServiceSelectionProps
             }
         }
         fetchAllDoctors()
-    }, [getDoctors]) // Re-run if getDoctors changes (though it likely won't)
+    }, [])
 
     // Handler when a doctor card is clicked
-    const handleDoctorSelect = (doctor: DoctorInfoDto) => {
+    const handleDoctorSelect = (doctor: DoctorDTO) => {
         setSelectedDoctor(doctor) // Update state to highlight selection
 
         // Determine service name from doctor's specialty
@@ -53,7 +88,7 @@ export function ServiceSelection({ onSelect, getDoctors }: ServiceSelectionProps
             service,          // Specialty
             price,
             doctor.fullName,  // Name
-            doctor.doctorId   // ID
+            doctor.doctorID   // ID (note: doctorID not doctorId)
         )
     }
 
@@ -75,66 +110,66 @@ export function ServiceSelection({ onSelect, getDoctors }: ServiceSelectionProps
     // Main render logic
     return (
         <div className="space-y-6">
-             <h3 className="text-lg font-semibold text-foreground">Chọn bác sĩ</h3>
-             <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2">
-                 {doctors.length === 0 && (
-                      <div className="p-4 rounded-lg bg-muted/50 text-center text-sm text-muted-foreground">
-                         Không tìm thấy bác sĩ nào.
-                     </div>
-                 )}
+            <h3 className="text-lg font-semibold text-foreground">Chọn bác sĩ</h3>
+            <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2">
+                {doctors.length === 0 && (
+                    <div className="p-4 rounded-lg bg-muted/50 text-center text-sm text-muted-foreground">
+                        Không tìm thấy bác sĩ nào.
+                    </div>
+                )}
 
-                 {/* Map through fetched doctors and render cards */}
-                 {doctors.map((doctor) => (
-                     <Card
-                         key={doctor.doctorId}
-                         onClick={() => handleDoctorSelect(doctor)}
-                         className={`border-2 cursor-pointer transition-all ${selectedDoctor?.doctorId === doctor.doctorId
-                             ? "border-primary bg-primary/5 shadow-md" // Highlight if selected
-                             : "border-border hover:shadow-md hover:border-primary/50"
-                             }`}
-                     >
-                         <CardContent className="p-4">
-                             <div className="flex items-start gap-3">
-                                 {/* Icon */}
-                                 <div className="p-2 rounded-lg bg-primary/10">
-                                     <Stethoscope className="h-5 w-5 text-primary" />
-                                 </div>
-                                 {/* Doctor Info */}
-                                 <div className="flex-1 min-w-0">
-                                     <div className="flex items-start justify-between gap-2">
-                                         <div>
-                                             <h4 className="font-semibold text-foreground">{doctor.fullName}</h4>
-                                             {/* Display specialty */}
-                                             <p className="text-sm text-primary font-medium">{doctor.specialty}</p>
-                                         </div>
-                                         {/* Checkmark if selected */}
-                                         {selectedDoctor?.doctorId === doctor.doctorId && (
-                                             <div className="p-1 rounded-full bg-primary">
-                                                 <Check className="h-4 w-4 text-white" />
-                                             </div>
-                                         )}
-                                     </div>
-                                     {/* Additional details */}
-                                     <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                                         <div className="flex items-center gap-2">
-                                             <Briefcase className="h-3.5 w-3.5 shrink-0" />
-                                             <span>{doctor.experienceYears} năm kinh nghiệm</span>
-                                         </div>
-                                         <div className="flex items-center gap-2">
-                                             <GraduationCap className="h-3.5 w-3.5 shrink-0" />
-                                             <span>Đại học Y (ví dụ)</span>
-                                         </div>
-                                         <div className="flex items-center gap-2">
-                                             <Award className="h-3.5 w-3.5 shrink-0" />
-                                             <span>Phòng: {doctor.roomName || "N/A"}</span>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </CardContent>
-                     </Card>
-                 ))}
-             </div>
+                {/* Map through fetched doctors and render cards */}
+                {doctors.map((doctor) => (
+                    <Card
+                        key={doctor.doctorID}
+                        onClick={() => handleDoctorSelect(doctor)}
+                        className={`border-2 cursor-pointer transition-all ${selectedDoctor?.doctorID === doctor.doctorID
+                            ? "border-primary bg-primary/5 shadow-md" // Highlight if selected
+                            : "border-border hover:shadow-md hover:border-primary/50"
+                            }`}
+                    >
+                        <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                                {/* Icon */}
+                                <div className="p-2 rounded-lg bg-primary/10">
+                                    <Stethoscope className="h-5 w-5 text-primary" />
+                                </div>
+                                {/* Doctor Info */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                            <h4 className="font-semibold text-foreground">{doctor.fullName}</h4>
+                                            {/* Display specialty */}
+                                            <p className="text-sm text-primary font-medium">{doctor.specialty}</p>
+                                        </div>
+                                        {/* Checkmark if selected */}
+                                        {selectedDoctor?.doctorID === doctor.doctorID && (
+                                            <div className="p-1 rounded-full bg-primary">
+                                                <Check className="h-4 w-4 text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Additional details */}
+                                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                        <div className="flex items-center gap-2">
+                                            <Briefcase className="h-3.5 w-3.5 shrink-0" />
+                                            <span>Chuyên khoa: {doctor.specialty}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+                                            <span>Email: {doctor.email}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Award className="h-3.5 w-3.5 shrink-0" />
+                                            <span>ID: {doctor.doctorID}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
         </div>
     )
 }
