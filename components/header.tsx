@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Menu, X, Phone, Clock, User as UserIcon, LogOut, MessageCircle } from "lucide-react"
+import { Menu, X, Phone, Clock, User as UserIcon, LogOut, MessageCircle, Calendar } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { getCurrentUser, logout, getRoleName, User } from "@/lib/auth"
@@ -189,10 +189,16 @@ export function Header() {
                     <span>Hồ sơ</span>
                   </DropdownMenuItem>
                   {currentUser.role === 'patient' && (
-                    <DropdownMenuItem onClick={() => router.push('/chat')}>
-                      <MessageCircle className="mr-2 h-4 w-4" />
-                      <span>Chat hỗ trợ</span>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem onClick={() => router.push('/patient/appointments')}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span>Lịch hẹn</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push('/chat')}>
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        <span>Chat hỗ trợ</span>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>

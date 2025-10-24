@@ -1,12 +1,15 @@
 "use client"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { ReceptionStats } from "@/components/reception-stats"
+import { ReceptionAppointments } from "@/components/reception-appointments"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar, Users, Clock, UserPlus, CalendarPlus, Activity, MessageCircle } from "lucide-react"
-import { mockAppointments, mockPatients } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
+import { getCurrentUser } from "@/lib/auth"
+import { useEffect, useState } from "react"
 
 const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
@@ -18,39 +21,70 @@ const navigation = [
 
 export default function ReceptionDashboard() {
   const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Get today's appointments
-  const today = new Date().toISOString().split("T")[0]
-  const todayAppointments = mockAppointments.filter((apt) => apt.status === "scheduled")
-  const upcomingAppointments = todayAppointments.slice(0, 5)
+  useEffect(() => {
+    const currentUser = getCurrentUser()
+    setUser(currentUser)
+    setIsLoading(false)
+  }, [])
 
-  // Statistics
-  const stats = [
-    {
-      title: "Lịch hẹn hôm nay",
-      value: todayAppointments.length.toString(),
-      icon: Calendar,
-      color: "text-primary",
-    },
-    {
-      title: "Đang chờ khám",
-      value: mockAppointments.filter((a) => a.status === "scheduled").length.toString(),
-      icon: Clock,
-      color: "text-chart-4",
-    },
-    {
-      title: "Tổng bệnh nhân",
-      value: mockPatients.length.toString(),
-      icon: Users,
-      color: "text-accent",
-    },
-    {
-      title: "Đã hoàn thành",
-      value: mockAppointments.filter((a) => a.status === "completed").length.toString(),
-      icon: Activity,
-      color: "text-chart-2",
-    },
-  ]
+  if (isLoading) {
+    return (
+      <DashboardLayout navigation={navigation}>
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  // Kiểm tra authentication và role
+  if (!user) {
+    return (
+      <DashboardLayout navigation={navigation}>
+        <div className="flex items-center justify-center py-8">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-6 text-center">
+              <div className="text-red-500 mb-4">
+                <svg className="h-12 w-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Cần đăng nhập</h2>
+              <p className="text-muted-foreground">
+                Vui lòng đăng nhập với tài khoản Lễ tân để truy cập trang này.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (user.role !== 'reception') {
+    return (
+      <DashboardLayout navigation={navigation}>
+        <div className="flex items-center justify-center py-8">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-6 text-center">
+              <div className="text-orange-500 mb-4">
+                <Users className="h-12 w-12 mx-auto" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Không có quyền truy cập</h2>
+              <p className="text-muted-foreground">
+                Chỉ tài khoản Lễ tân mới có thể truy cập trang này.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout navigation={navigation}>
@@ -60,58 +94,12 @@ export default function ReceptionDashboard() {
           <p className="text-muted-foreground">Quản lý tiếp nhận và lịch hẹn bệnh nhân</p>
         </div>
 
-        {/* Statistics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <Card key={stat.title}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                  <Icon className={`h-4 w-4 ${stat.color}`} />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+        {/* Statistics - Sử dụng component thực tế với API */}
+        <ReceptionStats />
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Today's Appointments */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Lịch hẹn hôm nay</CardTitle>
-              <CardDescription>Danh sách bệnh nhân đã đặt lịch</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {upcomingAppointments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Không có lịch hẹn nào</p>
-                ) : (
-                  upcomingAppointments.map((appointment) => (
-                    <div key={appointment.id} className="flex items-start justify-between border-b pb-4 last:border-0">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{appointment.time}</span>
-                        </div>
-                        <p className="text-sm font-medium">{appointment.patientName}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.doctorName}</p>
-                        <Badge variant="outline">{appointment.department}</Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => router.push(`/reception/appointments/${appointment.id}`)}>
-                          Chi tiết
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Today's Appointments - Sử dụng component thực tế với API */}
+          <ReceptionAppointments limit={5} />
 
           {/* Quick Actions */}
           <Card>
@@ -169,43 +157,6 @@ export default function ReceptionDashboard() {
           </Card>
         </div>
 
-        {/* Recent Patients */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bệnh nhân gần đây</CardTitle>
-            <CardDescription>Danh sách bệnh nhân đã đăng ký</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockPatients.slice(0, 4).map((patient) => (
-                <div key={patient.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-semibold text-primary">
-                        {patient.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{patient.name}</p>
-                      <p className="text-xs text-muted-foreground">{patient.phone}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{patient.id}</Badge>
-                    <Button size="sm" variant="ghost" onClick={() => router.push(`/reception/patients/${patient.id}`)}>
-                      Xem
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   )
