@@ -4,7 +4,7 @@ import {
   AppointmentDetail,
   AppointmentDetailDto,
   AppointmentListItemDto,
-} from "@/lib/types/appointment";
+} from "@/lib/types/doctor-appointment";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??

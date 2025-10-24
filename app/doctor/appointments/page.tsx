@@ -19,8 +19,8 @@ import {
   X,
 } from "lucide-react"
 
-import { Appointment, AppointmentDetail } from "@/lib/types/appointment"
-import { getDoctorAppointments, getDoctorAppointmentDetail } from "@/lib/services/appointment-service"
+import { Appointment, AppointmentDetail } from "@/lib/types/doctor-appointment"
+import { getDoctorAppointments, getDoctorAppointmentDetail } from "@/lib/services/doctor-appointment-service"
 
 const navigation = [
   { name: "Tổng quan", href: "/doctor", icon: Activity },
