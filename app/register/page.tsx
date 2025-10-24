@@ -6,7 +6,7 @@ import { ArrowLeft, Eye, EyeOff, Sparkles, UserPlus, Mail, Lock, Phone, User, Ca
 import { useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { apiService } from "@/api/index"
+import { authService } from "@/lib/services/auth.service"
 import { toast } from "sonner"
 
 export default function RegisterPage() {
@@ -100,7 +100,7 @@ export default function RegisterPage() {
         roleId: 2 // Always Patient role
       }
 
-      const response = await apiService.createUser(registerData)
+      const response = await authService.register(registerData)
       toast.success("Đăng ký thành công! Vui lòng đăng nhập.")
       router.push("/login")
     } catch (error: any) {

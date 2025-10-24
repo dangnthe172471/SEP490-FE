@@ -5,6 +5,7 @@ import { Menu, X, Phone, Clock, User as UserIcon, LogOut, MessageCircle } from "
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { getCurrentUser, logout, getRoleName, User } from "@/lib/auth"
+import { showConfirmAlert } from "@/lib/sweetalert-config"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,11 +46,18 @@ export function Header() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
-  const handleLogout = () => {
-    // Clear all data
-    setCurrentUser(null)
-    logout()
-    // logout() already redirects to home, no need for router.push
+  const handleLogout = async () => {
+    const result = await showConfirmAlert(
+      'Xác nhận đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?'
+    )
+
+    if (result.isConfirmed) {
+      // Clear all data
+      logout()
+      // Redirect về trang chủ
+      router.push('/')
+    }
   }
 
   const isActive = (href: string) => {

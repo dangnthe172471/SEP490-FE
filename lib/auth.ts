@@ -1,5 +1,6 @@
 // Authentication and authorization utilities
-import { apiService, ApiError } from '../api/index'
+import { authService } from './services/auth.service'
+import { ApiError } from './types/api'
 
 export type UserRole = "doctor" | "nurse" | "reception" | "pharmacy" | "admin" | "management" | "patient"
 
@@ -38,13 +39,13 @@ export function setCurrentUser(user: User | null) {
 
 export function logout() {
     setCurrentUser(null)
-    apiService.clearToken()
+    authService.clearToken()
 
     if (typeof window !== 'undefined') {
         localStorage.removeItem('token')
         localStorage.removeItem('auth_token')
         window.dispatchEvent(new Event('storage'))
-        window.location.href = '/'
+        // Không redirect tự động, để component xử lý
     }
 }
 
@@ -63,7 +64,7 @@ function mapBackendRoleToFrontend(backendRole: string): UserRole {
 
 export async function login(phone: string, password: string): Promise<User> {
     try {
-        const response = await apiService.authenticateUser({ phone, password })
+        const response = await authService.login({ phone, password })
         const user: User = {
             id: response.user.userId.toString(),
             email: response.user.email || response.user.phone || '',
@@ -74,7 +75,10 @@ export async function login(phone: string, password: string): Promise<User> {
         return user
     } catch (error: unknown) {
         if (error instanceof ApiError) {
-            if (error.status === 401) throw new Error("Số điện thoại hoặc mật khẩu không đúng")
+            if (error.status === 401) {
+                // Giữ nguyên message từ backend (có thể là tài khoản bị khóa)
+                throw new Error(error.message)
+            }
             throw new Error(`Lỗi đăng nhập: ${error.message}`)
         }
         throw new Error("Không thể kết nối đến server. Vui lòng thử lại sau.")

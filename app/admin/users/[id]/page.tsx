@@ -5,18 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Activity, 
-  Users, 
-  Settings, 
-  Shield, 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  User, 
-  Edit3, 
-  Trash2, 
+import {
+  Activity,
+  Users,
+  Settings,
+  Shield,
+  ArrowLeft,
+  Mail,
+  Phone,
+  Calendar,
+  User,
+  Edit3,
+  Trash2,
   Loader2,
   AlertCircle,
   CheckCircle,
@@ -26,7 +26,8 @@ import {
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { apiService, UserDto, UpdateUserRequest } from "@/api/index"
+import { userService } from "@/lib/services/user.service"
+import { UserDto, UpdateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { DateFormatter } from "@/components/date-formatter"
@@ -57,7 +58,7 @@ export default function UserDetailPage() {
   useEffect(() => {
     const currentUser = getCurrentUser()
     const token = localStorage.getItem('auth_token')
-    
+
     if (!currentUser || !token) {
       router.push('/login')
       return
@@ -85,9 +86,9 @@ export default function UserDetailPage() {
 
     setLoading(true)
     setError(null)
-    
+
     try {
-      const userData = await apiService.fetchUserById(parseInt(userId))
+      const userData = await userService.getUserById(parseInt(userId))
       setUser(userData)
       setEditData({
         fullName: userData.fullName,
@@ -118,7 +119,7 @@ export default function UserDetailPage() {
 
     try {
       setLoading(true)
-      
+
       // Validate email if provided
       if (editData.email && editData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editData.email.trim())) {
         toast.error("Email không hợp lệ")
@@ -132,10 +133,10 @@ export default function UserDetailPage() {
         setLoading(false)
         return
       }
-      
+
       // Clean and prepare data for update
       const updateData: any = {}
-      
+
       // Only include fields that are different from original
       if (editData.fullName !== undefined && editData.fullName !== user.fullName) {
         updateData.fullName = (editData.fullName || "").trim()
@@ -166,7 +167,7 @@ export default function UserDetailPage() {
         return
       }
 
-      const updatedUser = await apiService.updateUser(parseInt(userId), updateData)
+      const updatedUser = await userService.updateUser(parseInt(userId), updateData)
       setUser(updatedUser)
       setIsEditing(false)
       toast.success("Cập nhật thông tin thành công")
@@ -209,7 +210,7 @@ export default function UserDetailPage() {
 
     try {
       setIsTogglingStatus(true)
-      const updatedUser = await apiService.toggleUserStatus(parseInt(userId))
+      const updatedUser = await userService.toggleUserStatus(parseInt(userId))
       setUser(updatedUser)
       toast.success(`Đã ${action} tài khoản thành công`)
     } catch (err: any) {
@@ -228,7 +229,7 @@ export default function UserDetailPage() {
 
     try {
       setIsResettingPassword(true)
-      await apiService.updateUser(parseInt(userId), { password: "123456" })
+      await userService.updateUser(parseInt(userId), { password: "123456" })
       toast.success("Đã đặt lại mật khẩu về 123456")
     } catch (err: any) {
       console.warn("Reset password failed:", err)
@@ -364,8 +365,8 @@ export default function UserDetailPage() {
                     )}
                     Lưu thay đổi
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setIsEditing(false)
                       setEditData({
@@ -389,19 +390,19 @@ export default function UserDetailPage() {
                     <Edit3 className="mr-2 h-4 w-4" />
                     Chỉnh sửa
                   </Button>
-                <Button 
-                  variant="outline"
-                  onClick={handleResetPassword}
-                  disabled={isResettingPassword}
-                >
-                  {isResettingPassword ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <KeyRound className="mr-2 h-4 w-4" />
-                  )}
-                  Reset mật khẩu
-                </Button>
-                  <Button 
+                  <Button
+                    variant="outline"
+                    onClick={handleResetPassword}
+                    disabled={isResettingPassword}
+                  >
+                    {isResettingPassword ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <KeyRound className="mr-2 h-4 w-4" />
+                    )}
+                    Reset mật khẩu
+                  </Button>
+                  <Button
                     variant={user.isActive ? "destructive" : "default"}
                     onClick={handleToggleStatus}
                     disabled={isTogglingStatus}
@@ -449,7 +450,7 @@ export default function UserDetailPage() {
                     <input
                       type="text"
                       value={editData.fullName || ""}
-                      onChange={(e) => setEditData({...editData, fullName: e.target.value})}
+                      onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   ) : (
@@ -462,7 +463,7 @@ export default function UserDetailPage() {
                     <input
                       type="email"
                       value={editData.email || ""}
-                      onChange={(e) => setEditData({...editData, email: e.target.value})}
+                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   ) : (
@@ -475,7 +476,7 @@ export default function UserDetailPage() {
                     <input
                       type="tel"
                       value={editData.phone || ""}
-                      onChange={(e) => setEditData({...editData, phone: e.target.value})}
+                      onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   ) : (
@@ -525,7 +526,7 @@ export default function UserDetailPage() {
                   {isEditing ? (
                     <select
                       value={editData.gender || ""}
-                      onChange={(e) => setEditData({...editData, gender: e.target.value})}
+                      onChange={(e) => setEditData({ ...editData, gender: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
                     >
                       <option value="">Chọn giới tính</option>
@@ -555,7 +556,7 @@ export default function UserDetailPage() {
                     <input
                       type="date"
                       value={editData.dob || ""}
-                      onChange={(e) => setEditData({...editData, dob: e.target.value})}
+                      onChange={(e) => setEditData({ ...editData, dob: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   ) : (
@@ -567,7 +568,7 @@ export default function UserDetailPage() {
                   {isEditing ? (
                     <textarea
                       value={editData.allergies || ""}
-                      onChange={(e) => setEditData({...editData, allergies: e.target.value})}
+                      onChange={(e) => setEditData({ ...editData, allergies: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
                       rows={3}
                     />

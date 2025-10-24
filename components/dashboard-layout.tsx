@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { getCurrentUser, logout, getRoleName, type User } from "@/lib/auth"
+import { showConfirmAlert } from "@/lib/sweetalert-config"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -42,9 +43,16 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
     }
   }, [router])
 
-  const handleLogout = () => {
-    logout()
-    router.push("/")
+  const handleLogout = async () => {
+    const result = await showConfirmAlert(
+      'Xác nhận đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?'
+    )
+
+    if (result.isConfirmed) {
+      logout()
+      router.push("/")
+    }
   }
 
   if (!user) {

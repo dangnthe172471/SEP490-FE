@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, FileText, Users, Activity, Clock, AlertCircle } from "lucide-react"
+import { Calendar, FileText, Users, Activity, Clock, AlertCircle, ArrowRightLeft } from "lucide-react"
 import { mockAppointments, mockMedicalRecords } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
 
@@ -13,6 +13,7 @@ const navigation = [
   { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
   { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
   { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
+  { name: "Yêu cầu đổi ca", href: "/doctor/shift-swap", icon: ArrowRightLeft },
 ]
 
 export default function DoctorDashboard() {
