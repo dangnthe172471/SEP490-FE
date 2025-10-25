@@ -22,7 +22,7 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
     const [loading, setLoading] = useState(false)
     const [showMonthPicker, setShowMonthPicker] = useState(false)
 
-    // 🧩 Format ngày chuẩn local (không lệch timezone)
+    //  Format ngày chuẩn local (không lệch timezone)
     const formatDate = (d: Date) => {
         const y = d.getFullYear()
         const m = String(d.getMonth() + 1).padStart(2, "0")
@@ -40,11 +40,11 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
         const start = formatDate(firstDay)
         const end = formatDate(lastDay)
 
-        console.log("📅 Gọi API lịch từ:", start, "đến:", end)
+        console.log(" Gọi API lịch từ:", start, "đến:", end)
 
         try {
             const data = await managerService.getWorkScheduleByRange(start, end)
-            console.log("✅ Dữ liệu nhận từ API:", data)
+            console.log(" Dữ liệu nhận từ API:", data)
 
             // Chuẩn hóa dữ liệu để đảm bảo format ngày tháng nhất quán
             const normalizedData = (data || []).map((schedule: any) => {
@@ -58,27 +58,27 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
                 return schedule
             })
 
-            console.log("🔄 Dữ liệu đã chuẩn hóa:", normalizedData)
+            console.log(" Dữ liệu đã chuẩn hóa:", normalizedData)
 
             // Kiểm tra xem có dữ liệu trùng lặp không
             const uniqueDates = [...new Set(normalizedData.map((s: any) => s.date))]
-            console.log("📅 Unique dates in data:", uniqueDates)
+            console.log(" Unique dates in data:", uniqueDates)
 
             if (uniqueDates.length !== normalizedData.length) {
-                console.warn("⚠️ Có dữ liệu trùng lặp trong API response!")
-                console.warn("💡 Điều này có thể do ca làm việc 'vĩnh viễn' (EffectiveTo = NULL) được áp dụng cho tất cả ngày")
+                console.warn(" Có dữ liệu trùng lặp trong API response!")
+                console.warn(" Điều này có thể do ca làm việc 'vĩnh viễn' (EffectiveTo = NULL) được áp dụng cho tất cả ngày")
 
                 // Lọc bỏ dữ liệu trùng lặp nếu có
                 const filteredData = normalizedData.filter((schedule, index, self) =>
                     index === self.findIndex(s => s.date === schedule.date)
                 )
-                console.log("🔧 Đã lọc bỏ dữ liệu trùng lặp:", filteredData.length, "schedules")
+                console.log(" Đã lọc bỏ dữ liệu trùng lặp:", filteredData.length, "schedules")
                 setSchedules(filteredData)
             } else {
                 setSchedules(normalizedData)
             }
         } catch (error) {
-            console.error("❌ Lỗi khi tải lịch:", error)
+            console.error(" Lỗi khi tải lịch:", error)
             setSchedules([])
         } finally {
             setLoading(false)
@@ -95,10 +95,10 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
         const lastDay = new Date(currentYear, currentMonth + 1, 0)
         const allDays: DailyWorkScheduleDto[] = []
 
-        console.log("🔍 Schedules data:", schedules)
-        console.log("📅 Processing month:", currentMonth + 1, currentYear)
-        console.log("📊 Total schedules received:", schedules.length)
-        console.log("📋 Schedule dates:", schedules.map((s: any) => s.date))
+        console.log(" Schedules data:", schedules)
+        console.log(" Processing month:", currentMonth + 1, currentYear)
+        console.log(" Total schedules received:", schedules.length)
+        console.log(" Schedule dates:", schedules.map((s: any) => s.date))
 
         for (let i = 0; i < lastDay.getDate(); i++) {
             const d = new Date(currentYear, currentMonth, i + 1)
@@ -128,7 +128,7 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
             allDays.push(cloned)
         }
 
-        // Chia tuần bắt đầu từ thứ 2 (Monday = 1)
+        // Chia tuần bắt đầu từ thứ 2 
         const weeks: DailyWorkScheduleDto[][] = []
         let currentWeek: DailyWorkScheduleDto[] = []
 
@@ -151,7 +151,7 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
             }
         })
 
-        console.log("📊 Weeks created:", weeks.length, "weeks")
+        console.log(" Weeks created:", weeks.length, "weeks")
         return weeks
     }
 

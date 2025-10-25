@@ -28,7 +28,27 @@ export interface DailyWorkScheduleDto {
 }
 export interface PagedResult<T> {
     items: T[]
-    totalItems: number
     pageNumber: number
     pageSize: number
+    totalCount: number
+    totalPages?: number    
+    hasPrevious?: boolean
+    hasNext?: boolean
 }
+
+export interface DailySummaryDto {
+    date: string
+    shiftCount: number
+    doctorCount: number
+}
+// Dữ liệu trả về từ API GetGroupedWorkScheduleListAsync
+
+export interface WorkScheduleGroupDto {
+    effectiveFrom: string
+    effectiveTo: string
+    shifts: ShiftResponseDto[]
+}
+
+
+
+

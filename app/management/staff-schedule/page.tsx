@@ -10,7 +10,7 @@ import ScheduleCreateDialog from "./components/ScheduleCreateDialog"
 import ScheduleListView from "./components/ScheduleListView"
 import ScheduleMonthView from "./components/ScheduleMonthView"
 import ScheduleSummary from "./components/ScheduleSummary"
-
+import SchedulePeriodListView from "./components/SchedulePeriodListView"
 
 import { BarChart3, Calendar, Clock, FileText, TrendingUp } from "lucide-react"
 
@@ -27,7 +27,8 @@ export default function StaffSchedulePage() {
     const [schedules, setSchedules] = useState<any[]>([])
     const [shifts, setShifts] = useState<ShiftResponseDto[]>([])
     const [doctors, setDoctors] = useState<DoctorDto[]>([])
-    const [viewMode, setViewMode] = useState<"list" | "month">("list")
+    const [viewMode, setViewMode] = useState<"list" | "month" | "period">("list")
+
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -56,7 +57,7 @@ export default function StaffSchedulePage() {
                         size="sm"
                         onClick={() => setViewMode("list")}
                     >
-                        <List className="h-4 w-4 mr-2" /> Danh sách
+                        <List className="h-4 w-4 mr-2" /> Tuần
                     </Button>
                     <Button
                         variant={viewMode === "month" ? "default" : "outline"}
@@ -64,6 +65,13 @@ export default function StaffSchedulePage() {
                         onClick={() => setViewMode("month")}
                     >
                         <Grid3x3 className="h-4 w-4 mr-2" /> Tháng
+                    </Button>
+                    <Button
+                        variant={viewMode === "period" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setViewMode("period")}
+                    >
+                        <Clock className="h-4 w-4 mr-2" /> Khoảng thời gian tạo lịch
                     </Button>
                 </div>
 
@@ -73,13 +81,14 @@ export default function StaffSchedulePage() {
                         setSchedules={setSchedules}
                         doctors={doctors}
                     />
-
-                ) : (
+                ) : viewMode === "month" ? (
                     <ScheduleMonthView schedules={schedules} />
+                ) : (
+                    <SchedulePeriodListView /> 
                 )}
 
-                <ScheduleSummary schedules={schedules} doctors={doctors} />
 
+                <ScheduleSummary schedules={schedules} doctors={doctors} />
                 <ScheduleCreateDialog
                     open={isCreateDialogOpen}
                     onOpenChange={setIsCreateDialogOpen}
