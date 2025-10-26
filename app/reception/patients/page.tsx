@@ -28,7 +28,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { apiService, UserDto } from "@/api/index";
+import { userService } from "@/lib/services/user.service";
+import { UserDto } from "@/lib/types/api";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ClientOnly } from "@/components/client-only";
@@ -62,7 +63,7 @@ export default function ReceptionPatientsPage() {
     setLoading(true);
     setError(null);
     try {
-      const usersData = await apiService.fetchAllPatients();
+      const usersData = await userService.fetchAllPatients();
 
       const processedUsers: User[] = usersData
         .filter((user) => user != null)
@@ -116,7 +117,7 @@ export default function ReceptionPatientsPage() {
 
   //   try {
   //     setDeletingUserId(id);
-  //     await apiService.deletePatient(parseInt(id));
+  //     await userService.deletePatient(parseInt(id));
   //     toast.success("Xóa bệnh nhân thành công");
   //     await fetchUsers();
   //   } catch (err: any) {

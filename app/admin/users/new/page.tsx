@@ -7,18 +7,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { 
-  Activity, 
-  Users, 
-  Settings, 
-  Shield, 
-  ArrowLeft, 
-  Save, 
+import {
+  Activity,
+  Users,
+  Settings,
+  Shield,
+  ArrowLeft,
+  Save,
   Loader2
 } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { apiService, CreateUserRequest } from "@/api/index"
+import { userService } from "@/lib/services/user.service"
+import { CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 
@@ -167,7 +168,7 @@ export default function CreateUserPage() {
         createData.medicalHistory = formData.medicalHistory.trim()
       }
 
-      await apiService.createUserAdmin(createData)
+      await userService.createUserAdmin(createData)
       toast.success("Tạo người dùng thành công!")
       router.push("/admin/users")
     } catch (err: any) {

@@ -12,7 +12,7 @@ import {
     X
 } from "lucide-react"
 import { toast } from "sonner"
-import { apiService } from "@/api/index"
+import { authService } from "@/lib/services/auth.service"
 
 interface MedicalInfo {
     allergies: string
@@ -42,7 +42,7 @@ export function MedicalInfoEditModal({ isOpen, onClose, medicalInfo, onSave }: M
             setIsLoading(true)
 
             // Call API to update medical info
-            const response = await apiService.updateMedicalInfo(formData)
+            const response = await authService.updateMedicalInfo(formData)
 
             onSave({
                 allergies: response.user.allergies || '',

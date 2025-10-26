@@ -40,6 +40,7 @@ const navigation = [
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
   { name: "Lịch làm việc", href: "/management/staff-schedule", icon: CalendarIcon },
   { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
+  { name: "Yêu cầu đổi ca", href: "/management/shift-swap-requests", icon: Calendar },
   { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
   { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
   { name: "Phòng khám", href: "/management/rooms", icon: Building2 },

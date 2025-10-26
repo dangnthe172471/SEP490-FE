@@ -28,7 +28,8 @@ import {
 } from "lucide-react";
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { apiService, CreateUserRequest } from "@/api/index"
+import { userService } from "@/lib/services/user.service"
+import { CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 
@@ -55,12 +56,12 @@ interface CreateUserData {
 
 // const roleOptions = [
 //   { value: 2, label: "Bệnh nhân" },
-  // { value: 3, label: "Lễ tân" },
-  // { value: 4, label: "Bác sĩ" },
-  // { value: 5, label: "Y tá" },
-  // { value: 6, label: "Nhà cung cấp dược phẩm" },
-  // { value: 7, label: "Quản lý phòng khám" },
-  // { value: 8, label: "Quản trị viên" },
+// { value: 3, label: "Lễ tân" },
+// { value: 4, label: "Bác sĩ" },
+// { value: 5, label: "Y tá" },
+// { value: 6, label: "Nhà cung cấp dược phẩm" },
+// { value: 7, label: "Quản lý phòng khám" },
+// { value: 8, label: "Quản trị viên" },
 // ]
 
 const genderOptions = [
@@ -178,7 +179,7 @@ export default function CreateUserPage() {
         createData.medicalHistory = formData.medicalHistory.trim()
       }
 
-      await apiService.createUserAdmin(createData)
+      await userService.createUserAdmin(createData)
       toast.success("Tạo bệnh nhân thành công!")
       router.push("/reception/patients")
     } catch (err: any) {

@@ -38,30 +38,30 @@ const SHIFTS: Record<ShiftKey, { label: string; timeWindow: string; startHour: n
 
 /* ===== Date helpers ===== */
 const toISO = (d: Date) => {
-  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,"0"), day = String(d.getDate()).padStart(2,"0")
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0")
   return `${y}-${m}-${day}`
 }
 const addDays = (iso: string, days: number) => {
-  const d = new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days); return toISO(d)
+  const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + days); return toISO(d)
 }
 const startOfWeekMonday = (iso: string) => {
-  const d = new Date(iso+"T00:00:00"); const day = d.getDay()===0?7:d.getDay(); d.setDate(d.getDate()-(day-1)); return toISO(d)
+  const d = new Date(iso + "T00:00:00"); const day = d.getDay() === 0 ? 7 : d.getDay(); d.setDate(d.getDate() - (day - 1)); return toISO(d)
 }
-const generate7Days = (startISO: string) => Array.from({length:7},(_,i)=>addDays(startISO,i))
+const generate7Days = (startISO: string) => Array.from({ length: 7 }, (_, i) => addDays(startISO, i))
 const getShiftForTime = (time: string): ShiftKey | null => {
-  const [h,m]=time.split(":"); const hm=parseInt(h,10)+(parseInt(m??"0",10)/60)
-  if(hm>=7 && hm<12) return "morning"
-  if(hm>=13 && hm<17) return "afternoon"
-  if(hm>=17 && hm<21) return "evening"
+  const [h, m] = time.split(":"); const hm = parseInt(h, 10) + (parseInt(m ?? "0", 10) / 60)
+  if (hm >= 7 && hm < 12) return "morning"
+  if (hm >= 13 && hm < 17) return "afternoon"
+  if (hm >= 17 && hm < 21) return "evening"
   return null
 }
 const formatDM = (iso: string) => {
-  const d = new Date(iso+"T00:00:00")
-  const dd = String(d.getDate()).padStart(2,"0")
-  const mm = String(d.getMonth()+1).padStart(2,"0")
+  const d = new Date(iso + "T00:00:00")
+  const dd = String(d.getDate()).padStart(2, "0")
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
   return `${dd}/${mm}`
 }
-const weekLabel = (startISO: string) => `${formatDM(startISO)} To ${formatDM(addDays(startISO,6))}`
+const weekLabel = (startISO: string) => `${formatDM(startISO)} To ${formatDM(addDays(startISO, 6))}`
 
 export default function DoctorAppointmentsPage() {
   const router = useRouter()
@@ -74,7 +74,7 @@ export default function DoctorAppointmentsPage() {
   // Tạo danh sách tuần: 2 tuần trước → 6 tuần sau (tuỳ ý tăng/giảm)
   const weekOptions = useMemo(() => {
     const base = currentWeekStart
-    return Array.from({ length: 9 }, (_, i) => addDays(base, (i-2) * 7))
+    return Array.from({ length: 9 }, (_, i) => addDays(base, (i - 2) * 7))
   }, [currentWeekStart])
 
   // ---- Data
@@ -89,23 +89,23 @@ export default function DoctorAppointmentsPage() {
   // ---- Load list
   useEffect(() => {
     let mounted = true
-    ;(async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await getDoctorAppointments()
-        if (mounted) setItems(data)
-      } catch (e: any) {
-        const msg = e?.message ?? "Không thể tải dữ liệu"
-        if ((msg === "UNAUTHORIZED" || /401|403/.test(msg)) && window.location.pathname !== "/login") {
-          router.replace("/login?reason=unauthorized")
-          return
+      ; (async () => {
+        try {
+          setLoading(true)
+          setError(null)
+          const data = await getDoctorAppointments()
+          if (mounted) setItems(data)
+        } catch (e: any) {
+          const msg = e?.message ?? "Không thể tải dữ liệu"
+          if ((msg === "UNAUTHORIZED" || /401|403/.test(msg)) && window.location.pathname !== "/login") {
+            router.replace("/login?reason=unauthorized")
+            return
+          }
+          if (mounted) setError(msg)
+        } finally {
+          if (mounted) setLoading(false)
         }
-        if (mounted) setError(msg)
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    })()
+      })()
     return () => { mounted = false }
   }, [router])
 
@@ -208,8 +208,8 @@ export default function DoctorAppointmentsPage() {
                 </th>
                 {weekDates.map((iso) => {
                   const d = new Date(iso + "T00:00:00")
-                  const dow = d.toLocaleDateString("vi-VN",{weekday:"short"})
-                  const dm = d.toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit"})
+                  const dow = d.toLocaleDateString("vi-VN", { weekday: "short" })
+                  const dm = d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
                   return (
                     <th key={iso} className="p-4 text-center text-white font-bold min-w-60">
                       <div className="whitespace-pre-line leading-tight tracking-wide">
@@ -221,7 +221,7 @@ export default function DoctorAppointmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {(["morning","afternoon","evening"] as ShiftKey[]).map((shiftKey) => (
+              {(["morning", "afternoon", "evening"] as ShiftKey[]).map((shiftKey) => (
                 <tr key={shiftKey} className="align-top hover:bg-slate-50 transition-colors">
                   <td className="border border-slate-300 p-5 font-semibold bg-slate-50 sticky left-0">
                     <div className="text-slate-900 text-base">{SHIFTS[shiftKey].label}</div>
@@ -292,8 +292,8 @@ export default function DoctorAppointmentsPage() {
                       <CalendarIcon className="w-4 h-4 text-blue-600" /> Ngày khám
                     </label>
                     <p className="font-medium">
-                      {new Date(selected.appointmentDateISO+"T00:00:00").toLocaleDateString("vi-VN",{
-                        weekday:"short",year:"numeric",month:"2-digit",day:"2-digit",
+                      {new Date(selected.appointmentDateISO + "T00:00:00").toLocaleDateString("vi-VN", {
+                        weekday: "short", year: "numeric", month: "2-digit", day: "2-digit",
                       })}
                     </p>
                   </div>
