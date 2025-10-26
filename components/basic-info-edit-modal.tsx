@@ -17,7 +17,7 @@ import {
     X
 } from "lucide-react"
 import { toast } from "sonner"
-import { apiService } from "@/api/index"
+import { authService } from "@/lib/services/auth.service"
 
 interface BasicInfo {
     fullName: string
@@ -61,7 +61,7 @@ export function BasicInfoEditModal({ isOpen, onClose, basicInfo, onSave }: Basic
             }
 
             // Call API to update basic info
-            const response = await apiService.updateBasicInfo(formData)
+            const response = await authService.updateBasicInfo(formData)
 
             onSave({
                 fullName: response.user.fullName || '',
