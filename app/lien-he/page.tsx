@@ -23,7 +23,6 @@ export default function LienHePage() {
   const [isBookingOpen, setIsBookingOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
-    phone: "",
     email: "",
     service: "",
     date: "",
@@ -100,10 +99,6 @@ export default function LienHePage() {
 
       if (!formData.date || !formData.time) {
         throw new Error("Vui lòng chọn ngày giờ khám.")
-      }
-
-      if (!formData.phone || formData.phone.trim() === "") {
-        throw new Error("Vui lòng nhập số điện thoại.")
       }
 
       // ✅ BƯỚC 3: Lấy và validate userId
@@ -184,7 +179,6 @@ export default function LienHePage() {
       // ✅ BƯỚC 8: Reset form (giữ lại name và email)
       setFormData((prev) => ({
         name: prev.name,
-        phone: "",
         email: prev.email,
         service: "",
         date: "",
@@ -320,33 +314,19 @@ export default function LienHePage() {
                   )}
 
                   <form className="space-y-6" onSubmit={handleSubmit}>
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold">Họ và tên *</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleInputChange}
-                          className="h-12 w-full rounded-xl border-2 border-input bg-white px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:bg-muted"
-                          placeholder="Nhập họ và tên"
-                          required
-                          // ✅ SỬA LỖI HYDRATION: Thêm !isClient
-                          disabled={!isClient || !!loggedInUser}
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold">Số điện thoại *</label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleInputChange}
-                          className="h-12 w-full rounded-xl border-2 border-input bg-white px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                          placeholder="Nhập số điện thoại"
-                          required
-                        />
-                      </div>
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold">Họ và tên *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className="h-12 w-full rounded-xl border-2 border-input bg-white px-4 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:bg-muted"
+                        placeholder="Nhập họ và tên"
+                        required
+                        // ✅ SỬA LỖI HYDRATION: Thêm !isClient
+                        disabled={!isClient || !!loggedInUser}
+                      />
                     </div>
 
                     <div className="space-y-3">
