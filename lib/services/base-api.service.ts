@@ -30,7 +30,8 @@ export class BaseApiService {
 
         const config: RequestInit = {
             headers: {
-                'Content-Type': 'application/json',
+                // Only set Content-Type for non-FormData requests
+                ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
                 ...(this.token && { Authorization: `Bearer ${this.token}` }),
                 ...options.headers,
             },
