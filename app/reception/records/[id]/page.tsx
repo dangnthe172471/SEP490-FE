@@ -94,8 +94,9 @@ interface AppointmentDetail {
 
 // --- Navigation cố định ---
 const navigation = [
-   { name: "Tổng quan", href: "/reception", icon: Activity },
+  { name: "Tổng quan", href: "/reception", icon: Activity },
   { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
+  { name: "Xem lịch", href: "/reception/appointments-schedule", icon: Calendar },
   { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
   { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
   { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
@@ -123,13 +124,13 @@ export default function MedicalRecordDetailPage() {
         if (!res.ok) throw new Error("Không thể tải dữ liệu hồ sơ.")
         const data: MedicalRecord = await res.json()
         setRecord(data)
-        
+
         let appointmentInfo = appointmentCache[data?.appointment?.appointmentId]
-            if (!appointmentInfo) {
-              const aRes = await fetch(`https://localhost:7168/api/Appointments/${data?.appointment?.appointmentId}`)
-              appointmentInfo = await aRes.json()
-              setAppointmentCache((prev) => ({ ...prev, [data?.appointment?.appointmentId]: appointmentInfo }))
-            }
+        if (!appointmentInfo) {
+          const aRes = await fetch(`https://localhost:7168/api/Appointments/${data?.appointment?.appointmentId}`)
+          appointmentInfo = await aRes.json()
+          setAppointmentCache((prev) => ({ ...prev, [data?.appointment?.appointmentId]: appointmentInfo }))
+        }
         // --- Lấy thông tin bệnh nhân từ bảng Users ---
         const patientId = data?.appointment?.patientId
         if (patientId) {

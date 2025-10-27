@@ -13,11 +13,12 @@ import { toast } from "sonner"
 
 const navigation = [
     { name: "Tổng quan", href: "/reception", icon: Activity },
-  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
-  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
-  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
+    { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
+    { name: "Xem lịch", href: "/reception/appointments-schedule", icon: Calendar },
+    { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+    { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
+    { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
+    { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]
 
 
