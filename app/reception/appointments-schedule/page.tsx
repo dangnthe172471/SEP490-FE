@@ -199,6 +199,25 @@ export default function ReceptionAppointmentsSchedulePage() {
         }
     }
 
+    const getAppointmentCardColor = (status?: string) => {
+        if (!status) return "bg-gray-100 text-gray-800 border-gray-300"
+
+        switch (status) {
+            case 'Pending':
+                return "bg-yellow-100 text-yellow-800 border-yellow-300"
+            case 'Confirmed':
+                return "bg-green-100 text-green-800 border-green-300"
+            case 'Completed':
+                return "bg-blue-100 text-blue-800 border-blue-300"
+            case 'Cancelled':
+                return "bg-red-100 text-red-800 border-red-300"
+            case 'No-Show':
+                return "bg-orange-100 text-orange-800 border-orange-300"
+            default:
+                return "bg-gray-100 text-gray-800 border-gray-300"
+        }
+    }
+
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
@@ -277,29 +296,32 @@ export default function ReceptionAppointmentsSchedulePage() {
                                             <td key={`${shiftKey}-${iso}`} className="border border-slate-300 p-4 align-top">
                                                 {items.length ? (
                                                     <div className="space-y-3">
-                                                        {items.map((apt) => (
-                                                            <button
-                                                                key={apt.appointmentId}
-                                                                onClick={() => openDetail(apt)}
-                                                                className="w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer bg-green-100 text-green-800 border border-green-300 hover:shadow-md"
-                                                                title={`${apt.patientName} (${apt.appointmentTime}) - ${apt.doctorName}`}
-                                                            >
-                                                                <div className="flex items-center gap-3 leading-none">
-                                                                    <Clock className="w-5 h-5 shrink-0 translate-y-[0.5px]" />
-                                                                    <span className="font-semibold tabular-nums tracking-tight text-base">
-                                                                        {apt.appointmentTime}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="mt-1 flex items-center gap-2 text-[15px] leading-tight">
-                                                                    <User className="w-4 h-4 shrink-0" />
-                                                                    <span className="font-medium truncate">{apt.patientName}</span>
-                                                                </div>
-                                                                <div className="mt-1 flex items-center gap-2 text-xs leading-tight">
-                                                                    <Stethoscope className="w-3 h-3 shrink-0" />
-                                                                    <span className="text-slate-600 truncate">{apt.doctorName}</span>
-                                                                </div>
-                                                            </button>
-                                                        ))}
+                                                        {items.map((apt) => {
+                                                            const cardColor = getAppointmentCardColor(apt.status)
+                                                            return (
+                                                                <button
+                                                                    key={apt.appointmentId}
+                                                                    onClick={() => openDetail(apt)}
+                                                                    className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer ${cardColor} hover:shadow-md`}
+                                                                    title={`${apt.patientName} (${apt.appointmentTime}) - ${apt.doctorName} - ${apt.status || 'Chưa xác nhận'}`}
+                                                                >
+                                                                    <div className="flex items-center gap-3 leading-none">
+                                                                        <Clock className="w-5 h-5 shrink-0 translate-y-[0.5px]" />
+                                                                        <span className="font-semibold tabular-nums tracking-tight text-base">
+                                                                            {apt.appointmentTime}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="mt-1 flex items-center gap-2 text-[15px] leading-tight">
+                                                                        <User className="w-4 h-4 shrink-0" />
+                                                                        <span className="font-medium truncate">{apt.patientName}</span>
+                                                                    </div>
+                                                                    <div className="mt-1 flex items-center gap-2 text-xs leading-tight">
+                                                                        <Stethoscope className="w-3 h-3 shrink-0" />
+                                                                        <span className="text-slate-600 truncate">{apt.doctorName}</span>
+                                                                    </div>
+                                                                </button>
+                                                            )
+                                                        })}
                                                     </div>
                                                 ) : (
                                                     <div className="flex items-center justify-center h-20 text-slate-300 text-sm font-medium">—</div>
