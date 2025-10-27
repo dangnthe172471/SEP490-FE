@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Users, UserPlus, Activity, ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react"
+import { Calendar, Users, UserPlus, Activity, ArrowLeft, Save, Loader2, AlertCircle, FileText, MessageCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { useEffect, useState } from "react"
@@ -18,9 +18,11 @@ import { PatientSearch } from "@/components/patient-search"
 
 const navigation = [
     { name: "Tổng quan", href: "/reception", icon: Activity },
-    { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
-    { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-    { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
+  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
+  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
+  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
+  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]
 
 export default function NewAppointmentPage() {
