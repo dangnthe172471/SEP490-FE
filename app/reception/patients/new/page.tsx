@@ -8,14 +8,24 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Activity,
+  Calendar,
   Users,
+  UserPlus,
+  Activity,
   Settings,
   Shield,
-  ArrowLeft,
   Save,
-  Loader2
-} from "lucide-react"
+  ArrowLeft,
+  Search,
+  Phone,
+  Mail,
+  Loader2,
+  Trash2,
+  Edit3,
+  CheckCircle,
+  MessageCircle,
+  AlertCircle,
+} from "lucide-react";
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { userService } from "@/lib/services/user.service"
@@ -24,10 +34,11 @@ import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 
 const navigation = [
-  { name: "Tổng quan", href: "/admin", icon: Activity },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
-  { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-  { name: "Cài đặt", href: "/admin/settings", icon: Settings },
+  { name: "Tổng quan", href: "/reception", icon: Activity },
+  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
+  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
+  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]
 
 interface CreateUserData {
@@ -43,15 +54,15 @@ interface CreateUserData {
   medicalHistory: string
 }
 
-const roleOptions = [
-  // { value: 2, label: "Bệnh nhân" },
-  { value: 3, label: "Lễ tân" },
-  { value: 4, label: "Bác sĩ" },
-  { value: 5, label: "Y tá" },
-  // { value: 6, label: "Nhà cung cấp dược phẩm" },
-  // { value: 7, label: "Quản lý phòng khám" },
-  // { value: 8, label: "Quản trị viên" },
-]
+// const roleOptions = [
+//   { value: 2, label: "Bệnh nhân" },
+// { value: 3, label: "Lễ tân" },
+// { value: 4, label: "Bác sĩ" },
+// { value: 5, label: "Y tá" },
+// { value: 6, label: "Nhà cung cấp dược phẩm" },
+// { value: 7, label: "Quản lý phòng khám" },
+// { value: 8, label: "Quản trị viên" },
+// ]
 
 const genderOptions = [
   { value: "Nam", label: "Nam" },
@@ -69,7 +80,7 @@ export default function CreateUserPage() {
     phone: "",
     password: "",
     confirmPassword: "",
-    role: 4, // Default to Patient
+    role: 2, // Default to Patient
     gender: "",
     dob: "",
     allergies: "",
@@ -169,11 +180,11 @@ export default function CreateUserPage() {
       }
 
       await userService.createUserAdmin(createData)
-      toast.success("Tạo người dùng thành công!")
-      router.push("/admin/users")
+      toast.success("Tạo bệnh nhân thành công!")
+      router.push("/reception/patients")
     } catch (err: any) {
       console.error("Error creating user:", err)
-      const errorMessage = err.message || "Không thể tạo người dùng"
+      const errorMessage = err.message || "Không thể tạo bệnh nhân"
       toast.error(errorMessage)
     } finally {
       setLoading(false)
@@ -196,15 +207,15 @@ export default function CreateUserPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push("/admin/users")}
+                onClick={() => router.push("/reception/patients")}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Quay lại
               </Button>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Tạo người dùng mới</h1>
-                <p className="text-muted-foreground">Thêm người dùng mới vào hệ thống</p>
+                <h1 className="text-3xl font-bold tracking-tight">Tạo bệnh nhân mới</h1>
+                <p className="text-muted-foreground">Thêm bệnh nhân mới vào hệ thống</p>
               </div>
             </div>
           </div>
@@ -216,7 +227,7 @@ export default function CreateUserPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Thông tin cơ bản</CardTitle>
-                  <CardDescription>Thông tin cá nhân của người dùng</CardDescription>
+                  <CardDescription>Thông tin cá nhân của bệnh nhân</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -258,8 +269,9 @@ export default function CreateUserPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="role">Vai trò *</Label>
-                    <Select
+                    <Label htmlFor="role">Vai trò</Label>
+                    <p className="text-muted-foreground">Bệnh nhân</p>
+                    {/* <Select
                       value={formData.role.toString()}
                       onValueChange={(value) => handleInputChange("role", parseInt(value))}
                     >
@@ -274,7 +286,7 @@ export default function CreateUserPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
+                    {errors.role && <p className="text-sm text-red-500">{errors.role}</p>} */}
                   </div>
                 </CardContent>
               </Card>
@@ -380,7 +392,7 @@ export default function CreateUserPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/admin/users")}
+                onClick={() => router.push("/reception/patients")}
                 disabled={loading}
               >
                 Hủy
@@ -394,7 +406,7 @@ export default function CreateUserPage() {
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Tạo người dùng
+                    Tạo bệnh nhân
                   </>
                 )}
               </Button>

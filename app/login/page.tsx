@@ -8,6 +8,7 @@ import { useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { login, getDashboardPath } from "@/lib/auth"
+import { showSuccessAlert, showErrorAlert, showAccountLockedAlert, showWarningAlert } from "@/lib/sweetalert-config"
 import { toast } from "sonner"
 
 export default function LoginPage() {
@@ -31,7 +32,7 @@ export default function LoginPage() {
     e.preventDefault()
 
     if (!formData.phone || !formData.password) {
-      toast.error("Vui lòng nhập đầy đủ thông tin")
+      showWarningAlert('Thiếu thông tin', 'Vui lòng nhập đầy đủ số điện thoại và mật khẩu', 6000)
       return
     }
 
@@ -39,14 +40,32 @@ export default function LoginPage() {
 
     try {
       const user = await login(formData.phone, formData.password)
-      toast.success(`Chào mừng ${user.name}!`)
+
+      // Hiển thị cả 2 thông báo
+      // 1. SweetAlert2 thông báo thành công
+      showSuccessAlert('Đăng nhập thành công!', `Chào mừng ${user.name}!`, 1000)
+
+      // 2. Toast "xin chào" từ sonner
+      toast.success(`Xin chào ${user.name}!`)
 
       // Trigger storage event to update header
       window.dispatchEvent(new Event('storage'))
 
-      router.push(getDashboardPath(user.role))
+      // Chuyển trang sau khi hiện thông báo
+      setTimeout(() => {
+        router.push(getDashboardPath(user.role))
+      }, 1000)
+
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Đăng nhập thất bại")
+      const errorMessage = error instanceof Error ? error.message : "Đăng nhập thất bại"
+
+      // Kiểm tra nếu là lỗi tài khoản bị khóa
+      if (errorMessage.includes("khóa") || errorMessage.includes("tạm khóa")) {
+        showAccountLockedAlert(errorMessage)
+      } else {
+        // Lỗi thường (sai mật khẩu, không tìm thấy user, etc.)
+        showErrorAlert('Đăng nhập thất bại', errorMessage, 8000)
+      }
     } finally {
       setIsLoading(false)
     }

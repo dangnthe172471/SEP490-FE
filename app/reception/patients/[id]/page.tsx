@@ -20,8 +20,10 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  UserPlus,
   Lock,
   Unlock,
+  MessageCircle,
   KeyRound
 } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -34,10 +36,11 @@ import { DateFormatter } from "@/components/date-formatter"
 import { getCurrentUser } from "@/lib/auth"
 
 const navigation = [
-  { name: "Tổng quan", href: "/admin", icon: Activity },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
-  { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-  { name: "Cài đặt", href: "/admin/settings", icon: Settings },
+  { name: "Tổng quan", href: "/reception", icon: Activity },
+  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
+  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
+  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]
 
 export default function UserDetailPage() {
@@ -79,7 +82,7 @@ export default function UserDetailPage() {
   // Fetch user details
   const fetchUserDetails = async () => {
     if (!userId || isNaN(parseInt(userId))) {
-      setError("ID người dùng không hợp lệ")
+      setError("ID bệnh nhân không hợp lệ")
       setLoading(false)
       return
     }
@@ -101,7 +104,7 @@ export default function UserDetailPage() {
       })
     } catch (err: any) {
       console.error("Error fetching user details:", err)
-      const errorMessage = err.message || "Không thể tải thông tin người dùng"
+      const errorMessage = err.message || "Không thể tải thông tin bệnh nhân"
       setError(errorMessage)
       toast.error(errorMessage)
     } finally {
@@ -173,7 +176,7 @@ export default function UserDetailPage() {
       toast.success("Cập nhật thông tin thành công")
     } catch (err: any) {
       console.error("Error updating user:", err)
-      const errorMessage = err.message || "Không thể cập nhật thông tin người dùng"
+      const errorMessage = err.message || "Không thể cập nhật thông tin bệnh nhân"
       toast.error(errorMessage)
     } finally {
       setLoading(false)
@@ -184,17 +187,17 @@ export default function UserDetailPage() {
   // const handleDelete = async () => {
   //   if (!user || !userId) return
 
-  //   const confirmMessage = `Bạn có chắc chắn muốn xóa người dùng "${user.fullName || user.email || `ID: ${user.userId}`}"?\n\nHành động này không thể hoàn tác!`
+  //   const confirmMessage = `Bạn có chắc chắn muốn xóa bệnh nhân "${user.fullName || user.email || `ID: ${user.userId}`}"?\n\nHành động này không thể hoàn tác!`
   //   if (!confirm(confirmMessage)) return
 
   //   try {
   //     setIsDeleting(true)
   //     await userService.deleteUser(parseInt(userId))
-  //     toast.success("Xóa người dùng thành công")
+  //     toast.success("Xóa bệnh nhân thành công")
   //     router.push("/admin/users")
   //   } catch (err: any) {
   //     console.warn("Delete user failed:", err)
-  //     const errorMessage = err?.message || "Không thể xóa người dùng"
+  //     const errorMessage = err?.message || "Không thể xóa bệnh nhân"
   //     toast.error(errorMessage)
   //   } finally {
   //     setIsDeleting(false)
@@ -225,7 +228,7 @@ export default function UserDetailPage() {
   const handleResetPassword = async () => {
     if (!user || !userId) return
 
-    if (!confirm("Đặt lại mật khẩu của người dùng này về 123456?")) return
+    if (!confirm("Đặt lại mật khẩu của bệnh nhân này về 123456?")) return
 
     try {
       setIsResettingPassword(true)
@@ -310,7 +313,7 @@ export default function UserDetailPage() {
             <CardContent className="py-12 text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <p className="text-red-500 font-medium mb-4">
-                {error || "Không tìm thấy người dùng"}
+                {error || "Không tìm thấy bệnh nhân"}
               </p>
               <Button onClick={() => router.push("/admin/users")} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -339,7 +342,7 @@ export default function UserDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push("/admin/users")}
+                onClick={() => router.push("/reception/patients")}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -347,10 +350,10 @@ export default function UserDetailPage() {
               </Button>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  {isEditing ? "Chỉnh sửa người dùng" : "Chi tiết người dùng"}
+                  {isEditing ? "Chỉnh sửa bệnh nhân" : "Chi tiết bệnh nhân"}
                 </h1>
                 <p className="text-muted-foreground">
-                  {isEditing ? "Cập nhật thông tin người dùng" : "Xem thông tin chi tiết người dùng"}
+                  {isEditing ? "Cập nhật thông tin bệnh nhân" : "Xem thông tin chi tiết bệnh nhân"}
                 </p>
               </div>
             </div>
@@ -390,19 +393,19 @@ export default function UserDetailPage() {
                     <Edit3 className="mr-2 h-4 w-4" />
                     Chỉnh sửa
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleResetPassword}
-                    disabled={isResettingPassword}
-                  >
-                    {isResettingPassword ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <KeyRound className="mr-2 h-4 w-4" />
-                    )}
-                    Reset mật khẩu
-                  </Button>
-                  <Button
+                  {/* <Button 
+                  variant="outline"
+                  onClick={handleResetPassword}
+                  disabled={isResettingPassword}
+                >
+                  {isResettingPassword ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="mr-2 h-4 w-4" />
+                  )}
+                  Reset mật khẩu
+                </Button> */}
+                  {/* <Button 
                     variant={user.isActive ? "destructive" : "default"}
                     onClick={handleToggleStatus}
                     disabled={isTogglingStatus}
@@ -415,7 +418,7 @@ export default function UserDetailPage() {
                       <Unlock className="mr-2 h-4 w-4" />
                     )}
                     {user.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
-                  </Button>
+                  </Button> */}
                   {/* <Button 
                     variant="destructive" 
                     onClick={handleDelete}
@@ -458,6 +461,23 @@ export default function UserDetailPage() {
                   )}
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Giới tính</label>
+                  {isEditing ? (
+                    <select
+                      value={editData.gender || ""}
+                      onChange={(e) => setEditData({ ...editData, gender: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="">Chọn giới tính</option>
+                      <option value="Nam">Nam</option>
+                      <option value="Nữ">Nữ</option>
+                      <option value="Khác">Khác</option>
+                    </select>
+                  ) : (
+                    <p className="text-sm">{user.gender || "Chưa cập nhật"}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Email</label>
                   {isEditing ? (
                     <input
@@ -486,60 +506,6 @@ export default function UserDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Role & Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Vai trò & Trạng thái
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Vai trò</label>
-                  <Badge className={getRoleColor(user.role)}>
-                    {getRoleLabel(user.role)}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Trạng thái</label>
-                  <Badge variant={user.isActive ? "default" : "destructive"}>
-                    {user.isActive ? (
-                      <>
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Hoạt động
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="mr-1 h-3 w-3" />
-                        Bị khóa
-                      </>
-                    )}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">ID người dùng</label>
-                  <p className="text-sm font-mono">{user.userId}</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Giới tính</label>
-                  {isEditing ? (
-                    <select
-                      value={editData.gender || ""}
-                      onChange={(e) => setEditData({ ...editData, gender: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                    >
-                      <option value="">Chọn giới tính</option>
-                      <option value="Nam">Nam</option>
-                      <option value="Nữ">Nữ</option>
-                      <option value="Khác">Khác</option>
-                    </select>
-                  ) : (
-                    <p className="text-sm">{user.gender || "Chưa cập nhật"}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Personal Details */}
             <Card>
@@ -576,8 +542,63 @@ export default function UserDetailPage() {
                     <p className="text-sm">{user.allergies || "Không có"}</p>
                   )}
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Tiền sử bệnh lý</label>
+                  {isEditing ? (
+                    <textarea
+                      value={editData.medicalHistory || ""}
+                      onChange={(e) => setEditData({ ...editData, medicalHistory: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-sm">{user.medicalHistory || "Không có"}</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
+
+
+            {/* Role & Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Vai trò & Trạng thái
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Vai trò</label>
+                  <Badge className={getRoleColor(user.role)}>
+                    {getRoleLabel(user.role)}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Trạng thái</label>
+                  <Badge variant={user.isActive ? "default" : "destructive"}>
+                    {user.isActive ? (
+                      <>
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        Hoạt động
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="mr-1 h-3 w-3" />
+                        Bị khóa
+                      </>
+                    )}
+                  </Badge>
+                </div>
+                {/* <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">ID bệnh nhân</label>
+                  <p className="text-sm font-mono">{user.userId}</p>
+                </div> */}
+
+              </CardContent>
+            </Card>
+
+
           </div>
 
           {/* Medical History */}

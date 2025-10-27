@@ -71,6 +71,9 @@ export function Header() {
     if (currentUser && currentUser.role === 'patient') {
       items.push({ href: "/chat", label: "Chat hỗ trợ" })
     }
+    if (currentUser && currentUser.role === 'reception') {
+      items.push({ href: "/reception", label: "Lễ tân" })
+    }
 
     return items
   }
@@ -200,6 +203,12 @@ export function Header() {
                       </DropdownMenuItem>
                     </>
                   )}
+                  {currentUser.role === 'reception' && (
+                    <DropdownMenuItem onClick={() => router.push('/reception')}>
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      <span>Lễ tân</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -286,6 +295,19 @@ export function Header() {
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
                         Chat hỗ trợ
+                      </Button>
+                    )}
+                    {currentUser.role === 'reception' && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          router.push('/reception')
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-full justify-start bg-primary/10 hover:bg-primary/20"
+                      >
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Lễ tân
                       </Button>
                     )}
                   </div>
