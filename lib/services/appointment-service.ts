@@ -253,6 +253,29 @@ class AppointmentService {
             body: JSON.stringify({ status: 'Cancelled' })
         })
     }
+
+    /**
+     * ✅ Lấy thống kê appointments cho Clinic Manager
+     * GET /api/Appointments/statistics
+     * Requires Clinic Manager role
+     */
+    async getAppointmentStatistics(): Promise<{
+        totalAppointments: number
+        pendingAppointments: number
+        confirmedAppointments: number
+        completedAppointments: number
+        cancelledAppointments: number
+        noShowAppointments: number
+    }> {
+        return this.request<{
+            totalAppointments: number
+            pendingAppointments: number
+            confirmedAppointments: number
+            completedAppointments: number
+            cancelledAppointments: number
+            noShowAppointments: number
+        }>(`/statistics`)
+    }
 }
 
 export const appointmentService = new AppointmentService()
