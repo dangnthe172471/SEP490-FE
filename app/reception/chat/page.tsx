@@ -6,17 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChatInterface } from "@/components/chat-interface"
 import { getCurrentUser } from "@/lib/auth"
-import { MessageCircle, Users, Clock, Star, ArrowLeft, Home } from "lucide-react"
+import { MessageCircle, Users, Clock, Star, ArrowLeft, Home, FileText, Activity, Calendar, UserPlus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 
 const navigation = [
-    { name: "Tổng quan", href: "/reception", icon: Users },
-    { name: "Lịch hẹn", href: "/reception/appointments", icon: Users },
-    { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-    { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-    { name: "Đăng ký mới", href: "/reception/register", icon: Users },
+    { name: "Tổng quan", href: "/reception", icon: Activity },
+  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
+  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
+  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
+  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]
 
 
