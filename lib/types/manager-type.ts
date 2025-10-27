@@ -49,6 +49,13 @@ export interface WorkScheduleGroupDto {
     shifts: ShiftResponseDto[]
 }
 
-
+export interface UpdateDoctorShiftRangeRequest {
+    fromDate: string
+    toDate: string
+    newToDate?: string 
+    shiftId: number
+    addDoctorIds: number[]
+    removeDoctorIds: number[]
+}
 
 

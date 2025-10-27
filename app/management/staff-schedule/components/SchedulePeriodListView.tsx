@@ -5,19 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Calendar, ChevronDown, ChevronUp, Clock, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { managerService } from "@/lib/services/manager-service"
-import type { WorkScheduleGroupDto } from "@/lib/types/manager-type"
+import type { WorkScheduleGroupDto, DoctorDto } from "@/lib/types/manager-type"
+import ScheduleEditDialog from "@/app/management/staff-schedule/components/ScheduleEditDialog"
 
 export default function SchedulePeriodListView() {
     const [schedules, setSchedules] = useState<WorkScheduleGroupDto[]>([])
     const [expanded, setExpanded] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
 
+   
     //  Phân trang
     const [pageNumber, setPageNumber] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const pageSize = 5
 
-    // --- Gọi API ---
+    const [editOpen, setEditOpen] = useState(false)
+    const [selectedSchedule, setSelectedSchedule] = useState<WorkScheduleGroupDto | null>(null)
+    const [doctors, setDoctors] = useState<DoctorDto[]>([])
+
     const fetchSchedules = async (page = 1) => {
         setLoading(true)
         try {
@@ -33,6 +38,11 @@ export default function SchedulePeriodListView() {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        fetchSchedules(pageNumber)
+        managerService.getAllDoctors().then(setDoctors)
+    }, [pageNumber])
 
     useEffect(() => {
         fetchSchedules(pageNumber)
@@ -72,11 +82,11 @@ export default function SchedulePeriodListView() {
 
                         return (
                             <Card key={i} className="border shadow-sm">
-                                <CardHeader
-                                    className="cursor-pointer flex items-center justify-between hover:bg-muted/40 transition"
-                                    onClick={() => setExpanded(expanded === i ? null : i)}
-                                >
-                                    <div className="flex items-center gap-2">
+                                <CardHeader className="flex items-center justify-between hover:bg-muted/40 transition">
+                                    <div
+                                        className="flex items-center gap-2 cursor-pointer"
+                                        onClick={() => setExpanded(expanded === i ? null : i)}
+                                    >
                                         {expanded === i ? (
                                             <ChevronUp className="h-5 w-5 text-muted-foreground" />
                                         ) : (
@@ -85,10 +95,25 @@ export default function SchedulePeriodListView() {
                                         <Calendar className="h-5 w-5 text-primary" />
                                         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
                                     </div>
-                                    <CardDescription>
-                                        {totalShifts} ca • {totalDoctors} bác sĩ
-                                    </CardDescription>
+
+                                    {/* Bên phải: mô tả + nút chỉnh sửa */}
+                                    <div className="flex items-center gap-3">
+                                        <CardDescription className="text-sm text-muted-foreground">
+                                            {totalShifts} ca • {totalDoctors} bác sĩ
+                                        </CardDescription>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                setSelectedSchedule(item)
+                                                setEditOpen(true)
+                                            }}
+                                        >
+                                            📝 Chỉnh sửa
+                                        </Button>
+                                    </div>
                                 </CardHeader>
+
 
                                 {expanded === i && (
                                     <CardContent className="space-y-4 pt-2">
@@ -104,9 +129,9 @@ export default function SchedulePeriodListView() {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <Button variant="outline" size="sm">
+                                                    {/* <Button variant="outline" size="sm">
                                                         <Plus className="h-4 w-4 mr-1" /> Thêm bác sĩ
-                                                    </Button>
+                                                    </Button> */}
                                                 </div>
 
                                                 {shift.doctors.length === 0 ? (
@@ -117,7 +142,7 @@ export default function SchedulePeriodListView() {
                                                     <div className="space-y-2">
                                                         {shift.doctors.map((doc) => (
                                                             <div
-                                                                key={doc.doctorID}
+                                                                key={`${shift.shiftID}-${doc.doctorID}`}
                                                                 className="flex justify-between items-center bg-white px-3 py-2 rounded-md border shadow-sm"
                                                             >
                                                                 <div>
@@ -126,9 +151,9 @@ export default function SchedulePeriodListView() {
                                                                         {doc.specialty}
                                                                     </p>
                                                                 </div>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                {/* <Button variant="ghost" size="icon" className="h-7 w-7">
                                                                     <Trash2 className="h-4 w-4 text-destructive" />
-                                                                </Button>
+                                                                </Button> */}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -164,9 +189,25 @@ export default function SchedulePeriodListView() {
                         >
                             Trang sau <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
+                                {/* --- Dialog chỉnh sửa lịch --- */}
+                                {selectedSchedule && (
+                                    <ScheduleEditDialog
+                                        open={editOpen}
+                                        onOpenChange={setEditOpen}
+                                        effectiveFrom={selectedSchedule.effectiveFrom}
+                                        effectiveTo={selectedSchedule.effectiveTo}
+                                        shifts={selectedSchedule.shifts}
+                                        doctors={doctors}
+                                        onUpdated={() => fetchSchedules(pageNumber)}
+                                    />
+                                )}
+
                     </div>
+                    
                 </>
             )}
         </div>
+        
     )
+    
 }

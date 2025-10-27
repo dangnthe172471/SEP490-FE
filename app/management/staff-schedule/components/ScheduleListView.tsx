@@ -283,9 +283,9 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
                                                     <CardContent className="space-y-2 pt-2">
                                                         {day.shifts.length === 0 ? (
                                                             <div className="text-sm italic text-muted-foreground">
-                                                                <Button variant="outline" size="sm">
+                                                                {/* <Button variant="outline" size="sm">
                                                                     <Plus className="h-4 w-4 mr-1" /> Thêm bác sĩ
-                                                                </Button>
+                                                                </Button> */}
                                                                 <p>Không có ca làm việc được lên lịch cho ngày này</p>
                                                              
                                                                 {/* <p className="text-xs mt-1">
@@ -304,9 +304,9 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
                                                                                 <p className="text-sm text-muted-foreground"> {shift.startTime} - {shift.endTime}</p>
                                                                             </div>
                                                                         </div>
-                                                                        <Button variant="outline" size="sm">
+                                                                        {/* <Button variant="outline" size="sm">
                                                                             <Plus className="h-4 w-4 mr-1" /> Thêm bác sĩ
-                                                                        </Button>
+                                                                        </Button> */}
                                                                     </div>
 
                                                                     {shift.doctors.length === 0 ? (
@@ -326,9 +326,9 @@ export default function ScheduleListView({ schedules, setSchedules, doctors }: P
                                                                                             {doc.specialty}
                                                                                         </p>
                                                                                     </div>
-                                                                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                                    {/* <Button variant="ghost" size="icon" className="h-7 w-7">
                                                                                         <Trash2 className="h-4 w-4 text-destructive" />
-                                                                                    </Button>
+                                                                                    </Button> */}
                                                                                 </div>
                                                                             ))}
                                                                         </div>

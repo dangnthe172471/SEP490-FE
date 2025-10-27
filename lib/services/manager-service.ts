@@ -1,4 +1,4 @@
-import type { DoctorDto, ShiftResponseDto, CreateScheduleRequest, DailyWorkScheduleDto, PagedResult, DailySummaryDto, WorkScheduleGroupDto } from "@/lib/types/manager-type"
+import type { DoctorDto, ShiftResponseDto, CreateScheduleRequest, DailyWorkScheduleDto, PagedResult, DailySummaryDto, WorkScheduleGroupDto, UpdateDoctorShiftRangeRequest } from "@/lib/types/manager-type"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -71,7 +71,35 @@ class ManagerService extends BaseService {
             `/api/manager/listGroupSchedule?pageNumber=${pageNumber}&pageSize=${pageSize}`
         )
     }
+    async updateDoctorShiftRange(payload: UpdateDoctorShiftRangeRequest): Promise<{ message: string }> {
+        return this.request<{ message: string }>("/api/manager/update-doctor-shifts-range", {
+            method: "PUT",
+            body: JSON.stringify(payload),
+        })
+    }
 
+    //Cập nhật nhiều ca (tự động gọi tuần tự)
+    async updateMultipleShiftRanges(
+        fromDate: string,
+        toDate: string,
+        newToDate: string | null,
+        updates: { shiftId: number; addDoctorIds: number[]; removeDoctorIds: number[] }[]
+    ): Promise<{ message: string }> {
+        for (const update of updates) {
+            await this.updateDoctorShiftRange({
+                fromDate,
+                toDate,
+                newToDate: newToDate || toDate,
+                shiftId: update.shiftId,
+                addDoctorIds: update.addDoctorIds,
+                removeDoctorIds: update.removeDoctorIds,
+            })
+        }
+        return { message: "Cập nhật lịch làm việc thành công." }
+    }
 }
+
+
+
 
 export const managerService = new ManagerService()

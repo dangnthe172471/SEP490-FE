@@ -152,7 +152,7 @@ export default function ScheduleCreateDialog({
                 {/* danh sách ca và bác sĩ */}
                 <div className="space-y-4 mt-4 border rounded-lg p-4 bg-muted/30">
                     {shifts.map((shift) => {
-                        // ✅ search phải đặt ở đây - trong scope của từng shift
+                        // search trong scope của từng shift
                         const search = (searchDoctors[shift.shiftType] || "").toLowerCase()
 
                         return (
