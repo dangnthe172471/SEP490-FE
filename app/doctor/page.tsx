@@ -16,6 +16,7 @@ const navigation = [
   { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
   { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
   { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
+  { name: "Chi tiết khám", href: "/doctor/patient-records", icon: FileText },
 ]
 
 export default function DoctorDashboard() {

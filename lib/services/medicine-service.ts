@@ -128,4 +128,20 @@ export const medicineService = {
       throw new Error(String(msg));
     }
   },
+  async getAll(token?: string): Promise<ReadMedicineDto[]> {
+    const url = `${API_BASE_URL}/Medicine`; // GET /api/Medicine -> trả tất cả thuốc
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      cache: "no-store",
+    });
+    const payload = await readBodySafe(res);
+    if (!res.ok) {
+      const msg =
+        (payload && typeof payload === "object" && "message" in payload
+          ? (payload as any).message
+          : payload) || `Failed to fetch medicines (${res.status})`;
+      throw new Error(String(msg));
+    }
+    return payload as ReadMedicineDto[];
+  },
 };
