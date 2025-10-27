@@ -563,7 +563,7 @@ export default function UserDetailPage() {
                     <p className="text-sm">{formatDate(user.dob)}</p>
                   )}
                 </div>
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Dị ứng</label>
                   {isEditing ? (
                     <textarea
@@ -575,7 +575,7 @@ export default function UserDetailPage() {
                   ) : (
                     <p className="text-sm">{user.allergies || "Không có"}</p>
                   )}
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           </div>
