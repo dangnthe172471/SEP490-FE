@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -45,7 +45,10 @@ const addDays = (iso: string, days: number) => {
   const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + days); return toISO(d)
 }
 const startOfWeekMonday = (iso: string) => {
-  const d = new Date(iso + "T00:00:00"); const day = d.getDay() === 0 ? 7 : d.getDay(); d.setDate(d.getDate() - (day - 1)); return toISO(d)
+  const d = new Date(iso + "T00:00:00")
+  const day = d.getDay() === 0 ? 7 : d.getDay() // Sun=0 -> 7
+  d.setDate(d.getDate() - (day - 1))
+  return toISO(d)
 }
 const generate7Days = (startISO: string) => Array.from({ length: 7 }, (_, i) => addDays(startISO, i))
 const getShiftForTime = (time: string): ShiftKey | null => {
@@ -63,19 +66,47 @@ const formatDM = (iso: string) => {
 }
 const weekLabel = (startISO: string) => `${formatDM(startISO)} To ${formatDM(addDays(startISO, 6))}`
 
+/** Tạo danh sách tất cả tuần (bắt đầu Thứ Hai) bao phủ cả năm chỉ định */
+const weeksOfYear = (year: number) => {
+  const jan1 = new Date(year, 0, 1)
+  const dec31 = new Date(year, 11, 31)
+  // Thứ Hai đầu tiên bao phủ ngày 1/1
+  const firstISO = startOfWeekMonday(toISO(jan1))
+  const list: string[] = []
+  let cur = firstISO
+  while (new Date(cur + "T00:00:00") <= dec31) {
+    list.push(cur)
+    cur = addDays(cur, 7)
+  }
+  return list
+}
+
 export default function DoctorAppointmentsPage() {
   const router = useRouter()
 
-  // ---- Week select (mặc định: tuần hiện tại)
-  const todayISO = toISO(new Date())
+  // ---- Khởi tạo theo hôm nay
+  const today = new Date()
+  const todayISO = toISO(today)
   const currentWeekStart = startOfWeekMonday(todayISO)
+
+  // ---- YEAR + WEEK (2 dropdown)
+  const [year, setYear] = useState<number>(today.getFullYear())
   const [weekStart, setWeekStart] = useState<string>(currentWeekStart)
 
-  // Tạo danh sách tuần: 2 tuần trước → 6 tuần sau (tuỳ ý tăng/giảm)
-  const weekOptions = useMemo(() => {
-    const base = currentWeekStart
-    return Array.from({ length: 9 }, (_, i) => addDays(base, (i - 2) * 7))
-  }, [currentWeekStart])
+  // Danh sách năm (có thể nới rộng nếu muốn)
+  const yearOptions = useMemo(() => {
+    const y = today.getFullYear()
+    return Array.from({ length: 9 }, (_, i) => y - 4 + i) // [y-4 .. y+4]
+  }, [today])
+
+  // Danh sách tuần của năm đang chọn
+  const weekOptions = useMemo(() => weeksOfYear(year), [year])
+
+  // Nếu đổi năm mà tuần hiện tại không thuộc năm đó → chọn tuần đầu năm
+  useEffect(() => {
+    const wsYear = new Date(weekStart + "T00:00:00").getFullYear()
+    if (wsYear !== year && weekOptions.length) setWeekStart(weekOptions[0])
+  }, [year, weekOptions, weekStart])
 
   // ---- Data
   const [items, setItems] = useState<Appointment[]>([])
@@ -89,23 +120,23 @@ export default function DoctorAppointmentsPage() {
   // ---- Load list
   useEffect(() => {
     let mounted = true
-      ; (async () => {
-        try {
-          setLoading(true)
-          setError(null)
-          const data = await getDoctorAppointments()
-          if (mounted) setItems(data)
-        } catch (e: any) {
-          const msg = e?.message ?? "Không thể tải dữ liệu"
-          if ((msg === "UNAUTHORIZED" || /401|403/.test(msg)) && window.location.pathname !== "/login") {
-            router.replace("/login?reason=unauthorized")
-            return
-          }
-          if (mounted) setError(msg)
-        } finally {
-          if (mounted) setLoading(false)
+    ;(async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const data = await getDoctorAppointments()
+        if (mounted) setItems(data)
+      } catch (e: any) {
+        const msg = e?.message ?? "Không thể tải dữ liệu"
+        if ((msg === "UNAUTHORIZED" || /401|403/.test(msg)) && window.location.pathname !== "/login") {
+          router.replace("/login?reason=unauthorized")
+          return
         }
-      })()
+        if (mounted) setError(msg)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
     return () => { mounted = false }
   }, [router])
 
@@ -164,20 +195,33 @@ export default function DoctorAppointmentsPage() {
             <p className="text-muted-foreground">Xem lịch theo ca (Sáng/Chiều/Tối) trong 7 ngày</p>
           </div>
 
-          {/* Chỉ 1 ô chọn tuần */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Week</span>
-            <select
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[200px]"
-              value={weekStart}
-              onChange={(e) => setWeekStart(e.target.value)}
-            >
-              {weekOptions.map((ws) => (
-                <option key={ws} value={ws}>
-                  {weekLabel(ws)}
-                </option>
-              ))}
-            </select>
+          {/* 2 dropdown: YEAR + WEEK */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold uppercase tracking-wide text-red-600 underline">Year</span>
+              <select
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[110px]"
+                value={year}
+                onChange={(e) => setYear(parseInt(e.target.value, 10))}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Week</span>
+              <select
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[200px]"
+                value={weekStart}
+                onChange={(e) => setWeekStart(e.target.value)}
+              >
+                {weekOptions.map((ws) => (
+                  <option key={ws} value={ws}>{weekLabel(ws)}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -188,7 +232,7 @@ export default function DoctorAppointmentsPage() {
             variant="outline"
             size="sm"
             className="ml-auto"
-            onClick={() => setWeekStart(currentWeekStart)}
+            onClick={() => { setYear(today.getFullYear()); setWeekStart(currentWeekStart) }}
           >
             Tuần hiện tại
           </Button>
@@ -292,7 +336,7 @@ export default function DoctorAppointmentsPage() {
                       <CalendarIcon className="w-4 h-4 text-blue-600" /> Ngày khám
                     </label>
                     <p className="font-medium">
-                      {new Date(selected.appointmentDateISO + "T00:00:00").toLocaleDateString("vi-VN", {
+                      {new Date(selected.appointmentDateISO + "T00:00:00").toLocaleDateString("vi-WN", {
                         weekday: "short", year: "numeric", month: "2-digit", day: "2-digit",
                       })}
                     </p>

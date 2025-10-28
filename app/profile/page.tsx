@@ -25,15 +25,19 @@ import {
     LogOut,
     ArrowLeft,
     Home,
-    MessageCircle
+    MessageCircle,
+    Camera
 } from "lucide-react"
 import { getCurrentUser, logout, User as UserType } from "@/lib/auth"
 import { showConfirmAlert } from "@/lib/sweetalert-config"
 import { authService } from "@/lib/services/auth.service"
+import { avatarService } from "@/lib/services/avatar.service"
 import { medicalHistoryService, MedicalRecord } from "@/lib/services/medical-history.service"
 import { toast } from "sonner"
 import { BasicInfoEditModal } from "@/components/basic-info-edit-modal"
 import { MedicalInfoEditModal } from "@/components/medical-info-edit-modal"
+import { ChangeAvatarModal } from "@/components/change-avatar-modal"
+import { ChangePasswordModal } from "@/components/change-password-modal"
 import { Breadcrumb } from "@/components/breadcrumb"
 
 interface PatientProfile {
@@ -46,6 +50,7 @@ interface PatientProfile {
     dob?: string
     allergies?: string
     medicalHistory?: string
+    avatar?: string
 }
 
 interface Appointment {
@@ -67,6 +72,9 @@ export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isBasicInfoModalOpen, setIsBasicInfoModalOpen] = useState(false)
     const [isMedicalInfoModalOpen, setIsMedicalInfoModalOpen] = useState(false)
+    const [isChangeAvatarModalOpen, setIsChangeAvatarModalOpen] = useState(false)
+    const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false)
+    const [currentAvatar, setCurrentAvatar] = useState("/placeholder-user.jpg")
     const router = useRouter()
 
     useEffect(() => {
@@ -117,6 +125,17 @@ export default function ProfilePage() {
             try {
                 const profile = await authService.getProfile()
                 setPatientProfile(profile)
+
+                // Set avatar from profile data
+                const avatarUrl = avatarService.getAvatarUrl(profile.avatar)
+                setCurrentAvatar(avatarUrl)
+
+                // Store avatar in localStorage for navbar
+                if (profile.avatar) {
+                    localStorage.setItem('user_avatar', profile.avatar)
+                } else {
+                    localStorage.removeItem('user_avatar')
+                }
             } catch (apiError) {
                 console.error('API Error:', apiError)
                 toast.error("Không thể tải thông tin hồ sơ. Vui lòng thử lại sau.")
@@ -186,6 +205,26 @@ export default function ProfilePage() {
         }
         // Refresh data from API
         fetchPatientData()
+    }
+
+    const handleAvatarChange = (newAvatarUrl: string) => {
+        // Convert relative URL to full URL if needed
+        const avatarUrl = avatarService.getAvatarUrl(newAvatarUrl)
+        setCurrentAvatar(avatarUrl)
+
+        // Store avatar in localStorage for navbar
+        localStorage.setItem('user_avatar', newAvatarUrl)
+
+        // Trigger storage event to update navbar
+        window.dispatchEvent(new Event('storage'))
+
+        toast.success("Ảnh đại diện đã được cập nhật!")
+    }
+
+    const handlePasswordChange = () => {
+        // Here you would typically call an API to change password
+        // For now, we'll just show a success message
+        toast.success("Mật khẩu đã được thay đổi thành công!")
     }
 
 
@@ -304,12 +343,22 @@ export default function ProfilePage() {
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-center">
-                                    <Avatar className="h-24 w-24 mx-auto mb-4">
-                                        <AvatarImage src="/placeholder-user.jpg" alt={patientProfile.fullName} />
-                                        <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                                            {patientProfile.fullName?.charAt(0).toUpperCase() || 'P'}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                    <div className="relative inline-block">
+                                        <Avatar className="h-24 w-24 mx-auto mb-4">
+                                            <AvatarImage src={currentAvatar} alt={patientProfile.fullName} />
+                                            <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                                                {patientProfile.fullName?.charAt(0).toUpperCase() || 'P'}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 border-2 border-background"
+                                            onClick={() => setIsChangeAvatarModalOpen(true)}
+                                        >
+                                            <Camera className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                     <h2 className="text-xl font-semibold mb-2">{patientProfile.fullName || 'Chưa cập nhật'}</h2>
                                     <Badge variant="secondary" className="mb-4">
                                         <Shield className="h-3 w-3 mr-1" />
@@ -321,6 +370,15 @@ export default function ProfilePage() {
 
                                     {/* Quick Actions */}
                                     <div className="mt-4 pt-4 border-t space-y-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsChangePasswordModalOpen(true)}
+                                            className="w-full flex items-center gap-2"
+                                        >
+                                            <Settings className="h-4 w-4" />
+                                            Đổi mật khẩu
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -614,6 +672,22 @@ export default function ProfilePage() {
                     onSave={handleSaveMedicalInfo}
                 />
             )}
+
+            {/* Change Avatar Modal */}
+            <ChangeAvatarModal
+                isOpen={isChangeAvatarModalOpen}
+                onClose={() => setIsChangeAvatarModalOpen(false)}
+                currentAvatar={currentAvatar}
+                userName={patientProfile?.fullName || "User"}
+                onAvatarChange={handleAvatarChange}
+            />
+
+            {/* Change Password Modal */}
+            <ChangePasswordModal
+                isOpen={isChangePasswordModalOpen}
+                onClose={() => setIsChangePasswordModalOpen(false)}
+                onPasswordChange={handlePasswordChange}
+            />
 
             {/* Floating Action Button */}
             <div className="fixed bottom-6 right-6 z-50">
