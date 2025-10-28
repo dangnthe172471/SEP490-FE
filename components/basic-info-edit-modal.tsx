@@ -55,10 +55,7 @@ export function BasicInfoEditModal({ isOpen, onClose, basicInfo, onSave }: Basic
                 return
             }
 
-            if (!formData.phone?.trim()) {
-                toast.error("Vui lòng nhập số điện thoại")
-                return
-            }
+            // Phone is disabled, so no need to validate
 
             // Call API to update basic info
             const response = await authService.updateBasicInfo(formData)
@@ -128,8 +125,9 @@ export function BasicInfoEditModal({ isOpen, onClose, basicInfo, onSave }: Basic
                                         id="phone"
                                         value={formData.phone}
                                         onChange={(e) => handleInputChange('phone', e.target.value)}
-                                        className="pl-10"
+                                        className="pl-10 bg-gray-100 cursor-not-allowed"
                                         placeholder="Nhập số điện thoại"
+                                        disabled
                                     />
                                 </div>
                             </div>

@@ -5,6 +5,7 @@ import { Menu, X, Phone, Clock, User as UserIcon, LogOut, MessageCircle, Calenda
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { getCurrentUser, logout, getRoleName, User } from "@/lib/auth"
+import { avatarService } from "@/lib/services/avatar.service"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [userAvatar, setUserAvatar] = useState<string>('/placeholder-user.jpg')
   const [isClient, setIsClient] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -35,19 +37,63 @@ export function Header() {
   // Handle client-side mounting and auth state
   useEffect(() => {
     setIsClient(true)
-    setCurrentUser(getCurrentUser())
+    const user = getCurrentUser()
+    setCurrentUser(user)
 
     const handleStorageChange = () => {
-      setCurrentUser(getCurrentUser())
+      const newUser = getCurrentUser()
+      setCurrentUser(newUser)
     }
 
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
+  // Fetch user avatar when user changes
+  useEffect(() => {
+    if (currentUser) {
+      // Always set default avatar first
+      setUserAvatar('/placeholder-user.jpg')
+
+      // Try to get avatar from localStorage first
+      const storedAvatar = localStorage.getItem('user_avatar')
+      if (storedAvatar) {
+        const avatarUrl = avatarService.getAvatarUrl(storedAvatar)
+        setUserAvatar(avatarUrl)
+      } else {
+        // If no stored avatar, try to fetch from API
+        fetchUserAvatar()
+      }
+    } else {
+      setUserAvatar('/placeholder-user.jpg')
+    }
+  }, [currentUser])
+
+  const fetchUserAvatar = async () => {
+    try {
+      const { authService } = await import('@/lib/services/auth.service')
+      const profile = await authService.getProfile()
+      const avatarUrl = avatarService.getAvatarUrl(profile.avatar)
+      setUserAvatar(avatarUrl)
+
+      // Store in localStorage for quick access (even if null)
+      if (profile.avatar) {
+        localStorage.setItem('user_avatar', profile.avatar)
+      } else {
+        localStorage.removeItem('user_avatar')
+      }
+    } catch (error) {
+      console.error('Failed to fetch user avatar:', error)
+      // Keep default avatar on error - don't change it
+      // setUserAvatar('/placeholder-user.jpg') // Already set in useEffect
+    }
+  }
+
   const handleLogout = () => {
     // Clear all data
     setCurrentUser(null)
+    setUserAvatar('/placeholder-user.jpg')
+    localStorage.removeItem('user_avatar')
     logout()
     // logout() already redirects to home, no need for router.push
   }
@@ -135,7 +181,7 @@ export function Header() {
             className="flex items-center gap-3 transition-transform hover:scale-105"
           >
             <div className="flex items-center justify-center rounded-lg transition-all hover:bg-primary/90">
-              <img src="/images/logo.png" alt="Logo" className="h-15 w-15 object-contain" />
+              <img src="/images/logo.png" alt="Logo" className="h-24 w-24 object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="font-serif text-xl font-bold leading-none text-foreground">Diamond Health</span>
@@ -169,8 +215,9 @@ export function Header() {
             ) : currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={userAvatar} alt={currentUser.name} />
                       <AvatarFallback className="bg-primary text-primary-foreground">
                         {currentUser.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -260,7 +307,8 @@ export function Header() {
               ) : currentUser ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-muted">
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={userAvatar} alt={currentUser.name} />
                       <AvatarFallback className="bg-primary text-primary-foreground">
                         {currentUser.name.charAt(0).toUpperCase()}
                       </AvatarFallback>

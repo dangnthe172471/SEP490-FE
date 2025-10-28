@@ -46,6 +46,7 @@ type User = UserDto & {
 const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
   { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
+  { name: "Xem lịch", href: "/reception/appointments-schedule", icon: Calendar },
   { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
   { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
   { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
@@ -190,8 +191,8 @@ export default function ReceptionPatientsPage() {
                       {patient.gender === "Nam"
                         ? "Nam"
                         : patient.gender === "Nữ"
-                        ? "Nữ"
-                        : "Khác"}{" "}
+                          ? "Nữ"
+                          : "Khác"}{" "}
                     </Badge>{" "}
                   </div>{" "}
                 </div>{" "}
@@ -207,17 +208,17 @@ export default function ReceptionPatientsPage() {
                 </div>
               </div>
               {(patient.allergies && patient.allergies.length > 0) ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge  variant="destructive" className="text-xs">
-                        Dị ứng: {patient.allergies}
-                      </Badge>
-                  </div>
-                ) : 
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Badge variant="destructive" className="text-xs">
+                    Dị ứng: {patient.allergies}
+                  </Badge>
+                </div>
+              ) :
                 (
                   <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge  variant="destructive" className="text-xs">
-                        Dị ứng: Không có
-                      </Badge>
+                    <Badge variant="destructive" className="text-xs">
+                      Dị ứng: Không có
+                    </Badge>
                   </div>
                 )}
             </div>

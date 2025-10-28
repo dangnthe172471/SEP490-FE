@@ -37,6 +37,7 @@ import {
 
 const navigation = [
   { name: "Tổng quan", href: "/management", icon: BarChart3 },
+  { name: "Lịch hẹn", href: "/management/appointments", icon: Calendar },
   { name: "Báo cáo", href: "/management/reports", icon: FileText },
   { name: "Lịch làm việc", href: "/management/staff-schedule", icon: CalendarIcon },
   { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
