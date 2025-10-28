@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Users, UserPlus, Activity, Plus, Clock, Loader2, AlertCircle, X, MessageCircle } from "lucide-react"
+import { Calendar, Users, UserPlus, Activity, Plus, Clock, Loader2, AlertCircle, X, MessageCircle, FileText } from "lucide-react"
 import { mockAppointments } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
@@ -18,6 +18,7 @@ const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
   { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
   { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
   { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
   { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]

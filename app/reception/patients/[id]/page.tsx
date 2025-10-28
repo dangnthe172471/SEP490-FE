@@ -24,7 +24,8 @@ import {
   Lock,
   Unlock,
   MessageCircle,
-  KeyRound
+  KeyRound,
+  FileText
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
@@ -39,6 +40,7 @@ const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
   { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
   { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
   { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
   { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]

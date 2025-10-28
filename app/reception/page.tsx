@@ -6,7 +6,7 @@ import { ReceptionAppointments } from "@/components/reception-appointments"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Users, Clock, UserPlus, CalendarPlus, Activity, MessageCircle } from "lucide-react"
+import { Calendar, Users, Clock, UserPlus, CalendarPlus, Activity, MessageCircle, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { useEffect, useState } from "react"
@@ -15,6 +15,7 @@ const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
   { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
   { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
   { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
   { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]

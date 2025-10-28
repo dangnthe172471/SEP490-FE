@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Users, UserPlus, Activity, ArrowLeft, MessageCircle } from "lucide-react"
+import { Calendar, Users, UserPlus, Activity, ArrowLeft, MessageCircle, FileText } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
@@ -17,6 +17,7 @@ const navigation = [
   { name: "Tổng quan", href: "/reception", icon: Activity },
   { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
   { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
+  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
   { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
   { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]
