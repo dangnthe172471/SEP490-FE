@@ -30,20 +30,16 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { roomService } from "@/lib/services/room-service"
 import { RoomDto, CreateRoomRequest, UpdateRoomRequest } from "@/lib/types/room"
-
-const navigation = [
-    { name: "Tổng quan", href: "/management", icon: BarChart3 },
-    { name: "Báo cáo", href: "/management/reports", icon: FileText },
-    { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-    { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
-    { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
-]
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 
 interface FormData {
     roomName: string
 }
 
 export default function RoomsManagementPage() {
+    // Get manager navigation from centralized config
+    const navigation = getManagerNavigation()
+
     const [rooms, setRooms] = useState<RoomDto[]>([])
     const [searchTerm, setSearchTerm] = useState("")
     const [isDialogOpen, setIsDialogOpen] = useState(false)

@@ -19,14 +19,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts"
-
-const navigation = [
-  { name: "Tổng quan", href: "/management", icon: BarChart3 },
-  { name: "Báo cáo", href: "/management/reports", icon: FileText },
-  { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-  { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
-  { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
-]
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 
 // Mock data for detailed analytics
 const hourlyPatientData = [
@@ -78,6 +71,9 @@ const satisfactionData = [
 ]
 
 export default function ManagementAnalyticsPage() {
+  // Get manager navigation from centralized config
+  const navigation = getManagerNavigation()
+
   const insights = [
     {
       title: "Giờ cao điểm",

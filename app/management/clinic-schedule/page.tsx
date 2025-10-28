@@ -8,14 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { BarChart3, TrendingUp, FileText, Calendar, ChevronLeft, ChevronRight, Clock, Search } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-    { name: "Tổng quan", href: "/management", icon: BarChart3 },
-    { name: "Lịch làm việc", href: "/management/staff-schedule", icon: Calendar },
-    { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
-    { name: "Báo cáo", href: "/management/reports", icon: FileText },
-    { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-]
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 
 // Mock data for staff
 const mockStaff = [
@@ -77,6 +70,9 @@ const mockSchedules = [
 ]
 
 export default function ClinicSchedulePage() {
+    // Get manager navigation from centralized config
+    const navigation = getManagerNavigation()
+
     const router = useRouter()
     const [currentDate, setCurrentDate] = useState(new Date("2024-07-15"))
     const [searchQuery, setSearchQuery] = useState("")

@@ -9,15 +9,12 @@ import { Separator } from "@/components/ui/separator"
 import { Calendar, FileText, Users, Activity, ArrowLeft, Pill, TestTube, Brain } from "lucide-react"
 import { mockMedicalRecords, mockPatients } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/doctor", icon: Activity },
-  { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
-  { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
-]
+import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 
 export default function MedicalRecordDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // Get doctor navigation from centralized config
+  const navigation = getDoctorNavigation()
+
   const router = useRouter()
   const { id } = use(params)
 

@@ -9,20 +9,16 @@ import { Button } from "@/components/ui/button"
 import { Calendar, FileText, Users, Activity } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
+import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 import { useEffect, useState } from "react"
-
-const navigation = [
-  { name: "Tổng quan", href: "/doctor", icon: Activity },
-  { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
-  { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
-  { name: "Chi tiết khám", href: "/doctor/patient-records", icon: FileText },
-]
 
 export default function DoctorDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Get doctor navigation from centralized config
+  const navigation = getDoctorNavigation()
 
   useEffect(() => {
     const currentUser = getCurrentUser()

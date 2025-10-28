@@ -13,17 +13,13 @@ import ScheduleSummary from "./components/ScheduleSummary"
 import SchedulePeriodListView from "./components/SchedulePeriodListView"
 
 import { BarChart3, Calendar, Clock, FileText, TrendingUp } from "lucide-react"
-
-const navigation = [
-    { name: "Tổng quan", href: "/management", icon: BarChart3 },
-    { name: "Lịch làm việc", href: "/management/staff-schedule", icon: Calendar },
-    { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
-    { name: "Báo cáo", href: "/management/reports", icon: FileText },
-    { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-]
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 
 
 export default function StaffSchedulePage() {
+    // Get manager navigation from centralized config
+    const navigation = getManagerNavigation()
+
     const [schedules, setSchedules] = useState<any[]>([])
     const [shifts, setShifts] = useState<ShiftResponseDto[]>([])
     const [doctors, setDoctors] = useState<DoctorDto[]>([])
@@ -36,7 +32,7 @@ export default function StaffSchedulePage() {
         managerService.getAllShifts().then(setShifts)
         managerService.searchDoctors("").then(setDoctors)
     }, [])
-  
+
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
@@ -84,7 +80,7 @@ export default function StaffSchedulePage() {
                 ) : viewMode === "month" ? (
                     <ScheduleMonthView schedules={schedules} />
                 ) : (
-                    <SchedulePeriodListView /> 
+                    <SchedulePeriodListView />
                 )}
 
 

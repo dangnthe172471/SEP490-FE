@@ -31,14 +31,7 @@ import { testTypeService } from "@/lib/services/test-type-service"
 import { TestTypeDto, CreateTestTypeRequest, UpdateTestTypeRequest } from "@/lib/types/test-type"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-    { name: "Tổng quan", href: "/management", icon: BarChart3 },
-    { name: "Báo cáo", href: "/management/reports", icon: FileText },
-    { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-    { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
-    { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
-]
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 
 interface FormData {
     testName: string
@@ -46,6 +39,9 @@ interface FormData {
 }
 
 export default function TestTypesManagementPage() {
+    // Get manager navigation from centralized config
+    const navigation = getManagerNavigation()
+
     const [testTypes, setTestTypes] = useState<TestTypeDto[]>([])
     const [searchTerm, setSearchTerm] = useState("")
     const [isDialogOpen, setIsDialogOpen] = useState(false)

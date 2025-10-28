@@ -21,13 +21,7 @@ import {
 
 import { Appointment, AppointmentDetail } from "@/lib/types/appointment-doctor"
 import { getDoctorAppointments, getDoctorAppointmentDetail } from "@/lib/services/appointment-doctor-service"
-
-const navigation = [
-  { name: "Tổng quan", href: "/doctor", icon: Activity },
-  { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
-  { name: "Lịch hẹn", href: "/doctor/appointments", icon: CalendarIcon },
-]
+import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 
 type ShiftKey = "morning" | "afternoon" | "evening"
 const SHIFTS: Record<ShiftKey, { label: string; timeWindow: string; startHour: number; endHour: number }> = {
@@ -84,6 +78,9 @@ const weeksOfYear = (year: number) => {
 export default function DoctorAppointmentsPage() {
   const router = useRouter()
 
+  // Get doctor navigation from centralized config
+  const navigation = getDoctorNavigation()
+
   // ---- Khởi tạo theo hôm nay
   const today = new Date()
   const todayISO = toISO(today)
@@ -120,23 +117,23 @@ export default function DoctorAppointmentsPage() {
   // ---- Load list
   useEffect(() => {
     let mounted = true
-    ;(async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await getDoctorAppointments()
-        if (mounted) setItems(data)
-      } catch (e: any) {
-        const msg = e?.message ?? "Không thể tải dữ liệu"
-        if ((msg === "UNAUTHORIZED" || /401|403/.test(msg)) && window.location.pathname !== "/login") {
-          router.replace("/login?reason=unauthorized")
-          return
+      ; (async () => {
+        try {
+          setLoading(true)
+          setError(null)
+          const data = await getDoctorAppointments()
+          if (mounted) setItems(data)
+        } catch (e: any) {
+          const msg = e?.message ?? "Không thể tải dữ liệu"
+          if ((msg === "UNAUTHORIZED" || /401|403/.test(msg)) && window.location.pathname !== "/login") {
+            router.replace("/login?reason=unauthorized")
+            return
+          }
+          if (mounted) setError(msg)
+        } finally {
+          if (mounted) setLoading(false)
         }
-        if (mounted) setError(msg)
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    })()
+      })()
     return () => { mounted = false }
   }, [router])
 

@@ -6,18 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, Users, CheckCircle, Clock, XCircle, AlertCircle, TrendingUp, Activity, BarChart3, FileText, CalendarIcon, TestTube, Building2 } from "lucide-react"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { useEffect, useState } from "react"
-
-const navigation = [
-    { name: "Tổng quan", href: "/management", icon: BarChart3 },
-    { name: "Lịch hẹn", href: "/management/appointments", icon: Calendar },
-    { name: "Báo cáo", href: "/management/reports", icon: FileText },
-    { name: "Lịch làm việc", href: "/management/staff-schedule", icon: CalendarIcon },
-    { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
-    { name: "Yêu cầu đổi ca", href: "/management/shift-swap-requests", icon: Calendar },
-    { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-    { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
-    { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
-]
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 
 interface AppointmentStatistics {
     totalAppointments: number
@@ -29,6 +18,9 @@ interface AppointmentStatistics {
 }
 
 export default function ManagementAppointmentsPage() {
+    // Get manager navigation from centralized config
+    const navigation = getManagerNavigation()
+
     const [statistics, setStatistics] = useState<AppointmentStatistics | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

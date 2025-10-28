@@ -22,13 +22,7 @@ import { userService } from "@/lib/services/user.service"
 import { CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
-
-const navigation = [
-  { name: "Tổng quan", href: "/admin", icon: Activity },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
-  { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-  { name: "Cài đặt", href: "/admin/settings", icon: Settings },
-]
+import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
 
 interface CreateUserData {
   fullName: string
@@ -60,6 +54,9 @@ const genderOptions = [
 ]
 
 export default function CreateUserPage() {
+  // Get admin navigation from centralized config
+  const navigation = getAdminNavigation()
+
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})

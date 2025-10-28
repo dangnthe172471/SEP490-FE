@@ -22,16 +22,7 @@ import {
 
 import { appointmentService } from "@/lib/services/appointment-service"
 import { AppointmentDto } from "@/lib/types/appointment"
-
-const navigation = [
-    { name: "Tổng quan", href: "/reception", icon: Activity },
-    { name: "Lịch hẹn", href: "/reception/appointments", icon: CalendarIcon },
-    { name: "Xem lịch", href: "/reception/appointments-schedule", icon: CalendarIcon },
-    { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-    { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
-    { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-    { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
-]
+import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 
 type ShiftKey = "morning" | "afternoon" | "evening"
 const SHIFTS: Record<ShiftKey, { label: string; timeWindow: string; startHour: number; endHour: number }> = {
@@ -82,6 +73,9 @@ interface AppointmentDisplay {
 }
 
 export default function ReceptionAppointmentsSchedulePage() {
+    // Get reception navigation from centralized config
+    const navigation = getReceptionNavigation()
+
     const router = useRouter()
 
     // ---- Week select (mặc định: tuần hiện tại)

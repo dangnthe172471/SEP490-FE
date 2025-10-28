@@ -7,15 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Activity, Users, ClipboardList, Stethoscope, AlertCircle, Clock } from "lucide-react"
 import { mockAppointments } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/nurse", icon: Activity },
-  { name: "Bệnh nhân", href: "/nurse/patients", icon: Users },
-  { name: "Nhiệm vụ", href: "/nurse/tasks", icon: ClipboardList },
-  { name: "Theo dõi", href: "/nurse/monitoring", icon: Stethoscope },
-]
+import { getNurseNavigation } from "@/lib/navigation/nurse-navigation"
 
 export default function NurseDashboard() {
+  // Get nurse navigation from centralized config
+  const navigation = getNurseNavigation()
+
   const router = useRouter()
 
   // Get active patients (in-progress appointments)

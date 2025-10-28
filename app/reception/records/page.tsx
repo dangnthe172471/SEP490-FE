@@ -8,16 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, FileText, Users, Activity, Plus, MessageCircle, UserPlus, HeartPulse } from "lucide-react"
-
-const navigation = [
-  { name: "Tổng quan", href: "/reception", icon: Activity },
-  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
-  { name: "Xem lịch", href: "/reception/appointments-schedule", icon: Calendar },
-  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
-  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
-]
+import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 
 interface MedicalRecord {
   recordId: number
@@ -64,6 +55,9 @@ interface PatientDetail {
 }
 
 export default function DoctorRecordsPage() {
+  // Get reception navigation from centralized config
+  const navigation = getReceptionNavigation()
+
   const router = useRouter()
   const [records, setRecords] = useState<MedicalRecord[]>([])
   const [loading, setLoading] = useState(true)

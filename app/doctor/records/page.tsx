@@ -8,16 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, FileText, Users, Activity, Plus } from "lucide-react"
 import { mockMedicalRecords } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/doctor", icon: Activity },
-  { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
-  { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
-]
+import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 
 export default function DoctorRecordsPage() {
   const router = useRouter()
+
+  // Get doctor navigation from centralized config
+  const navigation = getDoctorNavigation()
 
   const activeRecords = mockMedicalRecords.filter((r) => r.status === "active")
   const followUpRecords = mockMedicalRecords.filter((r) => r.status === "follow-up")

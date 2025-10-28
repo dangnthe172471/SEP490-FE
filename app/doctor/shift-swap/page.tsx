@@ -16,16 +16,14 @@ import { getCurrentUser } from "@/lib/auth"
 import { toast } from "sonner"
 import { showErrorAlert, showSuccessAlert } from "@/lib/sweetalert-config"
 import type { CreateShiftSwapRequest, ShiftSwapRequestResponse, DoctorShift, Doctor } from "@/lib/types/shift-swap"
-
-const navigation = [
-    { name: "Tổng quan", href: "/doctor", icon: Calendar },
-    { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
-    { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: Calendar },
-    { name: "Yêu cầu đổi ca", href: "/doctor/shift-swap", icon: Clock },
-]
+import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 
 export default function DoctorShiftSwapPage() {
     const [currentUser, setCurrentUser] = useState<any>(null)
+
+    // Get doctor navigation from centralized config
+    const navigation = getDoctorNavigation()
+
     const [doctors, setDoctors] = useState<Doctor[]>([])
     const [myShifts, setMyShifts] = useState<DoctorShift[]>([])
     const [targetShifts, setTargetShifts] = useState<DoctorShift[]>([])

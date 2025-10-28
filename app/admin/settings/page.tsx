@@ -9,15 +9,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Activity, Users, Settings, Shield, Save } from "lucide-react"
 import { useState } from "react"
-
-const navigation = [
-  { name: "Tổng quan", href: "/admin", icon: Activity },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
-  { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-  { name: "Cài đặt", href: "/admin/settings", icon: Settings },
-]
+import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
 
 export default function AdminSettingsPage() {
+  // Get admin navigation from centralized config
+  const navigation = getAdminNavigation()
+
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async () => {

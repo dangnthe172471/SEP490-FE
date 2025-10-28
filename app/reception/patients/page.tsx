@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ClientOnly } from "@/components/client-only";
 import { DateFormatter } from "@/components/date-formatter";
+import { getReceptionNavigation } from "@/lib/navigation/reception-navigation";
 
 type User = UserDto & {
   id: string;
@@ -43,17 +44,10 @@ type User = UserDto & {
   department: string;
 };
 
-const navigation = [
-  { name: "Tổng quan", href: "/reception", icon: Activity },
-  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
-  { name: "Xem lịch", href: "/reception/appointments-schedule", icon: Calendar },
-  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
-  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
-];
-
 export default function ReceptionPatientsPage() {
+  // Get reception navigation from centralized config
+  const navigation = getReceptionNavigation();
+
   const router = useRouter();
   const [patients, setPatients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
