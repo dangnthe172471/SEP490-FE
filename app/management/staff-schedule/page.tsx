@@ -14,7 +14,7 @@ import SchedulePeriodListView from "./components/SchedulePeriodListView"
 
 import { BarChart3, Calendar, Clock, FileText, TrendingUp } from "lucide-react"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
-
+import PageGuard from "@/components/PageGuard"
 
 export default function StaffSchedulePage() {
     // Get manager navigation from centralized config
@@ -34,6 +34,7 @@ export default function StaffSchedulePage() {
     }, [])
 
     return (
+        <PageGuard allowedRoles={["management", "admin"]}>
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -98,5 +99,6 @@ export default function StaffSchedulePage() {
                 />
             </div>
         </DashboardLayout>
+        </PageGuard>
     )
 }

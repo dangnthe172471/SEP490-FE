@@ -35,7 +35,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
-
+import PageGuard from "@/components/PageGuard"
 // Mock data for charts
 const revenueData = [
   { month: "T1", revenue: 45000000, expenses: 32000000 },
@@ -126,6 +126,7 @@ export default function ManagementDashboard() {
   }
 
   return (
+    <PageGuard allowedRoles={["management", "admin"]}>
     <DashboardLayout navigation={navigation}>
       <div className="space-y-6">
         <div>
@@ -314,5 +315,6 @@ export default function ManagementDashboard() {
         </Card>
       </div>
     </DashboardLayout>
+    </PageGuard>
   )
 }

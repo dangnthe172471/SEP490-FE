@@ -1,5 +1,5 @@
 import { BaseApiService } from './base-api.service'
-import { ApiResponse } from './types/api'
+import { ApiResponse } from '@/lib/types/api'
 
 export interface MedicalRecord {
     recordId: number
