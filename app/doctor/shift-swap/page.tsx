@@ -40,6 +40,42 @@ export default function DoctorShiftSwapPage() {
         exchangeDate: ""
     })
 
+    // Tính toán phạm vi ngày hợp lệ (giao của 2 khoảng ca và không trước ngày mai)
+    const selectedMyShift = myShifts.find(s => s.doctorShiftId.toString() === formData.myShiftId)
+    const selectedTargetShift = targetShifts.find(s => s.doctorShiftId.toString() === formData.targetShiftId)
+
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 2)
+    tomorrow.setHours(0, 0, 0, 0)
+
+    const parseDateOnly = (value?: string) => value ? new Date(value) : undefined
+    const formatDateOnly = (d?: Date) => d ? d.toISOString().split('T')[0] : undefined
+
+    const myFrom = parseDateOnly(selectedMyShift?.effectiveFrom)
+    const myTo = parseDateOnly(selectedMyShift?.effectiveTo)
+    const targetFrom = parseDateOnly(selectedTargetShift?.effectiveFrom)
+    const targetTo = parseDateOnly(selectedTargetShift?.effectiveTo)
+
+    // minDate = max(tomorrow, myFrom, targetFrom)
+    const minCandidates: Date[] = [tomorrow]
+    if (myFrom) minCandidates.push(myFrom)
+    if (targetFrom) minCandidates.push(targetFrom)
+    const computedMinDate = minCandidates.reduce((max, d) => d > max ? d : max)
+
+    // maxDate = min(myTo, targetTo) — chỉ tính khi cả hai có giá trị
+    let computedMaxDate: Date | undefined = undefined
+    if (myTo && targetTo) {
+        computedMaxDate = myTo < targetTo ? myTo : targetTo
+    } else if (myTo) {
+        computedMaxDate = myTo
+    } else if (targetTo) {
+        computedMaxDate = targetTo
+    }
+
+    const minDateStr = formatDateOnly(computedMinDate)
+    const maxDateStr = formatDateOnly(computedMaxDate)
+    const isRangeValid = !computedMaxDate || (computedMinDate <= computedMaxDate)
+
     useEffect(() => {
         const user = getCurrentUser()
         if (user) {
@@ -167,7 +203,7 @@ export default function DoctorShiftSwapPage() {
         }
 
         if (!formData.exchangeDate) {
-            toast.error("Vui lòng chọn ngày bắt đầu đổi ca")
+            toast.error("Vui lòng chọn ngày đổi ca")
             return
         }
 
@@ -185,16 +221,22 @@ export default function DoctorShiftSwapPage() {
                 swapType: swapType
             }
 
-            // Validate: Chỉ được đổi lịch từ ngày mai trở đi
-            const tomorrow = new Date()
-            tomorrow.setDate(tomorrow.getDate() + 1)
-            tomorrow.setHours(0, 0, 0, 0)
-
+            // Validate: trong khoảng hợp lệ và từ ngày mai trở đi
             const selectedDate = new Date(formData.exchangeDate)
             selectedDate.setHours(0, 0, 0, 0)
 
             if (selectedDate < tomorrow) {
                 toast.error("Chỉ được đổi lịch từ ngày mai trở đi. Không thể đổi lịch hôm nay.")
+                return
+            }
+
+            if (!isRangeValid) {
+                toast.error("Khoảng ngày không hợp lệ giữa hai ca. Vui lòng chọn lại.")
+                return
+            }
+
+            if (computedMaxDate && selectedDate > computedMaxDate) {
+                toast.error("Ngày đổi ca vượt quá ngày kết thúc cho phép.")
                 return
             }
 
@@ -332,15 +374,12 @@ export default function DoctorShiftSwapPage() {
                                         <SelectContent>
                                             {myShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
-                                                    {shift.shiftName} - {new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
-                                                    {shift.status === "Active" && " (Đang hoạt động)"}
+                                                    {shift.shiftName}  ({new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
+                                                    - {new Date(shift.effectiveTo).toLocaleDateString('vi-VN')})
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-sm text-gray-600">
-                                        Chỉ hiển thị ca có trạng thái "Active" (Đang hoạt động)
-                                    </p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -356,15 +395,12 @@ export default function DoctorShiftSwapPage() {
                                         <SelectContent>
                                             {targetShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
-                                                    {shift.shiftName} - {new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
-                                                    {shift.status === "Active" && " (Đang hoạt động)"}
+                                                    {shift.shiftName}  ({new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
+                                                    - {new Date(shift.effectiveTo).toLocaleDateString('vi-VN')})
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-sm text-gray-600">
-                                        Chỉ hiển thị ca có trạng thái "Active" (Đang hoạt động)
-                                    </p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -376,11 +412,18 @@ export default function DoctorShiftSwapPage() {
                                         type="date"
                                         value={formData.exchangeDate}
                                         onChange={(e) => setFormData(prev => ({ ...prev, exchangeDate: e.target.value }))}
-                                        min={new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                                        min={minDateStr}
+                                        max={maxDateStr}
+                                        disabled={!formData.myShiftId || !formData.targetShiftId || !isRangeValid}
                                     />
                                     <p className="text-sm text-gray-600">
-                                        Chỉ được chọn từ ngày mai trở đi. Không thể đổi lịch hôm nay.
+                                        Chỉ được chọn từ ngày mai và trong khoảng hợp lệ của hai ca.
                                     </p>
+                                    {formData.myShiftId && formData.targetShiftId && (
+                                        <p className="text-xs text-gray-500">
+                                            Phạm vi: {minDateStr} {maxDateStr ? `→ ${maxDateStr}` : ""}
+                                        </p>
+                                    )}
                                     {swapType === "temporary" ? (
                                         <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
                                             <strong>Đổi ca 1 ngày:</strong> Ca sẽ được đổi trong ngày {formData.exchangeDate ? new Date(formData.exchangeDate).toLocaleDateString('vi-VN') : 'đã chọn'} và trở về bình thường từ ngày hôm sau.
@@ -394,7 +437,7 @@ export default function DoctorShiftSwapPage() {
 
 
 
-                                <Button type="submit" className="w-full" disabled={loading}>
+                                <Button type="submit" className="w-full" disabled={loading || !isRangeValid || !formData.myShiftId || !formData.targetShiftId}>
                                     {loading
                                         ? "Đang tạo yêu cầu..."
                                         : swapType === "temporary"
