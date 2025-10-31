@@ -45,16 +45,39 @@ const [patientCache, setPatientCache] = useState<Record<number, PatientDetail>>(
 
         const patientId = data?.appointment?.patientId
         if (patientId) {
-          let patientData = patientCache[patientId]
-          if (!patientData) {
-            const uRes = await fetch(`https://localhost:7168/api/Users/${patientId}`)
-            if (uRes.ok) {
-              patientData = await uRes.json()
-              setPatientCache((prev) => ({ ...prev, [patientId]: patientData }))
-            }
+        // Kiểm tra cache xem đã có thông tin chưa
+        let patientData = patientCache[patientId];
+        
+        if (!patientData) {
+          try {
+            // 🔹 1. Lấy thông tin từ bảng Patient
+            const pRes = await fetch(`https://localhost:7168/api/Patient/${patientId}`);
+            if (!pRes.ok) throw new Error("Không thể lấy dữ liệu Patient");
+
+            const patient = await pRes.json();
+
+            // 🔹 2. Lấy thông tin User từ userId của Patient
+            const userId = patient?.userId;
+            if (!userId) throw new Error("Không tìm thấy userId trong Patient");
+
+            const uRes = await fetch(`https://localhost:7168/api/Users/${userId}`);
+            if (!uRes.ok) throw new Error("Không thể lấy dữ liệu User");
+
+            const userData = await uRes.json();
+
+            // 🔹 3. Gộp dữ liệu Patient và User (tuỳ ý)
+            patientData = { ...patient, ...userData };
+
+            // 🔹 4. Lưu vào cache
+            setPatientCache((prev) => ({ ...prev, [patientId]: patientData }));
+          } catch (error) {
+            console.error("Lỗi khi lấy thông tin bệnh nhân:", error);
           }
-          setPatientInfo(patientData)
         }
+
+        // 🔹 5. Cập nhật state
+        setPatientInfo(patientData);
+      }
 
       } catch (e: any) {
         setError(e?.message ?? 'Lỗi tải dữ liệu')

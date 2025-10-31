@@ -19,7 +19,7 @@ import {
   MessageCircle,
   UserPlus
 } from "lucide-react"
-import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { getDoctorNavigation } from "@/lib/navigation"
 
 // --- Interfaces định nghĩa cấu trúc dữ liệu ---
 
@@ -95,12 +95,12 @@ interface AppointmentDetail {
 
 export default function MedicalRecordDetailPage() {
   // Get reception navigation from centralized config
-  const navigation = getReceptionNavigation()
+  const navigation = getDoctorNavigation()
 
   const router = useRouter()
   const params = useParams()
   // Ép kiểu id từ params
-  const id = params?.id ? String(params.id) : null
+  const idView = params?.idView ? String(params.idView) : null
 
   const [record, setRecord] = useState<MedicalRecord | null>(null)
   const [patientInfo, setPatientInfo] = useState<PatientDetail | null>(null)
@@ -109,11 +109,11 @@ export default function MedicalRecordDetailPage() {
   const [patientCache, setPatientCache] = useState<Record<number, PatientDetail>>({})
   const [appointmentCache, setAppointmentCache] = useState<Record<number, AppointmentDetail>>({})
   useEffect(() => {
-    if (!id) return
+    if (!idView) return
     const fetchRecord = async () => {
       try {
         // Lấy hồ sơ bệnh án
-        const res = await fetch(`https://localhost:7168/api/MedicalRecord/${id}`)
+        const res = await fetch(`https://localhost:7168/api/MedicalRecord/${idView}`)
         if (!res.ok) throw new Error("Không thể tải dữ liệu hồ sơ.")
         const data: MedicalRecord = await res.json()
         setRecord(data)
@@ -163,7 +163,7 @@ export default function MedicalRecordDetailPage() {
       }
     }
     fetchRecord()
-  }, [id])
+  }, [idView])
 
   if (loading) {
     return (
