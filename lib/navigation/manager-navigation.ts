@@ -21,6 +21,7 @@ export const MANAGER_NAVIGATION: NavigationItem[] = [
     { name: "Lịch làm việc", href: "/management/staff-schedule", icon: Calendar },
     { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
     { name: "Yêu cầu đổi ca", href: "/management/shift-swap-requests", icon: Clock },
+    { name: "Thống kê bệnh nhân", href: "/management/patient-stats", icon: TrendingUp },
     { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
     { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
     { name: "Phòng khám", href: "/management/rooms", icon: Building2 },

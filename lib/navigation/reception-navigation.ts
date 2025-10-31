@@ -16,6 +16,7 @@ export const RECEPTION_NAVIGATION: NavigationItem[] = [
     { name: "Tổng quan", href: "/reception", icon: Activity },
     { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
     { name: "Xem lịch", href: "/reception/appointments-schedule", icon: Calendar },
+    { name: "Trạng thái phòng khám", href: "/reception/clinic-status", icon: Activity },
     { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
     { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
     { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
