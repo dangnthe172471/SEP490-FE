@@ -1,337 +1,232 @@
 "use client"
 
-import { use } from "react"
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Calendar, FileText, Users, Activity, ArrowLeft, Pill, TestTube, Brain } from "lucide-react"
-import { mockMedicalRecords, mockPatients } from "@/lib/mock-data"
-import { useRouter } from "next/navigation"
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
+import { MedicalRecordService, type MedicalRecordDto } from "@/lib/services/medical-record-service"
 
-export default function MedicalRecordDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  // Get doctor navigation from centralized config
+interface PatientDetail {
+  fullName: string
+  gender: string
+  dob: string
+  phone: string
+  email: string
+  allergies: string
+  medicalHistory: string
+}
+
+export default function MedicalRecordDetailPage() {
   const navigation = getDoctorNavigation()
-
   const router = useRouter()
-  const { id } = use(params)
+  const params = useParams()
+  const id = params?.id ? Number(params.id) : null
 
-  const record = mockMedicalRecords.find((r) => r.id === id)
-  const patient = record ? mockPatients.find((p) => p.id === record.patientId) : null
+  const [record, setRecord] = useState<MedicalRecordDto | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+const [patientCache, setPatientCache] = useState<Record<number, PatientDetail>>({})
+ const [patientInfo, setPatientInfo] = useState<PatientDetail | null>(null)
 
-  if (!record || !patient) {
+  useEffect(() => {
+    if (!id) return
+    (async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7168'}/api/MedicalRecord/${id}`)
+        if (!res.ok) throw new Error("Không thể tải dữ liệu hồ sơ")
+        const data: MedicalRecordDto = await res.json()
+        setRecord(data)
+
+        const patientId = data?.appointment?.patientId
+        if (patientId) {
+          let patientData = patientCache[patientId]
+          if (!patientData) {
+            const uRes = await fetch(`https://localhost:7168/api/Users/${patientId}`)
+            if (uRes.ok) {
+              patientData = await uRes.json()
+              setPatientCache((prev) => ({ ...prev, [patientId]: patientData }))
+            }
+          }
+          setPatientInfo(patientData)
+        }
+
+      } catch (e: any) {
+        setError(e?.message ?? 'Lỗi tải dữ liệu')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [id])
+
+  const save = async () => {
+    if (!record) return
+    try {
+      setSaving(true)
+      const updated = await MedicalRecordService.update(record.recordId, {
+        diagnosis: record.diagnosis ?? undefined,
+        doctorNotes: record.doctorNotes ?? undefined,
+      })
+      setRecord(updated)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
+    } catch (e) {
+      alert('Không thể lưu hồ sơ')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
     return (
       <DashboardLayout navigation={navigation}>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Không tìm thấy hồ sơ bệnh án</p>
-          <Button className="mt-4" onClick={() => router.push("/doctor/records")}>
-            Quay lại
-          </Button>
-        </div>
+        <div className="p-6">Đang tải dữ liệu…</div>
+      </DashboardLayout>
+    )
+  }
+
+  if (!record) {
+    return (
+      <DashboardLayout navigation={navigation}>
+        <div className="p-6 text-red-600">Không tìm thấy hồ sơ</div>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout navigation={navigation}>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Chi tiết hồ sơ bệnh án</h1>
-            <p className="text-muted-foreground">Mã hồ sơ: {record.id}</p>
-          </div>
-          <Badge
-            variant={record.status === "active" ? "default" : record.status === "follow-up" ? "secondary" : "outline"}
-          >
-            {record.status === "active" ? "Đang điều trị" : record.status === "follow-up" ? "Tái khám" : "Hoàn thành"}
-          </Badge>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Patient Info */}
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Thông tin bệnh nhân</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-xl font-semibold text-primary">
-                    {patient.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-semibold">{patient.name}</p>
-                  <p className="text-sm text-muted-foreground">{patient.id}</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ngày sinh:</span>
-                  <span className="font-medium">{patient.dateOfBirth}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Giới tính:</span>
-                  <span className="font-medium">
-                    {patient.gender === "male" ? "Nam" : patient.gender === "female" ? "Nữ" : "Khác"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Điện thoại:</span>
-                  <span className="font-medium">{patient.phone}</span>
-                </div>
-                {patient.bloodType && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Nhóm máu:</span>
-                    <span className="font-medium">{patient.bloodType}</span>
-                  </div>
-                )}
-              </div>
-
-              {patient.allergies && patient.allergies.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-sm font-medium mb-2">Dị ứng:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {patient.allergies.map((allergy) => (
-                        <Badge key={allergy} variant="destructive" className="text-xs">
-                          {allergy}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {patient.chronicConditions && patient.chronicConditions.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-sm font-medium mb-2">Bệnh mạn tính:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {patient.chronicConditions.map((condition) => (
-                        <Badge key={condition} variant="outline" className="text-xs">
-                          {condition}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Medical Record Details */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Diagnosis & Symptoms */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Thông tin khám bệnh</CardTitle>
-                <CardDescription>
-                  {record.date} - {record.department}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium mb-1">Chẩn đoán:</p>
-                  <p className="text-sm text-muted-foreground">{record.diagnosis}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium mb-1">Triệu chứng:</p>
-                  <p className="text-sm text-muted-foreground">{record.symptoms}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium mb-1">Ghi chú:</p>
-                  <p className="text-sm text-muted-foreground">{record.notes}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Vital Signs */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Chỉ số sinh tồn</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {record.vitalSigns.bloodPressure && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Huyết áp</p>
-                      <p className="text-lg font-semibold">{record.vitalSigns.bloodPressure} mmHg</p>
-                    </div>
-                  )}
-                  {record.vitalSigns.heartRate && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Nhịp tim</p>
-                      <p className="text-lg font-semibold">{record.vitalSigns.heartRate} bpm</p>
-                    </div>
-                  )}
-                  {record.vitalSigns.temperature && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Nhiệt độ</p>
-                      <p className="text-lg font-semibold">{record.vitalSigns.temperature}°C</p>
-                    </div>
-                  )}
-                  {record.vitalSigns.weight && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Cân nặng</p>
-                      <p className="text-lg font-semibold">{record.vitalSigns.weight} kg</p>
-                    </div>
-                  )}
-                  {record.vitalSigns.height && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Chiều cao</p>
-                      <p className="text-lg font-semibold">{record.vitalSigns.height} cm</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Prescriptions */}
-            {record.prescriptions.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Pill className="h-5 w-5 text-primary" />
-                    <CardTitle>Đơn thuốc</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {record.prescriptions.map((prescription) => (
-                      <div key={prescription.id} className="border rounded-lg p-4 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-semibold">{prescription.medication}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {prescription.dosage} - {prescription.frequency}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={
-                              prescription.status === "dispensed"
-                                ? "default"
-                                : prescription.status === "pending"
-                                  ? "secondary"
-                                  : "outline"
-                            }
-                          >
-                            {prescription.status === "dispensed"
-                              ? "Đã cấp"
-                              : prescription.status === "pending"
-                                ? "Chờ cấp"
-                                : "Hoàn thành"}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Thời gian: {prescription.duration}</p>
-                        <p className="text-sm text-muted-foreground">Hướng dẫn: {prescription.instructions}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Lab Tests */}
-            {record.labTests.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <TestTube className="h-5 w-5 text-primary" />
-                    <CardTitle>Xét nghiệm & Chẩn đoán hình ảnh</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {record.labTests.map((test) => (
-                      <div key={test.id} className="border rounded-lg p-4 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-semibold">{test.testName}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {test.testType === "lab" ? "Xét nghiệm" : "Chẩn đoán hình ảnh"}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={
-                              test.status === "completed"
-                                ? "default"
-                                : test.status === "in-progress"
-                                  ? "secondary"
-                                  : "outline"
-                            }
-                          >
-                            {test.status === "completed"
-                              ? "Hoàn thành"
-                              : test.status === "in-progress"
-                                ? "Đang thực hiện"
-                                : "Chờ thực hiện"}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Ngày yêu cầu: {test.requestedDate}</p>
-                        {test.completedDate && (
-                          <p className="text-sm text-muted-foreground">Ngày hoàn thành: {test.completedDate}</p>
-                        )}
-                        {test.results && (
-                          <div className="mt-2 p-3 bg-muted rounded-md">
-                            <p className="text-sm font-medium mb-1">Kết quả:</p>
-                            <p className="text-sm">{test.results}</p>
-                          </div>
-                        )}
-                        {test.notes && <p className="text-sm text-muted-foreground">Ghi chú: {test.notes}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* AI Diagnostic Support */}
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-primary" />
-                  <CardTitle>Hỗ trợ chẩn đoán AI</CardTitle>
-                </div>
-                <CardDescription>Gợi ý chẩn đoán dựa trên triệu chứng và dữ liệu lâm sàng</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="p-3 bg-background rounded-md border">
-                    <p className="text-sm font-medium mb-1">Chẩn đoán khả năng cao:</p>
-                    <p className="text-sm text-muted-foreground">{record.diagnosis}</p>
-                    <div className="mt-2">
-                      <Badge variant="outline">Độ tin cậy: 92%</Badge>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-background rounded-md border">
-                    <p className="text-sm font-medium mb-1">Khuyến nghị:</p>
-                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                      <li>Theo dõi chỉ số sinh tồn định kỳ</li>
-                      <li>Tuân thủ đơn thuốc đã kê</li>
-                      <li>Tái khám theo lịch hẹn</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Hồ sơ bệnh án #{record.recordId}</h1>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => router.back()}>Quay lại</Button>
+            <Button onClick={save} disabled={saving}>{saving ? 'Đang lưu…' : saved ? 'Đã lưu' : 'Lưu'}</Button>
           </div>
         </div>
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle>Thông tin bệnh nhân</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div>
+              <p><strong>Họ tên:</strong> {patientInfo?.fullName || "—"}</p>
+              <p><strong>Giới tính:</strong> {patientInfo?.gender || "—"}</p>
+              <p><strong>Ngày sinh:</strong> {patientInfo?.dob ? new Date(patientInfo.dob).toLocaleDateString("vi-VN") : "—"}</p>
+              <p><strong>SĐT:</strong> {patientInfo?.phone || "—"}</p>
+            </div>
+            <div>
+              <p><strong>Email:</strong> {patientInfo?.email || "—"}</p>
+              <p><strong>Dị ứng:</strong> {patientInfo?.allergies || "Không có"}</p>
+              <p><strong>Tiền sử bệnh:</strong> {patientInfo?.medicalHistory || "Không có"}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="p-4">
+          <div className="grid gap-4">
+            <div className="bg-slate-50 p-3 rounded">
+              <div className="font-semibold mb-1">Thông tin cuộc hẹn</div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>Mã hẹn: <span className="font-medium">{record.appointment?.appointmentId ?? record.appointmentId}</span></div>
+                <div>Trạng thái: <span className="font-medium">{record.appointment?.status ?? '-'}</span></div>
+                <div>Ngày giờ: <span className="font-medium">{record.appointment?.appointmentDate ? new Date(record.appointment.appointmentDate).toLocaleString('vi-VN') : '-'}</span></div>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div>
+                <label className="text-sm text-slate-600">Chẩn đoán</label>
+                <textarea className="mt-1 w-full border rounded p-2" rows={2} value={record.diagnosis ?? ''} onChange={(e) => setRecord({ ...record, diagnosis: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm text-slate-600">Ghi chú bác sĩ</label>
+                <textarea className="mt-1 w-full border rounded p-2" rows={3} value={record.doctorNotes ?? ''} onChange={(e) => setRecord({ ...record, doctorNotes: e.target.value })} />
+              </div>
+            </div>
+
+            {record.internalMedRecord && (
+              <div className="bg-blue-50 rounded p-3 text-sm">
+                <div className="font-semibold mb-1">Khám nội khoa</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>Huyết áp: <span className="font-medium">{record.internalMedRecord.bloodPressure ?? '-'}</span></div>
+                  <div>Nhịp tim: <span className="font-medium">{record.internalMedRecord.heartRate ?? '-'}</span></div>
+                  <div>Đường huyết: <span className="font-medium">{record.internalMedRecord.bloodSugar ?? '-'}</span></div>
+                  <div>Ghi chú: <span className="font-medium">{record.internalMedRecord.notes ?? '-'}</span></div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="font-semibold mb-2">Đơn thuốc ({record.prescriptions?.length ?? 0})</div>
+              {(record.prescriptions && record.prescriptions.length > 0) ? (
+                <div className="border rounded divide-y">
+                  {record.prescriptions.map((p) => (
+                    <div key={p.prescriptionId} className="p-2 text-sm">
+                      <div className="flex items-center justify-between pb-2">
+                        <div className="font-medium">Đơn #{p.prescriptionId}</div>
+                        <div className="text-xs text-muted-foreground">{p.issuedDate ? new Date(p.issuedDate).toLocaleString('vi-VN') : '-'}</div>
+                      </div>
+                      {(p.prescriptionDetails && p.prescriptionDetails.length > 0) ? (
+                        <div className="border rounded">
+                          {p.prescriptionDetails.map((d) => (
+                            <div key={d.prescriptionDetailId} className="grid grid-cols-3 gap-2 p-2 border-b last:border-b-0">
+                              <div className="font-medium truncate">{d.medicineName}</div>
+                              <div className="text-muted-foreground">Liều dùng: {d.dosage}</div>
+                              <div className="text-right">Thời gian: {d.duration}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground">Không có chi tiết đơn thuốc</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Chưa có đơn thuốc</p>
+              )}
+            </div>
+
+            <div>
+              <div className="font-semibold mb-2">Kết quả xét nghiệm ({record.testResults?.length ?? 0})</div>
+              {(record.testResults && record.testResults.length > 0) ? (
+                <div className="border rounded divide-y">
+                  {record.testResults.map((t) => (
+                    <div key={t.testResultId} className="grid grid-cols-4 gap-2 p-2 text-sm">
+                      <div className="col-span-2">KQ: <span className="font-medium">{t.resultValue ?? '-'}</span></div>
+                      <div>{t.resultDate ? new Date(t.resultDate).toLocaleDateString('vi-VN') : '-'}</div>
+                      <div className="text-right">{t.notes ?? ''}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Chưa có kết quả xét nghiệm</p>
+              )}
+            </div>
+
+            <div>
+              <div className="font-semibold mb-2">Thanh toán ({record.payments?.length ?? 0})</div>
+              {(record.payments && record.payments.length > 0) ? (
+                <div className="border rounded divide-y">
+                  {record.payments.map((p) => (
+                    <div key={p.paymentId} className="grid grid-cols-4 gap-2 p-2 text-sm">
+                      <div className="col-span-2">{new Date(p.paymentDate).toLocaleString('vi-VN')}</div>
+                      <div className="text-right">{p.amount.toLocaleString('vi-VN')} đ</div>
+                      <div className="text-right">{p.status}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Chưa có thanh toán</p>
+              )}
+            </div>
+          </div>
+        </Card>
       </div>
     </DashboardLayout>
   )

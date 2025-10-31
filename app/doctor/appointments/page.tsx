@@ -22,6 +22,7 @@ import {
 import { Appointment, AppointmentDetail } from "@/lib/types/appointment-doctor"
 import { getDoctorAppointments, getDoctorAppointmentDetail } from "@/lib/services/appointment-doctor-service"
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
+import { MedicalRecordService, type MedicalRecordDto } from "@/lib/services/medical-record-service"
 
 type ShiftKey = "morning" | "afternoon" | "evening"
 const SHIFTS: Record<ShiftKey, { label: string; timeWindow: string; startHour: number; endHour: number }> = {
@@ -113,6 +114,48 @@ export default function DoctorAppointmentsPage() {
   const [selected, setSelected] = useState<AppointmentDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+
+  // Medical record state (within the detail modal)
+  const [record, setRecord] = useState<MedicalRecordDto | null>(null)
+  const [mrLoading, setMrLoading] = useState(false)
+  const [mrError, setMrError] = useState<string | null>(null)
+  const [mrSaved, setMrSaved] = useState<boolean>(false)
+
+  const loadOrCreateMedicalRecord = async () => {
+    if (!selected) return
+    try {
+      setMrLoading(true)
+      setMrError(null)
+      const rec = await MedicalRecordService.ensureByAppointment(selected.appointmentId)
+      // Redirect to a dedicated doctor record detail page (reusing reception UX)
+      router.push(`/doctor/records/${rec.recordId}`)
+    } catch (e: any) {
+      setMrError(e?.message ?? 'Không thể tải hồ sơ bệnh án')
+    } finally {
+      setMrLoading(false)
+    }
+  }
+
+  const saveMedicalRecord = async () => {
+    if (!record) return
+    try {
+      setMrLoading(true)
+      setMrError(null)
+      const updated = await MedicalRecordService.update(record.recordId, {
+        doctorNotes: record.doctorNotes ?? undefined,
+        diagnosis: record.diagnosis ?? undefined,
+      })
+      // Refetch full object to ensure related lists are fresh
+      const fresh = await MedicalRecordService.getByAppointmentId(updated.appointmentId)
+      setRecord(fresh ?? updated)
+      setMrSaved(true)
+      setTimeout(() => setMrSaved(false), 1500)
+    } catch (e: any) {
+      setMrError(e?.message ?? 'Không thể cập nhật hồ sơ bệnh án')
+    } finally {
+      setMrLoading(false)
+    }
+  }
 
   // ---- Load list
   useEffect(() => {
@@ -355,9 +398,14 @@ export default function DoctorAppointmentsPage() {
                       <Phone className="w-4 h-4 text-slate-400" />
                       <span className="font-medium">{selected.patientPhone}</span>
                     </p>
-                    <Button variant="outline" size="sm" className="mt-2" onClick={() => router.push(`/doctor/patients/${selected.patientId}`)}>
-                      Xem hồ sơ bệnh nhân
-                    </Button>
+                    <div className="flex gap-2 mt-2">
+                      {/* <Button variant="outline" size="sm" onClick={() => router.push(`/doctor/patients/${selected.patientId}`)}>
+                        Xem hồ sơ bệnh nhân
+                      </Button> */}
+                      <Button size="sm" onClick={loadOrCreateMedicalRecord}>
+                        Hồ sơ bệnh án
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="border-t pt-4">
@@ -375,6 +423,8 @@ export default function DoctorAppointmentsPage() {
           </Card>
         </div>
       )}
+
+      {/* Moved to dedicated page /doctor/records/[id] for full view/edit */}
     </DashboardLayout>
   )
 }

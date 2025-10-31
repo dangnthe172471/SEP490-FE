@@ -213,9 +213,9 @@ export default function DoctorRecordsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Hồ sơ bệnh án</h1>
             <p className="text-muted-foreground">Quản lý toàn bộ hồ sơ khám bệnh</p>
           </div>
-          <Button onClick={() => router.push("/reception/records/new")}>
+          {/* <Button onClick={() => router.push("/reception/records/new")}>
             <Plus className="mr-2 h-4 w-4" /> Tạo hồ sơ mới
-          </Button>
+          </Button> */}
         </div>
 
         {loading ? (
