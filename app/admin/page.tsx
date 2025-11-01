@@ -6,13 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Activity, Users, Settings, Shield, UserPlus, Clock } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/admin", icon: Activity },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
-  { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-  { name: "Cài đặt", href: "/admin/settings", icon: Settings },
-]
+import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
 
 // Mock users data
 const mockUsers = [
@@ -56,6 +50,9 @@ const recentActivities = [
 ]
 
 export default function AdminDashboard() {
+  // Get admin navigation from centralized config
+  const navigation = getAdminNavigation()
+
   const router = useRouter()
 
   const stats = [

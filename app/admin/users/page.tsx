@@ -38,6 +38,7 @@ import { UserDto } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { DateFormatter } from "@/components/date-formatter"
+import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
 
 type User = UserDto & {
   id: string
@@ -47,14 +48,10 @@ type User = UserDto & {
   joinDate: string
 }
 
-const navigation = [
-  { name: "Tổng quan", href: "/admin", icon: Activity },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
-  { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-  { name: "Cài đặt", href: "/admin/settings", icon: Settings },
-]
-
 export default function AdminUsersPage() {
+  // Get admin navigation from centralized config
+  const navigation = getAdminNavigation()
+
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)

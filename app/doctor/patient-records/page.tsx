@@ -16,16 +16,13 @@ import PrescriptionModal from "@/components/doctor/prescription-modal"
 
 import type { RecordListItemDto, PagedResult } from "@/lib/types/doctor-record"
 import { getDoctorRecords } from "@/lib/services/doctor-record-service"
-
-const navigation = [
-  { name: "Tổng quan", href: "/doctor", icon: Activity },
-  { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/doctor/patient-records", icon: FileText },
-  { name: "Lịch hẹn", href: "/doctor/appointments", icon: CalendarIcon },
-]
+import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 
 export default function DoctorRecordsPage() {
   const router = useRouter()
+
+  // Get doctor navigation from centralized config
+  const navigation = getDoctorNavigation()
 
   // Filters & paging
   const [search, setSearch] = useState("")
@@ -113,7 +110,7 @@ export default function DoctorRecordsPage() {
   }
 
   const onViewPrescription = (prescriptionId: number) => {
-  router.push(`/doctor/prescriptions/${prescriptionId}`)
+    router.push(`/doctor/prescriptions/${prescriptionId}`)
   }
 
   return (

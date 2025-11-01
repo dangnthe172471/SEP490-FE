@@ -7,13 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Activity, Package, ShoppingCart, Pill, Clock, User } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/pharmacy", icon: Activity },
-  { name: "Đơn thuốc", href: "/pharmacy/prescriptions", icon: ShoppingCart },
-  { name: "Kho thuốc", href: "/pharmacy/inventory", icon: Package },
-  { name: "Thuốc", href: "/pharmacy/medicines", icon: Pill },
-]
+import { getPharmacyNavigation } from "@/lib/navigation/pharmacy-navigation"
 
 // Mock prescriptions
 const mockPrescriptions = [
@@ -72,6 +66,9 @@ const mockPrescriptions = [
 ]
 
 export default function PharmacyPrescriptionsPage() {
+  // Get pharmacy navigation from centralized config
+  const navigation = getPharmacyNavigation()
+
   const router = useRouter()
 
   const pendingPrescriptions = mockPrescriptions.filter((p) => p.status === "pending")

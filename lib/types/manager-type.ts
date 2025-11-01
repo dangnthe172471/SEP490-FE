@@ -10,6 +10,7 @@ export interface ShiftResponseDto {
     shiftType: string
     startTime: string
     endTime: string
+    doctors: DoctorDto[] 
 }
 
 export interface CreateScheduleRequest {
@@ -20,3 +21,41 @@ export interface CreateScheduleRequest {
         doctorIDs: number[]
     }[]
 }
+
+export interface DailyWorkScheduleDto {
+    date: string 
+    shifts: ShiftResponseDto[]
+}
+export interface PagedResult<T> {
+    items: T[]
+    pageNumber: number
+    pageSize: number
+    totalCount: number
+    totalPages?: number    
+    hasPrevious?: boolean
+    hasNext?: boolean
+}
+
+export interface DailySummaryDto {
+    date: string
+    shiftCount: number
+    doctorCount: number
+}
+// Dữ liệu trả về từ API GetGroupedWorkScheduleListAsync
+
+export interface WorkScheduleGroupDto {
+    effectiveFrom: string
+    effectiveTo: string
+    shifts: ShiftResponseDto[]
+}
+
+export interface UpdateDoctorShiftRangeRequest {
+    fromDate: string
+    toDate: string
+    newToDate?: string 
+    shiftId: number
+    addDoctorIds: number[]
+    removeDoctorIds: number[]
+}
+
+

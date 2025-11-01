@@ -8,13 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Activity, Package, ShoppingCart, Pill, Search, AlertTriangle, Plus } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/pharmacy", icon: Activity },
-  { name: "Đơn thuốc", href: "/pharmacy/prescriptions", icon: ShoppingCart },
-  { name: "Kho thuốc", href: "/pharmacy/inventory", icon: Package },
-  { name: "Thuốc", href: "/pharmacy/medicines", icon: Pill },
-]
+import { getPharmacyNavigation } from "@/lib/navigation/pharmacy-navigation"
 
 // Mock inventory data
 const mockInventory = [
@@ -76,6 +70,9 @@ const mockInventory = [
 ]
 
 export default function PharmacyInventoryPage() {
+  // Get pharmacy navigation from centralized config
+  const navigation = getPharmacyNavigation()
+
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
 

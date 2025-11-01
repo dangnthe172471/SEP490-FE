@@ -67,6 +67,7 @@ export interface UserDto {
     isActive?: boolean
     allergies?: string
     medicalHistory?: string
+    avatar?: string
 }
 
 export interface ApiResponse<T = any> {

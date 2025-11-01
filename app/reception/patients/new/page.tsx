@@ -33,15 +33,7 @@ import { userService } from "@/lib/services/user.service"
 import { CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
-
-const navigation = [
-  { name: "Tổng quan", href: "/reception", icon: Activity },
-  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
-  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
-  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
-]
+import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 
 interface CreateUserData {
   fullName: string
@@ -73,6 +65,9 @@ const genderOptions = [
 ]
 
 export default function CreateUserPage() {
+  // Get reception navigation from centralized config
+  const navigation = getReceptionNavigation()
+
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})

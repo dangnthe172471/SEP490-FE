@@ -6,14 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, TrendingUp, FileText, Download, Calendar, TestTube, Building2 } from "lucide-react"
 import { useState } from "react"
-
-const navigation = [
-  { name: "Tổng quan", href: "/management", icon: BarChart3 },
-  { name: "Báo cáo", href: "/management/reports", icon: FileText },
-  { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-  { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
-  { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
-]
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 
 const reports = [
   {
@@ -67,6 +60,9 @@ const reports = [
 ]
 
 export default function ManagementReportsPage() {
+  // Get manager navigation from centralized config
+  const navigation = getManagerNavigation()
+
   const [selectedType, setSelectedType] = useState<string>("all")
 
   const reportTypes = ["all", "Tài chính", "Hoạt động", "Nhân sự", "Kho thuốc", "Chất lượng"]

@@ -34,10 +34,7 @@ import {
 import { medicineService } from "@/lib/services/medicine-service";
 import type { ReadMedicineDto, CreateMedicineDto, UpdateMedicineDto, PagedResult } from "@/lib/types/medicine";
 import { useToast } from "@/hooks/use-toast";
-
-const navigation = [
-  { name: "Thuốc", href: "/pharmacy", icon: Package },
-];
+import { getPharmacyNavigation } from "@/lib/navigation/pharmacy-navigation";
 
 interface FormData {
   medicineName: string;
@@ -77,6 +74,9 @@ function normalizeStatus(raw?: string): "Providing" | "Stopped" {
 }
 
 export default function MedicinesManagementPage() {
+  // Get pharmacy navigation from centralized config
+  const navigation = getPharmacyNavigation()
+
   const [token, setToken] = useState<string>("");
   const [role, setRole] = useState<string | null>(null);
 

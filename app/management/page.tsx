@@ -34,18 +34,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts"
-
-const navigation = [
-  { name: "Tổng quan", href: "/management", icon: BarChart3 },
-  { name: "Báo cáo", href: "/management/reports", icon: FileText },
-  { name: "Lịch làm việc", href: "/management/staff-schedule", icon: CalendarIcon },
-  { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
-  { name: "Yêu cầu đổi ca", href: "/management/shift-swap-requests", icon: Calendar },
-  { name: "Phân tích", href: "/management/analytics", icon: TrendingUp },
-  { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
-  { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
-]
-
+import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
+import PageGuard from "@/components/PageGuard"
 // Mock data for charts
 const revenueData = [
   { month: "T1", revenue: 45000000, expenses: 32000000 },
@@ -89,6 +79,9 @@ const topDoctors = [
 ]
 
 export default function ManagementDashboard() {
+  // Get manager navigation from centralized config
+  const navigation = getManagerNavigation()
+
   const stats = [
     {
       title: "Doanh thu tháng này",
@@ -133,6 +126,7 @@ export default function ManagementDashboard() {
   }
 
   return (
+    <PageGuard allowedRoles={["management", "admin"]}>
     <DashboardLayout navigation={navigation}>
       <div className="space-y-6">
         <div>
@@ -321,5 +315,6 @@ export default function ManagementDashboard() {
         </Card>
       </div>
     </DashboardLayout>
+    </PageGuard>
   )
 }

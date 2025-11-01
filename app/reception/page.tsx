@@ -10,17 +10,12 @@ import { Calendar, Users, Clock, UserPlus, CalendarPlus, Activity, MessageCircle
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { useEffect, useState } from "react"
-
-const navigation = [
-  { name: "Tổng quan", href: "/reception", icon: Activity },
-  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
-  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
-  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
-]
+import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 
 export default function ReceptionDashboard() {
+  // Get reception navigation from centralized config
+  const navigation = getReceptionNavigation()
+
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)

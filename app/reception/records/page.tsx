@@ -8,15 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, FileText, Users, Activity, Plus, MessageCircle, UserPlus, HeartPulse } from "lucide-react"
-
-const navigation = [
-  { name: "Tổng quan", href: "/reception", icon: Activity },
-  { name: "Lịch hẹn", href: "/reception/appointments", icon: Calendar },
-  { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
-  { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
-  { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
-]
+import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 
 interface MedicalRecord {
   recordId: number
@@ -50,6 +42,7 @@ interface AppointmentDetail {
   doctorSpecialty: string
   status: string
   reasonForVisit: string
+  appointmentDate?: string
 }
 
 interface PatientDetail {
@@ -63,6 +56,9 @@ interface PatientDetail {
 }
 
 export default function DoctorRecordsPage() {
+  // Get reception navigation from centralized config
+  const navigation = getReceptionNavigation()
+
   const router = useRouter()
   const [records, setRecords] = useState<MedicalRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,10 +71,10 @@ export default function DoctorRecordsPage() {
         const res = await fetch("https://localhost:7168/api/MedicalRecord")
         if (!res.ok) throw new Error("Failed to fetch records")
         const data = await res.json()
-
         // song song fetch thêm dữ liệu từ appointment và user
         const enriched = await Promise.all(
           data.map(async (r: MedicalRecord) => {
+            // 1) Appointment info (cache by appointmentId)
             let appointmentInfo = appointmentCache[r.appointmentId]
             if (!appointmentInfo) {
               const aRes = await fetch(`https://localhost:7168/api/Appointments/${r.appointmentId}`)
@@ -86,17 +82,39 @@ export default function DoctorRecordsPage() {
               setAppointmentCache((prev) => ({ ...prev, [r.appointmentId]: appointmentInfo }))
             }
 
-            let patientInfo = patientCache[r.appointment.patientId]
-            if (!patientInfo && r.appointment.patientId) {
-              const uRes = await fetch(`https://localhost:7168/api/Users/${r.appointment.patientId}`)
-              patientInfo = await uRes.json()
-              setPatientCache((prev) => ({ ...prev, [r.appointment.patientId]: patientInfo }))
+            // 2) Patient info (via PatientId from record.appointment)
+            const patientId = r?.appointment?.patientId
+            let patientData = patientId ? patientCache[patientId] : undefined
+            if (!patientData && patientId) {
+              // Step 1: get Patient to retrieve userId
+              const pRes = await fetch(`https://localhost:7168/api/Patient/${patientId}`)
+              if (!pRes.ok) throw new Error("Không thể lấy dữ liệu Patient")
+              const patientRaw = await pRes.json()
+              const userId = patientRaw?.userId ?? patientRaw?.UserId
+              if (!userId) throw new Error("Không tìm thấy userId trong Patient")
+
+              // Step 2: get User details
+              const uRes = await fetch(`https://localhost:7168/api/Users/${userId}`)
+              if (!uRes.ok) throw new Error("Không thể lấy dữ liệu User")
+              const userRaw = await uRes.json()
+
+              // Merge normalized fields for FE display
+              patientData = {
+                fullName: userRaw.fullName ?? userRaw.FullName ?? "",
+                gender: userRaw.gender ?? userRaw.Gender ?? "",
+                dob: userRaw.dob ?? userRaw.Dob ?? "",
+                phone: userRaw.phone ?? userRaw.Phone ?? "",
+                email: userRaw.email ?? userRaw.Email ?? "",
+                allergies: patientRaw.allergies ?? patientRaw.Allergies ?? "",
+                medicalHistory: patientRaw.medicalHistory ?? patientRaw.MedicalHistory ?? "",
+              }
+              setPatientCache((prev) => ({ ...prev, [patientId]: patientData! }))
             }
 
             return {
               ...r,
               appointmentInfo,
-              patientInfo,
+              patientData,
             }
           })
         )
@@ -113,8 +131,8 @@ export default function DoctorRecordsPage() {
   }, [])
 
   const RecordCard = ({ record }: { record: any }) => {
-    const p = record.patientInfo
-    const a = record.appointmentInfo
+    const p = record.patientData as PatientDetail | undefined
+    const a = record.appointmentInfo as AppointmentDetail | undefined
     const med = record.internalMedRecord
 
     return (
@@ -218,9 +236,9 @@ export default function DoctorRecordsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Hồ sơ bệnh án</h1>
             <p className="text-muted-foreground">Quản lý toàn bộ hồ sơ khám bệnh</p>
           </div>
-          <Button onClick={() => router.push("/reception/records/new")}>
+          {/* <Button onClick={() => router.push("/reception/records/new")}>
             <Plus className="mr-2 h-4 w-4" /> Tạo hồ sơ mới
-          </Button>
+          </Button> */}
         </div>
 
         {loading ? (

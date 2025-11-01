@@ -6,13 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Activity, Users, Settings, Shield, Check } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/admin", icon: Activity },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
-  { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-  { name: "Cài đặt", href: "/admin/settings", icon: Settings },
-]
+import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
 
 // Mock roles and permissions
 const roles = [
@@ -111,6 +105,9 @@ const rolePermissions: Record<string, string[]> = {
 }
 
 export default function AdminRolesPage() {
+  // Get admin navigation from centralized config
+  const navigation = getAdminNavigation()
+
   const router = useRouter()
 
   return (

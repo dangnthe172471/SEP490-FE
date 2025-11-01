@@ -8,13 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Activity, Users, ClipboardList, Stethoscope, Clock, Plus } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/nurse", icon: Activity },
-  { name: "Bệnh nhân", href: "/nurse/patients", icon: Users },
-  { name: "Nhiệm vụ", href: "/nurse/tasks", icon: ClipboardList },
-  { name: "Theo dõi", href: "/nurse/monitoring", icon: Stethoscope },
-]
+import { getNurseNavigation } from "@/lib/navigation/nurse-navigation"
 
 // Mock tasks data
 const mockTasks = [
@@ -81,6 +75,9 @@ const mockTasks = [
 ]
 
 export default function NurseTasksPage() {
+  // Get nurse navigation from centralized config
+  const navigation = getNurseNavigation()
+
   const router = useRouter()
   const [tasks, setTasks] = useState(mockTasks)
 

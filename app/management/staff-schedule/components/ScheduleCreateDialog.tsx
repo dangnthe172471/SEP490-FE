@@ -33,32 +33,28 @@ export default function ScheduleCreateDialog({
     const [selectedDateTo, setSelectedDateTo] = useState("")
     const [selectedShifts, setSelectedShifts] = useState<string[]>([])
     const [doctorsByShift, setDoctorsByShift] = useState<Record<string, string[]>>({})
-    const [searchDoctor, setSearchDoctor] = useState("") // thanh tìm kiếm
+    const [searchDoctors, setSearchDoctors] = useState<Record<string, string>>({})
 
-    // nếu đến ngày < từ ngày → reset
     useEffect(() => {
         if (selectedDateFrom && selectedDateTo && selectedDateTo < selectedDateFrom) {
             setSelectedDateTo("")
         }
     }, [selectedDateFrom, selectedDateTo])
 
-    // reset form
     const resetForm = () => {
         setSelectedDateFrom("")
         setSelectedDateTo("")
         setSelectedShifts([])
         setDoctorsByShift({})
-        setSearchDoctor("")
+        setSearchDoctors({})
     }
 
-    // chọn/ bỏ chọn ca
     const toggleShift = (shiftType: string) => {
         setSelectedShifts((prev) =>
             prev.includes(shiftType) ? prev.filter((s) => s !== shiftType) : [...prev, shiftType]
         )
     }
 
-    // chọn/ bỏ chọn bác sĩ
     const toggleDoctor = (shift: string, doctorId: string) => {
         setDoctorsByShift((prev) => {
             const list = new Set(prev[shift] || [])
@@ -67,13 +63,11 @@ export default function ScheduleCreateDialog({
         })
     }
 
-    // kiểm tra ca có bác sĩ nào chưa
     const isShiftUnassigned = (shiftType: string): boolean => {
         const doctors = doctorsByShift[shiftType]
         return !doctors || doctors.length === 0
     }
 
-    // đếm số ca đã chọn của 1 bác sĩ
     const getDoctorCount = (doctorId: string): number => {
         return Object.values(doctorsByShift).reduce(
             (count, arr) => count + (arr.includes(doctorId) ? 1 : 0),
@@ -81,14 +75,12 @@ export default function ScheduleCreateDialog({
         )
     }
 
-    // tạo lịch
     const handleCreate = async () => {
         if (!selectedDateFrom) {
             alert("Vui lòng chọn ngày bắt đầu!")
             return
         }
 
-        // nếu chưa chọn đến ngày → tự cộng 30 ngày
         let finalDateTo = selectedDateTo
         if (!selectedDateTo) {
             const from = new Date(selectedDateFrom)
@@ -96,10 +88,7 @@ export default function ScheduleCreateDialog({
             autoTo.setDate(from.getDate() + 30)
             finalDateTo = autoTo.toISOString().split("T")[0]
             const confirmResult = window.confirm(`Lịch sẽ được phân đến ngày: ${finalDateTo}. Bạn có muốn tiếp tục không?`)
-            if (!confirmResult) {
-                return // người dùng chọn Hủy → dừng lại
-            }
-
+            if (!confirmResult) return
         }
 
         const effectiveFrom = new Date(selectedDateFrom).toISOString().split("T")[0]
@@ -112,11 +101,6 @@ export default function ScheduleCreateDialog({
                 doctorIDs: doctorsByShift[s.shiftType]?.map(Number) || [],
             }))
             .filter((x) => x.doctorIDs.length > 0)
-
-        // if (Shifts.length === 0) {
-        //     alert("Chọn ít nhất 1 bác sĩ cho mỗi ca!")
-        //     return
-        // }
 
         try {
             setLoading(true)
@@ -167,88 +151,103 @@ export default function ScheduleCreateDialog({
 
                 {/* danh sách ca và bác sĩ */}
                 <div className="space-y-4 mt-4 border rounded-lg p-4 bg-muted/30">
-                    {shifts.map((shift) => (
-                        <div key={shift.shiftType} className="border rounded-lg p-3 bg-white space-y-3">
-                            {/* ca */}
-                            <label className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedShifts.includes(shift.shiftType)}
-                                    onChange={() => toggleShift(shift.shiftType)}
-                                />
-                                <div>
-                                    <p className="text-sm font-semibold">{shift.shiftType}
-                                        {isShiftUnassigned(shift.shiftType) && (
-                                            <span className="text-xs text-red-500 ml-2">(Chưa phân công)</span>
-                                        )}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
-                                    </p>
-                                </div>
-                            </label>
+                    {shifts.map((shift) => {
+                        // search trong scope của từng shift
+                        const search = (searchDoctors[shift.shiftType] || "").toLowerCase()
 
-                            {/* bác sĩ */}
-                            {selectedShifts.includes(shift.shiftType) && (
-                                <div className="ml-7 space-y-3 border-t pt-3">
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        Chọn bác sĩ cho ca {shift.shiftType}
-                                    </p>
-
-                                    {/* thanh tìm kiếm */}
-                                    <Input
-                                        type="text"
-                                        placeholder="Tìm bác sĩ theo tên hoặc chuyên khoa..."
-                                        className="h-8 text-sm"
-                                        value={searchDoctor}
-                                        onChange={(e) => setSearchDoctor(e.target.value)}
+                        return (
+                            <div key={shift.shiftType} className="border rounded-lg p-3 bg-white space-y-3">
+                                {/* ca */}
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedShifts.includes(shift.shiftType)}
+                                        onChange={() => toggleShift(shift.shiftType)}
                                     />
+                                    <div>
+                                        <p className="text-sm font-semibold">
+                                            {shift.shiftType}
+                                            {isShiftUnassigned(shift.shiftType) && (
+                                                <span className="text-xs text-red-500 ml-2">(Chưa phân công)</span>
+                                            )}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
+                                        </p>
+                                    </div>
+                                </label>
 
-                                    {/* danh sách bác sĩ */}
-                                    {doctors
-                                        .filter(
-                                            (d) =>
-                                                d.fullName.toLowerCase().includes(searchDoctor.toLowerCase()) ||
-                                                d.specialty.toLowerCase().includes(searchDoctor.toLowerCase())
-                                        )
-                                        .map((doctor) => {
-                                            const count = getDoctorCount(doctor.doctorID.toString())
-                                            const isInCurrentShift = (doctorsByShift[shift.shiftType] || []).includes(
-                                                doctor.doctorID.toString()
-                                            )
-                                            const disabled = count >= 2 && !isInCurrentShift
+                                {/* bác sĩ */}
+                                {selectedShifts.includes(shift.shiftType) && (
+                                    <div className="ml-7 space-y-3 border-t pt-3">
+                                        <p className="text-xs font-medium text-muted-foreground">
+                                            Chọn bác sĩ cho ca {shift.shiftType}
+                                        </p>
 
-                                            return (
-                                                <label
-                                                    key={doctor.doctorID}
-                                                    className={`flex items-center gap-3 p-2 rounded ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50"
-                                                        }`}
-                                                >
-                                                    <Checkbox
-                                                        checked={isInCurrentShift}
-                                                        disabled={disabled}
-                                                        onCheckedChange={() =>
-                                                            toggleDoctor(shift.shiftType, doctor.doctorID.toString())
-                                                        }
-                                                    />
-                                                    <div>
-                                                        <p className="text-sm font-medium">
-                                                            {doctor.fullName}
-                                                            {disabled && (
-                                                                <span className="text-xs text-muted-foreground ml-2">
-                                                                    (Đã đủ 2 ca)
-                                                                </span>
-                                                            )}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">{doctor.specialty}</p>
-                                                    </div>
-                                                </label>
+                                        {/* thanh tìm kiếm */}
+                                        <Input
+                                            type="text"
+                                            placeholder="Tìm bác sĩ theo tên hoặc chuyên khoa..."
+                                            className="h-8 text-sm"
+                                            value={searchDoctors[shift.shiftType] || ""}
+                                            onChange={(e) =>
+                                                setSearchDoctors((prev) => ({
+                                                    ...prev,
+                                                    [shift.shiftType]: e.target.value,
+                                                }))
+                                            }
+                                        />
+
+                                        {/* danh sách bác sĩ */}
+                                        {doctors
+                                            .filter(
+                                                (d) =>
+                                                    d.fullName.toLowerCase().includes(search) ||
+                                                    d.specialty.toLowerCase().includes(search)
                                             )
-                                        })}
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                                            .map((doctor) => {
+                                                const count = getDoctorCount(doctor.doctorID.toString())
+                                                const isInCurrentShift = (doctorsByShift[shift.shiftType] || []).includes(
+                                                    doctor.doctorID.toString()
+                                                )
+                                                const disabled = count >= 2 && !isInCurrentShift
+
+                                                return (
+                                                    <label
+                                                        key={doctor.doctorID}
+                                                        className={`flex items-center gap-3 p-2 rounded ${disabled
+                                                                ? "opacity-50 cursor-not-allowed"
+                                                                : "hover:bg-muted/50"
+                                                            }`}
+                                                    >
+                                                        <Checkbox
+                                                            checked={isInCurrentShift}
+                                                            disabled={disabled}
+                                                            onCheckedChange={() =>
+                                                                toggleDoctor(shift.shiftType, doctor.doctorID.toString())
+                                                            }
+                                                        />
+                                                        <div>
+                                                            <p className="text-sm font-medium">
+                                                                {doctor.fullName}
+                                                                {disabled && (
+                                                                    <span className="text-xs text-muted-foreground ml-2">
+                                                                        (Đã đủ 2 ca)
+                                                                    </span>
+                                                                )}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {doctor.specialty}
+                                                            </p>
+                                                        </div>
+                                                    </label>
+                                                )
+                                            })}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
 
                 {/* nút hành động */}

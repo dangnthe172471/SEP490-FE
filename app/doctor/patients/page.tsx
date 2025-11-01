@@ -9,17 +9,14 @@ import { Calendar, FileText, Users, Activity, Search, Phone, Mail } from "lucide
 import { mockPatients } from "@/lib/mock-data"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  { name: "Tổng quan", href: "/doctor", icon: Activity },
-  { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
-  { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
-  { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
-]
+import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 
 export default function DoctorPatientsPage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Get doctor navigation from centralized config
+  const navigation = getDoctorNavigation()
 
   const filteredPatients = mockPatients.filter(
     (patient) =>
@@ -119,7 +116,7 @@ export default function DoctorPatientsPage() {
                           )}
                         </div>
                         {(patient.allergies && patient.allergies.length > 0) ||
-                        (patient.chronicConditions && patient.chronicConditions.length > 0) ? (
+                          (patient.chronicConditions && patient.chronicConditions.length > 0) ? (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {patient.allergies?.map((allergy) => (
                               <Badge key={allergy} variant="destructive" className="text-xs">

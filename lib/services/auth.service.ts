@@ -53,6 +53,19 @@ export class AuthService extends BaseApiService {
             body: JSON.stringify(data)
         })
     }
+
+    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        await this.request('/api/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword, newPassword }),
+        })
+    }
+
+    async changeAvatar(avatarFile: File): Promise<{ avatarUrl: string }> {
+        // Delegate to avatar service
+        const { avatarService } = await import('./avatar.service')
+        return avatarService.changeAvatar(avatarFile)
+    }
 }
 
 export const authService = new AuthService()
