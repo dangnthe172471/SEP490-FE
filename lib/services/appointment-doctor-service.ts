@@ -3,6 +3,7 @@ import {
   AppointmentDetail,
   AppointmentDetailDto,
   AppointmentListItemDto,
+  AppointmentStatus,
 } from "@/lib/types/appointment-doctor";
 
 const BASE_URL =
@@ -76,7 +77,7 @@ export async function getDoctorAppointments(opts?: FetchOpts): Promise<Appointme
     appointmentId: d.appointmentId,
     appointmentDateISO: parseVNDate_toISO(d.appointmentDate),
     appointmentTime: d.appointmentTime,
-    status: "Confirmed",
+    status: d.status as AppointmentStatus,
     patientId: d.patientId,
     patientName: d.patientName,
     patientPhone: d.patientPhone,
@@ -107,7 +108,7 @@ export async function getDoctorAppointmentDetail(
     appointmentId: d.appointmentId,
     appointmentDateISO: parseVNDate_toISO(d.appointmentDate),
     appointmentTime: d.appointmentTime,
-    status: "Confirmed",
+    status: d.status as AppointmentStatus,
     patientId: d.patientId,
     patientName: d.patientName,
     patientPhone: d.patientPhone,

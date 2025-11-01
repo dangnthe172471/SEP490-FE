@@ -22,7 +22,7 @@ export type AppointmentDetailDto = {
   patientPhone: string;
 };
 
-export type AppointmentStatus = "Confirmed";
+export type AppointmentStatus = "Confirmed" | "Cancelled";
 
 export interface Appointment {
   appointmentId: number;
