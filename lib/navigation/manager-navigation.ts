@@ -9,7 +9,8 @@ import {
     TrendingUp,
     TestTube,
     Building2,
-    Package
+    Package,
+    Bell
 } from "lucide-react"
 import type { NavigationItem } from "./types"
 
@@ -25,6 +26,7 @@ export const MANAGER_NAVIGATION: NavigationItem[] = [
     { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
     { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
     { name: "Thuốc", href: "/management/medicines", icon: Package },
+    { name: "Gửi thông báo", href: "/management/notifications", icon: Bell },
 ]
 
 // Helper function to get manager navigation
