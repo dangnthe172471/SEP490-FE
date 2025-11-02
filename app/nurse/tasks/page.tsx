@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -9,14 +9,28 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
-import { Loader2, ClipboardList, Filter, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, ClipboardList, Filter, CheckCircle2, XCircle, Stethoscope, Baby } from "lucide-react"
 import { getNurseNavigation } from "@/lib/navigation/nurse-navigation"
-import { getTestWorklist } from "@/lib/services/test-results-service"
+import { getTestWorklist, getTestResultsByRecord } from "@/lib/services/test-results-service"
 import type { PagedResult, TestWorklistItemDto, RequiredState } from "@/lib/types/test-results"
 import { TestResultDialog } from "@/components/test-result-dialog"
 
-// 🔑 THÊM: Provider + Viewport từ Radix Toast (file toast.tsx của bạn)
+// Toast (Radix)
 import { Toast, ToastTitle, ToastDescription, ToastProvider, ToastViewport } from "@/components/ui/toast"
+
+// NEW: trạng thái 3 mảng (Nội/Nhi/XN)
+import { CombinedStatusPill } from "@/components/combined-status-pill"
+import { InternalMedDialog } from "@/components/internal-med-dialog"
+import { PediatricDialog } from "@/components/pediatric-dialog"
+
+// Lấy trạng thái Nội/Nhi
+import { getSpecialtyStatus } from "@/lib/services/internal-med-service"
+
+type RecordActivity = {
+  hasInternal: boolean
+  hasPediatric: boolean
+  hasAnyTest: boolean
+}
 
 export default function NurseTestWorklistPage() {
   const navigation = getNurseNavigation()
@@ -36,47 +50,85 @@ export default function NurseTestWorklistPage() {
   const [pageSize] = useState<number>(20)
   const [data, setData] = useState<PagedResult<TestWorklistItemDto> | null>(null)
 
-  // dialog
-  const [dialogOpen, setDialogOpen] = useState(false)
+  // activities map cho từng record
+  const [activityMap, setActivityMap] = useState<Record<number, RecordActivity>>({})
+
+  // dialogs
+  const [dialogOpen, setDialogOpen] = useState(false) // xét nghiệm
+  const [openInternal, setOpenInternal] = useState(false) // nội
+  const [openPediatric, setOpenPediatric] = useState(false) // nhi
   const [selectedRecord, setSelectedRecord] = useState<number | null>(null)
 
   // toast (Radix)
   const [toastOpen, setToastOpen] = useState(false)
   const [toastMsg, setToastMsg] = useState<string>("")
 
+  // === TÍNH THIẾU theo 3 loại: thiếu khi cả 3 đều chưa có
   const pendingCount = useMemo(() => {
     if (!data?.items) return 0
-    return data.items.filter(i => !i.hasAllRequiredResults).length
-  }, [data])
+    return data.items.filter(it => {
+      const a = activityMap[it.recordId]
+      const hasAnything = !!a?.hasInternal || !!a?.hasPediatric || !!a?.hasAnyTest
+      return !hasAnything
+    }).length
+  }, [data, activityMap])
+
+  const fulfilledCount = useMemo(() => {
+    const total = data?.items?.length ?? 0
+    return Math.max(total - pendingCount, 0)
+  }, [data, pendingCount])
+
+  const loadActivities = useCallback(async (items: TestWorklistItemDto[]) => {
+    if (!items?.length) {
+      setActivityMap({})
+      return
+    }
+    // Load song song Nội/Nhi & XN cho từng record
+    const pairs = await Promise.all(items.map(async (it) => {
+      const [spec, tests] = await Promise.all([
+        getSpecialtyStatus(it.recordId).catch(() => null),
+        getTestResultsByRecord(it.recordId).catch(() => []),
+      ])
+      const entry: RecordActivity = {
+        hasInternal: !!spec?.hasInternalMed,
+        hasPediatric: !!spec?.hasPediatric,
+        hasAnyTest: (tests?.length ?? 0) > 0,
+      }
+      return [it.recordId, entry] as const
+    }))
+    setActivityMap(Object.fromEntries(pairs))
+  }, [])
+
+  const reload = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await getTestWorklist({
+        date: date || null,
+        patientName: patientName || null,
+        requiredState,
+        pageNumber,
+        pageSize,
+      })
+      setData(res)
+      // load trạng thái 3 mảng cho danh sách hiện tại
+      loadActivities(res.items ?? [])
+    } catch (e: any) {
+      const msg = e?.message ?? "Lỗi tải danh sách"
+      setError(msg)
+      setToastMsg(msg)
+      setToastOpen(false)
+      setTimeout(() => setToastOpen(true), 10)
+    } finally {
+      setLoading(false)
+    }
+  }, [date, patientName, requiredState, pageNumber, pageSize, loadActivities])
 
   useEffect(() => {
     let mounted = true
-    async function load() {
-      try {
-        setLoading(true)
-        setError(null)
-        const res = await getTestWorklist({
-          date: date || null,
-          patientName: patientName || null,
-          requiredState,
-          pageNumber,
-          pageSize,
-        })
-        if (!mounted) return
-        setData(res)
-      } catch (e: any) {
-        const msg = e?.message ?? "Lỗi tải danh sách"
-        setError(msg)
-        setToastMsg(msg)
-        setToastOpen(false)
-        setTimeout(() => setToastOpen(true), 10)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    ;(async () => { await reload() })()
     return () => { mounted = false }
-  }, [date, patientName, requiredState, pageNumber, pageSize])
+  }, [reload])
 
   const applyFilters = () => {
     const q = new URLSearchParams()
@@ -89,7 +141,6 @@ export default function NurseTestWorklistPage() {
   }
 
   return (
-    // 🔑 BỌC CỤC BỘ: chỉ trong page này, không đụng layout
     <ToastProvider swipeDirection="right" duration={3000}>
       <DashboardLayout navigation={navigation}>
         <div className="space-y-6">
@@ -146,20 +197,18 @@ export default function NurseTestWorklistPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Thiếu kết quả</CardTitle>
+                <CardTitle className="text-sm font-medium">Thiếu (cả Nội/Nhi/XN đều chưa có)</CardTitle>
                 <XCircle className="h-4 w-4 text-destructive" />
               </CardHeader>
               <CardContent><div className="text-2xl font-bold">{pendingCount}</div></CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Đã đủ kết quả</CardTitle>
+                <CardTitle className="text-sm font-medium">Không thiếu (đã có ít nhất 1 trong 3)</CardTitle>
                 <CheckCircle2 className="h-4 w-4 text-chart-2" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {Math.max((data?.items?.length ?? 0) - pendingCount, 0)}
-                </div>
+                <div className="text-2xl font-bold">{fulfilledCount}</div>
               </CardContent>
             </Card>
           </div>
@@ -189,26 +238,53 @@ export default function NurseTestWorklistPage() {
                   {data!.items.map(item => (
                     <div key={item.recordId} className="flex items-start justify-between border rounded-xl p-4">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{item.patientName}</span>
                           <Badge variant="outline">#{item.patientId}</Badge>
-                          {item.hasAllRequiredResults
-                            ? <Badge variant="secondary">Đủ kết quả</Badge>
-                            : <Badge variant="destructive">Thiếu</Badge>}
+
+                          {/* NEW: trạng thái 3 mảng (Nội/Nhi/XN) */}
+                          <CombinedStatusPill
+                            recordId={item.recordId}
+                            hasAllRequiredResults={item.hasAllRequiredResults} // XN đủ/thiếu
+                          />
                         </div>
                         <div className="text-sm text-muted-foreground">
                           Lịch: {new Date(item.appointmentDate).toLocaleString()}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Khám Nội */}
                         <Button
                           variant="outline"
+                          onClick={() => {
+                            setSelectedRecord(item.recordId)
+                            setOpenInternal(true)
+                          }}
+                        >
+                          <Stethoscope className="mr-2 h-4 w-4" /> Khám Nội
+                        </Button>
+
+                        {/* Khám Nhi */}
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedRecord(item.recordId)
+                            setOpenPediatric(true)
+                          }}
+                        >
+                          <Baby className="mr-2 h-4 w-4" /> Khám Nhi
+                        </Button>
+
+                        {/* Xét nghiệm */}
+                        <Button
+                          variant="default"
                           onClick={() => {
                             setSelectedRecord(item.recordId)
                             setDialogOpen(true)
                           }}
                         >
-                          Điền kết quả
+                          Điền xét nghiệm
                         </Button>
                       </div>
                     </div>
@@ -218,11 +294,30 @@ export default function NurseTestWorklistPage() {
             </CardContent>
           </Card>
 
-          {/* Dialog nhập nhanh */}
+          {/* Dialog nhập nhanh xét nghiệm */}
           <TestResultDialog
             open={dialogOpen}
-            onOpenChange={setDialogOpen}
+            onOpenChange={(v) => {
+              setDialogOpen(v)
+              if (!v) reload()
+            }}
             recordId={selectedRecord ?? 0}
+          />
+
+          {/* Dialog Nội khoa */}
+          <InternalMedDialog
+            open={openInternal}
+            onOpenChange={setOpenInternal}
+            recordId={selectedRecord ?? 0}
+            onSaved={reload}
+          />
+
+          {/* Dialog Nhi khoa */}
+          <PediatricDialog
+            open={openPediatric}
+            onOpenChange={setOpenPediatric}
+            recordId={selectedRecord ?? 0}
+            onSaved={reload}
           />
         </div>
 
@@ -232,7 +327,7 @@ export default function NurseTestWorklistPage() {
           {toastMsg ? <ToastDescription>{toastMsg}</ToastDescription> : null}
         </Toast>
 
-        {/* 🔑 Viewport đặt CUỐI cùng trong page */}
+        {/* Viewport đặt cuối */}
         <ToastViewport />
       </DashboardLayout>
     </ToastProvider>

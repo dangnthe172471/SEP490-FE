@@ -84,3 +84,8 @@ export async function deleteTestResult(id: number): Promise<void> {
   const res = await fetch(`${API_BASE}/api/TestResults/${id}`, { method: "DELETE" })
   if (!res.ok) throw new Error(`Delete result failed (${res.status})`)
 }
+
+export async function hasAnyTestResult(recordId: number): Promise<boolean> {
+  const list = await getTestResultsByRecord(recordId)
+  return (list?.length ?? 0) > 0
+}
