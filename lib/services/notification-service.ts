@@ -52,16 +52,16 @@ export class NotificationService {
 
 
 
-        /**
-         Đánh dấu một thông báo là đã đọc
-        */
-        async markAsRead(userId: string, notificationId: number): Promise<boolean> {
-            const response = await fetch(`${this.baseUrl}/api/Notification/read/${userId}/${notificationId}`, {
-                method: "PUT",
-            })
-            if (!response.ok) throw new Error(`Không thể đánh dấu đã đọc (status: ${response.status})`)
-            return true
-        }
+    /**
+     Đánh dấu một thông báo là đã đọc
+    */
+    async markAsRead(userId: string, notificationId: number): Promise<boolean> {
+        const response = await fetch(`${this.baseUrl}/api/Notification/read/${userId}/${notificationId}`, {
+            method: "PUT",
+        })
+        if (!response.ok) throw new Error(`Không thể đánh dấu đã đọc (status: ${response.status})`)
+        return true
+    }
 
     /**
     Lấy số lượng thông báo chưa đọc
@@ -83,6 +83,28 @@ export class NotificationService {
         if (!response.ok) throw new Error("Không thể đánh dấu tất cả là đã đọc")
     }
 
+    async getAllNotifications(pageNumber = 1, pageSize = 10): Promise<{
+        items: NotificationDto[]
+        totalCount: number
+        totalPages: number
+        pageNumber: number
+        pageSize: number
+    }> {
+        const response = await fetch(
+            `${this.baseUrl}/api/Notification/list-notification?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+            {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            }
+        )
+
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`)
+        }
+
+        const data = await response.json()
+        return data
+    }
 
 }
 

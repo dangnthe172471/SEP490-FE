@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,13 +18,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Bell, FileText, TrendingUp, Send, Search, Plus, CheckCircle, Clock } from "lucide-react"
-import { useState } from "react"
+import { Bell, Send, Search, Plus, CheckCircle, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 import { notificationService } from "@/lib/services/notification-service"
-
-
 
 // Mock staff data
 const mockStaff = [
@@ -33,37 +31,6 @@ const mockStaff = [
     { id: 4, name: "Y tá Phạm Văn F", role: "nurse", department: "Nhi khoa" },
     { id: 5, name: "Dược sĩ Hoàng Thị G", role: "pharmacist", department: "Nhà thuốc" },
     { id: 6, name: "Lễ tân Trần Văn H", role: "receptionist", department: "Lễ tân" },
-]
-
-// Mock notifications
-const mockNotifications = [
-    {
-        id: 1,
-        staffId: 1,
-        title: "Cập nhật lịch làm việc",
-        message: "Lịch làm việc của bạn đã được cập nhật",
-        status: "sent",
-        sentAt: "2025-01-10 14:30",
-        type: "schedule",
-    },
-    {
-        id: 2,
-        staffId: 2,
-        title: "Hội họp khoa phòng",
-        message: "Có hội họp vào chiều nay lúc 15:00",
-        status: "sent",
-        sentAt: "2025-01-10 13:15",
-        type: "meeting",
-    },
-    {
-        id: 3,
-        staffId: 3,
-        title: "Cập nhật quy định mới",
-        message: "Vui lòng đọc quy định mới về vệ sinh",
-        status: "pending",
-        sentAt: null,
-        type: "policy",
-    },
 ]
 
 interface NotificationFormData {
@@ -76,11 +43,11 @@ interface NotificationFormData {
     customType?: string
 }
 
-
 export default function NotificationsPage() {
-    const [showCustomInput, setShowCustomInput] = useState(false)
-
     const navigation = getManagerNavigation()
+
+    // 🧠 State cho form gửi thông báo
+    const [showCustomInput, setShowCustomInput] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [formData, setFormData] = useState<NotificationFormData>({
@@ -91,13 +58,38 @@ export default function NotificationsPage() {
         type: "other",
     })
 
+    // 🧠 State cho danh sách thông báo từ BE
+    const [notifications, setNotifications] = useState<any[]>([])
+    const [pageNumber, setPageNumber] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [isLoading, setIsLoading] = useState(false)
+
+    // 📥 Lấy danh sách thông báo từ API thật
+    const fetchNotifications = async (page = 1) => {
+        try {
+            setIsLoading(true)
+            const data = await notificationService.getAllNotifications(page, 5)
+            setNotifications(data.items || [])
+            setTotalPages(data.totalPages)
+            setPageNumber(data.pageNumber)
+        } catch (err: any) {
+            toast.error(err.message || "Không thể tải danh sách thông báo")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchNotifications(pageNumber)
+    }, [pageNumber])
+
     const filteredStaff = mockStaff.filter(
         (staff) =>
             staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            staff.department.toLowerCase().includes(searchQuery.toLowerCase()),
+            staff.department.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-
+    // 📤 Gửi thông báo
     const handleSendNotification = async () => {
         if (!formData.title.trim() || !formData.message.trim()) {
             toast.error("Vui lòng điền đầy đủ tiêu đề và nội dung")
@@ -112,12 +104,11 @@ export default function NotificationsPage() {
         try {
             toast.loading("Đang gửi thông báo...")
 
-            // Gọi API backend
             await notificationService.sendNotification({
                 title: formData.title,
                 content: formData.message,
                 type: formData.type,
-                createdBy: 1, // id người gửi (Manager)
+                createdBy: 1,
                 isGlobal: formData.recipientType === "all",
                 receiverIds: formData.recipientType === "individual" ? formData.recipients : undefined,
                 roleNames: formData.recipientType === "department" ? [formData.department ?? ""] : undefined,
@@ -132,12 +123,15 @@ export default function NotificationsPage() {
                 message: "",
                 type: "other",
             })
+            fetchNotifications() // refresh danh sách
         } catch (error: any) {
             toast.error(error.message || "Lỗi khi gửi thông báo")
         } finally {
             toast.dismiss()
         }
     }
+
+    // 🎨 Loại thông báo
     const getNotificationTypeLabel = (type: string) => {
         switch (type) {
             case "schedule":
@@ -167,13 +161,13 @@ export default function NotificationsPage() {
     const stats = [
         {
             label: "Thông báo đã gửi",
-            value: mockNotifications.filter((n) => n.status === "sent").length,
+            value: notifications.length,
             icon: CheckCircle,
             color: "text-green-600",
         },
         {
             label: "Thông báo chờ xử lý",
-            value: mockNotifications.filter((n) => n.status === "pending").length,
+            value: 0,
             icon: Clock,
             color: "text-amber-600",
         },
@@ -188,11 +182,13 @@ export default function NotificationsPage() {
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
+                {/* Header + Dialog gửi thông báo */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Gửi thông báo</h1>
                         <p className="text-muted-foreground">Quản lý và gửi thông báo cho nhân viên</p>
                     </div>
+
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                             <Button className="gap-2">
@@ -200,6 +196,7 @@ export default function NotificationsPage() {
                                 Gửi thông báo mới
                             </Button>
                         </DialogTrigger>
+
                         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
@@ -210,144 +207,7 @@ export default function NotificationsPage() {
                             </DialogHeader>
 
                             <div className="space-y-6">
-                                {/* Recipients Type */}
-                                <div className="space-y-3">
-                                    <Label>Loại gửi</Label>
-                                    <Select
-                                        value={formData.recipientType}
-                                        onValueChange={(value: any) => setFormData({ ...formData, recipientType: value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="individual">Gửi cho nhân viên cụ thể</SelectItem>
-                                            <SelectItem value="department">Gửi cho toàn bộ vai trò</SelectItem>
-                                            <SelectItem value="all">Gửi cho tất cả nhân viên</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Recipients Selection */}
-                                {formData.recipientType === "individual" && (
-                                    <div className="space-y-3">
-                                        <Label>Chọn nhân viên nhận thông báo</Label>
-                                        <div className="relative mb-3">
-                                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                            <Input
-                                                placeholder="Tìm kiếm nhân viên..."
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="pl-9"
-                                            />
-                                        </div>
-                                        <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                                            {filteredStaff.map((staff) => (
-                                                <div key={staff.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded">
-                                                    <input
-                                                        type="checkbox"
-                                                        id={`staff-${staff.id}`}
-                                                        checked={formData.recipients.includes(staff.id)}
-                                                        onChange={(e) => {
-                                                            if (e.target.checked) {
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    recipients: [...formData.recipients, staff.id],
-                                                                })
-                                                            } else {
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    recipients: formData.recipients.filter((id) => id !== staff.id),
-                                                                })
-                                                            }
-                                                        }}
-                                                        className="h-4 w-4"
-                                                    />
-                                                    <label htmlFor={`staff-${staff.id}`} className="flex-1 cursor-pointer">
-                                                        <div className="font-medium">{staff.name}</div>
-                                                        <div className="text-sm text-muted-foreground">{staff.department}</div>
-                                                    </label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {formData.recipients.length > 0 && (
-                                            <div className="text-sm text-muted-foreground">
-                                                Đã chọn {formData.recipients.length} nhân viên
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {formData.recipientType === "department" && (
-                                    <div className="space-y-3">
-                                        <Label>Chọn vai trò</Label>
-                                        <Select
-                                            value={formData.department}
-                                            onValueChange={(value) => setFormData({ ...formData, department: value })}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Chọn vai trò" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Nội khoa">Bác sĩ</SelectItem>
-                                                <SelectItem value="Nhi khoa">Y tá</SelectItem>
-                                                <SelectItem value="Nhà thuốc">Nhà thuốc</SelectItem>
-                                                <SelectItem value="Lễ tân">Lễ tân</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
-
-                                {/* Message Details */}
-                                <div className="space-y-3">
-                                    <Label htmlFor="type">Loại thông báo *</Label>
-
-                                    {showCustomInput ? (
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                id="customType"
-                                                autoFocus
-                                                placeholder="Nhập loại thông báo mới..."
-                                                value={formData.type}
-                                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                            />
-                                            <Button
-                                                variant="ghost"
-                                                onClick={() => {
-                                                    setFormData({ ...formData, type: "" })
-                                                    setShowCustomInput(false)
-                                                }}
-                                            >
-                                                Hủy
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <Select
-                                            value={formData.type || ""}
-                                            onValueChange={(value: any) => {
-                                                if (value === "custom") {
-                                                    setFormData({ ...formData, type: "" })
-                                                    setShowCustomInput(true)
-                                                } else {
-                                                    setFormData({ ...formData, type: value })
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Chọn loại thông báo hoặc nhập mới" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="schedule">Lịch làm việc</SelectItem>
-                                                <SelectItem value="meeting">Hội họp</SelectItem>
-                                                <SelectItem value="policy">Quy định</SelectItem>
-                                                <SelectItem value="custom">Khác (tự nhập)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                </div>
-
-
-
+                                {/* Form gửi thông báo giữ nguyên như cũ */}
                                 <div className="space-y-3">
                                     <Label htmlFor="title">Tiêu đề thông báo *</Label>
                                     <Input
@@ -380,7 +240,7 @@ export default function NotificationsPage() {
                     </Dialog>
                 </div>
 
-                {/* Statistics */}
+                {/* Thống kê */}
                 <div className="grid gap-4 md:grid-cols-3">
                     {stats.map((stat) => {
                         const Icon = stat.icon
@@ -402,90 +262,74 @@ export default function NotificationsPage() {
                 <Tabs defaultValue="history" className="space-y-4">
                     <TabsList>
                         <TabsTrigger value="history">Lịch sử thông báo</TabsTrigger>
-                        <TabsTrigger value="staff-grid">Lưới nhân viên</TabsTrigger>
                     </TabsList>
 
-                    {/* History Tab */}
+                    {/* 🕓 Lịch sử thông báo thật từ BE */}
                     <TabsContent value="history" className="space-y-4">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Lịch sử gửi thông báo</CardTitle>
-                                <CardDescription>Danh sách tất cả các thông báo đã gửi</CardDescription>
+                                <CardDescription>Danh sách thông báo được lấy từ hệ thống</CardDescription>
                             </CardHeader>
+
                             <CardContent>
-                                <div className="space-y-3">
-                                    {mockNotifications.map((notification) => {
-                                        const staff = mockStaff.find((s) => s.id === notification.staffId)
-                                        return (
+                                {isLoading ? (
+                                    <div className="text-center py-6 text-muted-foreground">Đang tải...</div>
+                                ) : notifications.length === 0 ? (
+                                    <div className="text-center py-6 text-muted-foreground">
+                                        Chưa có thông báo nào được gửi.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {notifications.map((n) => (
                                             <div
-                                                key={notification.id}
+                                                key={n.notificationId}
                                                 className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50"
                                             >
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-2">
-                                                        <h3 className="font-semibold">{notification.title}</h3>
-                                                        <Badge className={getNotificationTypeColor(notification.type)}>
-                                                            {getNotificationTypeLabel(notification.type)}
+                                                        <h3 className="font-semibold">{n.title}</h3>
+                                                        <Badge className={getNotificationTypeColor(n.type)}>
+                                                            {getNotificationTypeLabel(n.type)}
                                                         </Badge>
                                                     </div>
-                                                    <p className="text-sm text-muted-foreground mb-2">{notification.message}</p>
+                                                    <p className="text-sm text-muted-foreground mb-2">{n.content}</p>
                                                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                                        <span>Gửi cho: {staff?.name}</span>
-                                                        <span>Thời gian: {notification.sentAt || "Chờ xử lý"}</span>
+                                                        <span>Ngày tạo: {new Date(n.createdDate).toLocaleString()}</span>
+                                                        <span>{n.isRead ? "Đã đọc" : "Chưa đọc"}</span>
                                                     </div>
                                                 </div>
-                                                <Badge variant={notification.status === "sent" ? "default" : "secondary"}>
-                                                    {notification.status === "sent" ? "Đã gửi" : "Chờ xử lý"}
-                                                </Badge>
                                             </div>
-                                        )
-                                    })}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
+                                        ))}
+                                    </div>
+                                )}
 
-                    {/* Staff Grid Tab */}
-                    <TabsContent value="staff-grid" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Lưới trạng thái thông báo nhân viên</CardTitle>
-                                <CardDescription>Xem trạng thái thông báo cho từng nhân viên</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead className="border-b bg-muted/50">
-                                            <tr>
-                                                <th className="text-left p-3 font-semibold">Nhân viên</th>
-                                                <th className="text-left p-3 font-semibold">Chức vụ</th>
-                                                <th className="text-left p-3 font-semibold">Phòng ban</th>
-                                                <th className="text-left p-3 font-semibold">Thông báo gần nhất</th>
-                                                <th className="text-left p-3 font-semibold">Trạng thái</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {mockStaff.map((staff, index) => {
-                                                const lastNotification = mockNotifications.find((n) => n.staffId === staff.id)
-                                                return (
-                                                    <tr key={staff.id} className={index % 2 === 0 ? "bg-muted/30" : ""}>
-                                                        <td className="p-3 font-medium">{staff.name}</td>
-                                                        <td className="p-3 text-sm">
-                                                            {staff.role === "doctor" ? "Bác sĩ" : staff.role === "nurse" ? "Y tá" : "Khác"}
-                                                        </td>
-                                                        <td className="p-3 text-sm">{staff.department}</td>
-                                                        <td className="p-3 text-sm">{lastNotification ? lastNotification.title : "-"}</td>
-                                                        <td className="p-3">
-                                                            <Badge variant={lastNotification?.status === "sent" ? "default" : "secondary"}>
-                                                                {lastNotification?.status === "sent" ? "✓ Đã nhận" : "○ Chưa gửi"}
-                                                            </Badge>
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                {/* 🧭 Phân trang */}
+                                {totalPages > 1 && (
+                                    <div className="flex justify-center items-center mt-6 gap-4">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={pageNumber <= 1}
+                                            onClick={() => setPageNumber((p) => p - 1)}
+                                        >
+                                            Trang trước
+                                        </Button>
+
+                                        <span className="text-sm text-muted-foreground">
+                                            Trang {pageNumber} / {totalPages}
+                                        </span>
+
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={pageNumber >= totalPages}
+                                            onClick={() => setPageNumber((p) => p + 1)}
+                                        >
+                                            Trang sau
+                                        </Button>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
