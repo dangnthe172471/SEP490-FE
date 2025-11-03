@@ -18,12 +18,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Bell, Send, Search, Plus, CheckCircle, Clock } from "lucide-react"
+import { Search, Plus, Send } from "lucide-react"
 import { toast } from "sonner"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 import { notificationService } from "@/lib/services/notification-service"
 
-// Mock staff data
 const mockStaff = [
     { id: 1, name: "BS. Trần Văn B", role: "doctor", department: "Nội khoa" },
     { id: 2, name: "BS. Lê Thị D", role: "doctor", department: "Nhi khoa" },
@@ -40,31 +39,26 @@ interface NotificationFormData {
     title: string
     message: string
     type: string
-    customType?: string
 }
 
 export default function NotificationsPage() {
     const navigation = getManagerNavigation()
-
-    // 🧠 State cho form gửi thông báo
-    const [showCustomInput, setShowCustomInput] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
+    const [showCustomInput, setShowCustomInput] = useState(false)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [formData, setFormData] = useState<NotificationFormData>({
         recipientType: "individual",
         recipients: [],
         title: "",
         message: "",
-        type: "other",
+        type: "schedule",
     })
 
-    // 🧠 State cho danh sách thông báo từ BE
     const [notifications, setNotifications] = useState<any[]>([])
     const [pageNumber, setPageNumber] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const [isLoading, setIsLoading] = useState(false)
 
-    // 📥 Lấy danh sách thông báo từ API thật
     const fetchNotifications = async (page = 1) => {
         try {
             setIsLoading(true)
@@ -84,12 +78,11 @@ export default function NotificationsPage() {
     }, [pageNumber])
 
     const filteredStaff = mockStaff.filter(
-        (staff) =>
-            staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            staff.department.toLowerCase().includes(searchQuery.toLowerCase())
+        (s) =>
+            s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.department.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    // 📤 Gửi thông báo
     const handleSendNotification = async () => {
         if (!formData.title.trim() || !formData.message.trim()) {
             toast.error("Vui lòng điền đầy đủ tiêu đề và nội dung")
@@ -121,9 +114,9 @@ export default function NotificationsPage() {
                 recipients: [],
                 title: "",
                 message: "",
-                type: "other",
+                type: "schedule",
             })
-            fetchNotifications() // refresh danh sách
+            fetchNotifications()
         } catch (error: any) {
             toast.error(error.message || "Lỗi khi gửi thông báo")
         } finally {
@@ -131,7 +124,6 @@ export default function NotificationsPage() {
         }
     }
 
-    // 🎨 Loại thông báo
     const getNotificationTypeLabel = (type: string) => {
         switch (type) {
             case "schedule":
@@ -158,31 +150,9 @@ export default function NotificationsPage() {
         }
     }
 
-    const stats = [
-        {
-            label: "Thông báo đã gửi",
-            value: notifications.length,
-            icon: CheckCircle,
-            color: "text-green-600",
-        },
-        {
-            label: "Thông báo chờ xử lý",
-            value: 0,
-            icon: Clock,
-            color: "text-amber-600",
-        },
-        {
-            label: "Tổng nhân viên",
-            value: mockStaff.length,
-            icon: Bell,
-            color: "text-blue-600",
-        },
-    ]
-
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
-                {/* Header + Dialog gửi thông báo */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Gửi thông báo</h1>
@@ -207,11 +177,134 @@ export default function NotificationsPage() {
                             </DialogHeader>
 
                             <div className="space-y-6">
-                                {/* Form gửi thông báo giữ nguyên như cũ */}
+                                {/* Chọn loại gửi */}
                                 <div className="space-y-3">
-                                    <Label htmlFor="title">Tiêu đề thông báo *</Label>
+                                    <Label>Loại gửi</Label>
+                                    <Select
+                                        value={formData.recipientType}
+                                        onValueChange={(v: any) => setFormData({ ...formData, recipientType: v })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Chọn loại gửi" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="individual">Gửi cho nhân viên cụ thể</SelectItem>
+                                            <SelectItem value="department">Gửi cho toàn bộ vai trò</SelectItem>
+                                            <SelectItem value="all">Gửi cho tất cả nhân viên</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Gửi cho nhân viên cụ thể */}
+                                {formData.recipientType === "individual" && (
+                                    <div className="space-y-3">
+                                        <Label>Chọn nhân viên nhận thông báo</Label>
+                                        <div className="relative mb-3">
+                                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Tìm kiếm nhân viên..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="pl-9"
+                                            />
+                                        </div>
+                                        <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                                            {filteredStaff.map((s) => (
+                                                <div key={s.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`staff-${s.id}`}
+                                                        checked={formData.recipients.includes(s.id)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked)
+                                                                setFormData({ ...formData, recipients: [...formData.recipients, s.id] })
+                                                            else
+                                                                setFormData({
+                                                                    ...formData,
+                                                                    recipients: formData.recipients.filter((id) => id !== s.id),
+                                                                })
+                                                        }}
+                                                        className="h-4 w-4"
+                                                    />
+                                                    <label htmlFor={`staff-${s.id}`} className="cursor-pointer flex-1">
+                                                        <div className="font-medium">{s.name}</div>
+                                                        <div className="text-sm text-muted-foreground">{s.department}</div>
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Gửi theo vai trò */}
+                                {formData.recipientType === "department" && (
+                                    <div className="space-y-3">
+                                        <Label>Chọn vai trò</Label>
+                                        <Select
+                                            value={formData.department}
+                                            onValueChange={(v) => setFormData({ ...formData, department: v })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Chọn vai trò" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Bác sĩ">Bác sĩ</SelectItem>
+                                                <SelectItem value="Y tá">Y tá</SelectItem>
+                                                <SelectItem value="Dược sĩ">Dược sĩ</SelectItem>
+                                                <SelectItem value="Lễ tân">Lễ tân</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
+                                {/* Loại thông báo */}
+                                <div className="space-y-3">
+                                    <Label>Loại thông báo *</Label>
+                                    {showCustomInput ? (
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                autoFocus
+                                                placeholder="Nhập loại thông báo mới..."
+                                                value={formData.type}
+                                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setFormData({ ...formData, type: "schedule" })
+                                                    setShowCustomInput(false)
+                                                }}
+                                            >
+                                                Hủy
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <Select
+                                            value={formData.type}
+                                            onValueChange={(v: any) => {
+                                                if (v === "custom") {
+                                                    setShowCustomInput(true)
+                                                    setFormData({ ...formData, type: "" })
+                                                } else setFormData({ ...formData, type: v })
+                                            }}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Chọn loại thông báo hoặc nhập mới" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="schedule">Lịch làm việc</SelectItem>
+                                                <SelectItem value="meeting">Hội họp</SelectItem>
+                                                <SelectItem value="policy">Quy định</SelectItem>
+                                                <SelectItem value="custom">Khác (tự nhập)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                </div>
+
+                                {/* Tiêu đề và nội dung */}
+                                <div className="space-y-3">
+                                    <Label>Tiêu đề *</Label>
                                     <Input
-                                        id="title"
                                         placeholder="Nhập tiêu đề thông báo"
                                         value={formData.title}
                                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -219,9 +312,8 @@ export default function NotificationsPage() {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <Label htmlFor="message">Nội dung thông báo *</Label>
+                                    <Label>Nội dung *</Label>
                                     <Textarea
-                                        id="message"
                                         placeholder="Nhập nội dung thông báo..."
                                         rows={4}
                                         value={formData.message}
@@ -229,7 +321,7 @@ export default function NotificationsPage() {
                                     />
                                 </div>
 
-                                <div className="flex gap-3 justify-end pt-4 border-t">
+                                <div className="flex justify-end gap-3 pt-4 border-t">
                                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                                         Hủy
                                     </Button>
@@ -237,48 +329,26 @@ export default function NotificationsPage() {
                                 </div>
                             </div>
                         </DialogContent>
+
                     </Dialog>
                 </div>
 
-                {/* Thống kê */}
-                <div className="grid gap-4 md:grid-cols-3">
-                    {stats.map((stat) => {
-                        const Icon = stat.icon
-                        return (
-                            <Card key={stat.label}>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
-                                    <Icon className={`h-4 w-4 ${stat.color}`} />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{stat.value}</div>
-                                </CardContent>
-                            </Card>
-                        )
-                    })}
-                </div>
-
-                {/* Tabs */}
                 <Tabs defaultValue="history" className="space-y-4">
                     <TabsList>
                         <TabsTrigger value="history">Lịch sử thông báo</TabsTrigger>
                     </TabsList>
 
-                    {/* 🕓 Lịch sử thông báo thật từ BE */}
                     <TabsContent value="history" className="space-y-4">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Lịch sử gửi thông báo</CardTitle>
                                 <CardDescription>Danh sách thông báo được lấy từ hệ thống</CardDescription>
                             </CardHeader>
-
                             <CardContent>
                                 {isLoading ? (
                                     <div className="text-center py-6 text-muted-foreground">Đang tải...</div>
                                 ) : notifications.length === 0 ? (
-                                    <div className="text-center py-6 text-muted-foreground">
-                                        Chưa có thông báo nào được gửi.
-                                    </div>
+                                    <div className="text-center py-6 text-muted-foreground">Chưa có thông báo nào.</div>
                                 ) : (
                                     <div className="space-y-3">
                                         {notifications.map((n) => (
@@ -304,7 +374,6 @@ export default function NotificationsPage() {
                                     </div>
                                 )}
 
-                                {/* 🧭 Phân trang */}
                                 {totalPages > 1 && (
                                     <div className="flex justify-center items-center mt-6 gap-4">
                                         <Button
@@ -315,11 +384,9 @@ export default function NotificationsPage() {
                                         >
                                             Trang trước
                                         </Button>
-
                                         <span className="text-sm text-muted-foreground">
                                             Trang {pageNumber} / {totalPages}
                                         </span>
-
                                         <Button
                                             variant="outline"
                                             size="sm"
