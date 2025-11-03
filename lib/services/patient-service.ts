@@ -71,12 +71,13 @@ class PatientService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                console.error('❌ [PatientService] Error response:', errorText)
-
+                // Graceful handling for expected 404s (e.g., user not mapped to patient yet)
+                if (response.status === 404) {
+                    throw new Error('HTTP 404')
+                }
                 if (response.status === 401) {
                     throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
                 }
-
                 throw new Error(`HTTP ${response.status}: ${errorText}`)
             }
 
@@ -85,7 +86,7 @@ class PatientService {
 
             return data
         } catch (error) {
-            console.error('❌ [PatientService] Request failed:', error)
+            // Avoid noisy error overlay; surface error to callers without console spam
             throw error
         }
     }
