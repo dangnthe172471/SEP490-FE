@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
+import { NotificationBell } from "@/components/notification-bell"
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
@@ -209,10 +209,14 @@ export function Header() {
             })}
           </nav>
 
+      
           <div className="flex items-center gap-4">
             {!isClient ? (
               <LoginButton className="hidden bg-secondary text-secondary-foreground transition-all hover:bg-secondary/90 hover:scale-105 md:inline-flex" />
             ) : currentUser ? (
+                <div className="flex items-center gap-3">
+                
+                  <NotificationBell notificationHref="/notifications" />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
@@ -263,6 +267,7 @@ export function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+                </div>
             ) : (
               <LoginButton className="hidden bg-secondary text-secondary-foreground transition-all hover:bg-secondary/90 hover:scale-105 md:inline-flex" />
             )}

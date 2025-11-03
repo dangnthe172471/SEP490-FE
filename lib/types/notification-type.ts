@@ -15,3 +15,19 @@ export interface CreateNotificationDto {
     roleNames?: string[]
     receiverIds?: number[]
 }
+
+export interface NotificationDto {
+    notificationId: number
+    title: string
+    content: string
+    type: string
+    createdDate: string
+    isRead: boolean
+}
+
+
+
+export interface UnreadCountDto {
+    userId: string
+    unreadCount: number
+}
