@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Heart, LogOut, UserIcon, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-
+import { NotificationBell } from "@/components/notification-bell"
 interface DashboardLayoutProps {
   children: React.ReactNode
   navigation: Array<{
@@ -75,13 +75,14 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
 
           <div className="flex-1" />
 
+
           <Link href="/">
             <Button variant="ghost" size="sm" className="gap-2">
               <Home className="h-4 w-4" />
               <span className="hidden sm:inline">Trang chủ</span>
             </Button>
           </Link>
-
+          <NotificationBell notificationHref="/notifications" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">

@@ -78,6 +78,26 @@ export default function DoctorSchedulePage() {
         }
         fetchDoctorId()
     }, [currentUser])
+    const [selectedDate, setSelectedDate] = useState("")
+
+    const handleDateChange = async (date: string) => {
+        setSelectedDate(date)
+        const parsed = new Date(date)
+        if (!isNaN(parsed.getTime())) {
+            setCurrentDate(parsed)
+        }
+        if (!doctorId) return
+
+        try {
+            setLoading(true)
+            const data = await doctorScheduleService.getScheduleByRange(doctorId, date, date)
+            setScheduleData(data)
+        } catch (err) {
+            console.error("Lỗi khi lấy lịch theo ngày:", err)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     // === Utility: lấy thứ 2 của tuần ===
     const getMonday = (date: Date) => {
@@ -156,7 +176,14 @@ export default function DoctorSchedulePage() {
         setCurrentDate(newDate)
     }
 
-    const handleToday = () => setCurrentDate(new Date())
+    const handleToday = () => {
+        const today = new Date()
+        const formatted = today.toISOString().split("T")[0]
+
+     
+        setSelectedDate(formatted)
+        setCurrentDate(today)
+    }
 
     // === Thống kê ===
     const stats = (() => {
@@ -197,22 +224,31 @@ export default function DoctorSchedulePage() {
                         <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <CardTitle>
+                                    <CardTitle className="mb-3">
                                         Ngày bắt đầu
                                     </CardTitle>
 
                                     <CardDescription>{getWeekRange().start}</CardDescription>
                                 </div>
                                 <div>
-                                    <CardTitle>
+                                    <CardTitle className="mb-3">
                                         Ngày kết thúc
                                     </CardTitle>
                                     <CardDescription>{getWeekRange().end}</CardDescription>
                                 </div>
-                                <div>
+                                {/* <div>
                                     <CardTitle>Thứ 2 - Chủ nhật</CardTitle>
-                                </div>
-                                <div className="flex gap-2">
+                                </div> */}
+                                <CardTitle>
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => handleDateChange(e.target.value)}
+                                    className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                />
+                                </CardTitle>
+
+                                <div className="flex items-center gap-2">
                                     <Button size="sm" variant="outline" onClick={handlePreviousWeek}>
                                         <ChevronLeft className="h-4 w-4" />
                                     </Button>
@@ -223,6 +259,7 @@ export default function DoctorSchedulePage() {
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
                                 </div>
+
                             </div>
                         </CardHeader>
                     </Card>
@@ -257,8 +294,18 @@ export default function DoctorSchedulePage() {
                                                         <td key={`${day.date}-${shift.shiftID}`} className="px-4 py-4 text-center border-r border-border">
                                                             {day.shifts[shift.shiftID] ? (
                                                                 <div className={`p-3 rounded-lg border-2 ${shift.color}`}>
-                                                                    <div className="text-xs text-gray-600">
-                                                                        {shift.startTime} - {shift.endTime}
+                                                                    <div className="text-xs text-green-600">
+                                                                        {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
+
+                                                                    </div>
+                                                                    <div className="text-xs font-medium mt-1 text-gray-600 ">
+                                                                        {
+                                                                            scheduleData.find(
+                                                                                s =>
+                                                                                    s.date === day.date &&
+                                                                                    s.shiftType === shift.shiftType
+                                                                            )?.roomName || "Không có phòng"
+                                                                        }
                                                                     </div>
                                                                 </div>
                                                             ) : (
@@ -295,8 +342,9 @@ export default function DoctorSchedulePage() {
                                             <span className="font-semibold">{shift.shiftType}</span>
                                         </div>
                                         <p className="text-sm">
-                                            {shift.startTime} - {shift.endTime}
+                                            {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
                                         </p>
+
                                         <p className="text-xs text-muted-foreground">{stats.shiftCounts[shift.shiftID]} ngày trong tuần</p>
                                     </div>
                                 ))}
