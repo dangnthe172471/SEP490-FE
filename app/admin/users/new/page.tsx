@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { userService } from "@/lib/services/user.service"
+import { adminService } from "@/lib/services/admin-service"
 import { CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
@@ -165,7 +165,7 @@ export default function CreateUserPage() {
         createData.medicalHistory = formData.medicalHistory.trim()
       }
 
-      await userService.createUserAdmin(createData)
+      await adminService.createUserAdmin(createData)
       toast.success("Tạo người dùng thành công!")
       router.push("/admin/users")
     } catch (err: any) {
