@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Loader2, ClipboardList, Filter, CheckCircle2, XCircle, Stethoscope, Baby } from "lucide-react"
 import { getNurseNavigation } from "@/lib/navigation/nurse-navigation"
-import { getTestWorklist, getTestResultsByRecord } from "@/lib/services/test-results-service"
+import { getTestWorklist } from "@/lib/services/test-results-service"
 import type { PagedResult, TestWorklistItemDto, RequiredState } from "@/lib/types/test-results"
 import { TestResultDialog } from "@/components/test-result-dialog"
 
@@ -19,18 +19,36 @@ import { TestResultDialog } from "@/components/test-result-dialog"
 import { Toast, ToastTitle, ToastDescription, ToastProvider, ToastViewport } from "@/components/ui/toast"
 
 // NEW: trạng thái 3 mảng (Nội/Nhi/XN)
-import { CombinedStatusPill } from "@/components/combined-status-pill"
+import { CombinedStatusPill, type CombinedStatusSnapshot } from "@/components/combined-status-pill"
 import { InternalMedDialog } from "@/components/internal-med-dialog"
 import { PediatricDialog } from "@/components/pediatric-dialog"
 
-// Lấy trạng thái Nội/Nhi
-import { getSpecialtyStatus } from "@/lib/services/internal-med-service"
+import { getInternalMed } from "@/lib/services/internal-med-service"
+import { getPediatric } from "@/lib/services/pediatric-service"
+import type { ReadInternalMedRecordDto, ReadPediatricRecordDto } from "@/lib/types/specialties"
 
 type RecordActivity = {
   hasInternal: boolean
+  internalComplete: boolean
   hasPediatric: boolean
-  hasAnyTest: boolean
+  pediatricComplete: boolean
 }
+
+const isNumberFilled = (value: number | null | undefined) =>
+  value !== null && value !== undefined && !Number.isNaN(value)
+
+const isInternalRecordComplete = (record: ReadInternalMedRecordDto | null): boolean =>
+  !!record &&
+  isNumberFilled(record.bloodPressure) &&
+  isNumberFilled(record.heartRate) &&
+  isNumberFilled(record.bloodSugar)
+
+const isPediatricRecordComplete = (record: ReadPediatricRecordDto | null): boolean =>
+  !!record &&
+  isNumberFilled(record.weightKg) &&
+  isNumberFilled(record.heightCm) &&
+  isNumberFilled(record.heartRate) &&
+  isNumberFilled(record.temperatureC)
 
 export default function NurseTestWorklistPage() {
   const navigation = getNurseNavigation()
@@ -63,13 +81,16 @@ export default function NurseTestWorklistPage() {
   const [toastOpen, setToastOpen] = useState(false)
   const [toastMsg, setToastMsg] = useState<string>("")
 
-  // === TÍNH THIẾU theo 3 loại: thiếu khi cả 3 đều chưa có
+  // === Đếm số bệnh nhân còn thiếu thông tin Nội/Nhi/XN
   const pendingCount = useMemo(() => {
     if (!data?.items) return 0
     return data.items.filter(it => {
       const a = activityMap[it.recordId]
-      const hasAnything = !!a?.hasInternal || !!a?.hasPediatric || !!a?.hasAnyTest
-      return !hasAnything
+      if (!a) return true
+      const needsInternal = a.hasInternal && !a.internalComplete
+      const needsPediatric = a.hasPediatric && !a.pediatricComplete
+      const needsTests = !it.hasAllRequiredResults
+      return needsInternal || needsPediatric || needsTests
     }).length
   }, [data, activityMap])
 
@@ -83,19 +104,23 @@ export default function NurseTestWorklistPage() {
       setActivityMap({})
       return
     }
-    // Load song song Nội/Nhi & XN cho từng record
+
     const pairs = await Promise.all(items.map(async (it) => {
-      const [spec, tests] = await Promise.all([
-        getSpecialtyStatus(it.recordId).catch(() => null),
-        getTestResultsByRecord(it.recordId).catch(() => []),
+      const [internal, pediatric] = await Promise.all([
+        getInternalMed(it.recordId).catch(() => null),
+        getPediatric(it.recordId).catch(() => null),
       ])
+
       const entry: RecordActivity = {
-        hasInternal: !!spec?.hasInternalMed,
-        hasPediatric: !!spec?.hasPediatric,
-        hasAnyTest: (tests?.length ?? 0) > 0,
+        hasInternal: !!internal,
+        internalComplete: isInternalRecordComplete(internal),
+        hasPediatric: !!pediatric,
+        pediatricComplete: isPediatricRecordComplete(pediatric),
       }
+
       return [it.recordId, entry] as const
     }))
+
     setActivityMap(Object.fromEntries(pairs))
   }, [])
 
@@ -197,14 +222,14 @@ export default function NurseTestWorklistPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Thiếu (cả Nội/Nhi/XN đều chưa có)</CardTitle>
+                <CardTitle className="text-sm font-medium">Còn việc Nội/Nhi/XN</CardTitle>
                 <XCircle className="h-4 w-4 text-destructive" />
               </CardHeader>
               <CardContent><div className="text-2xl font-bold">{pendingCount}</div></CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Không thiếu (đã có ít nhất 1 trong 3)</CardTitle>
+                <CardTitle className="text-sm font-medium">Hoàn tất Nội/Nhi/XN</CardTitle>
                 <CheckCircle2 className="h-4 w-4 text-chart-2" />
               </CardHeader>
               <CardContent>
@@ -235,60 +260,87 @@ export default function NurseTestWorklistPage() {
                 <p className="text-sm text-muted-foreground">Không có bản ghi nào.</p>
               ) : (
                 <div className="space-y-3">
-                  {data!.items.map(item => (
-                    <div key={item.recordId} className="flex items-start justify-between border rounded-xl p-4">
-                      <div className="space-y-1">
+                  {data!.items.map(item => {
+                    const activity = activityMap[item.recordId]
+                    const showInternal = !!activity?.hasInternal
+                    const showPediatric = !!activity?.hasPediatric
+                    const specialtyLoaded = activity !== undefined
+                    const status: CombinedStatusSnapshot | undefined = activity
+                      ? {
+                          hasInternal: activity.hasInternal,
+                          internalComplete: activity.internalComplete,
+                          hasPediatric: activity.hasPediatric,
+                          pediatricComplete: activity.pediatricComplete,
+                          testsComplete: item.hasAllRequiredResults,
+                        }
+                      : undefined
+
+                    return (
+                      <div key={item.recordId} className="flex items-start justify-between border rounded-xl p-4">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{item.patientName}</span>
+                            <Badge variant="outline">#{item.patientId}</Badge>
+
+                            <CombinedStatusPill status={status} />
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Lịch: {new Date(item.appointmentDate).toLocaleString()}
+                          </div>
+                        </div>
+
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium">{item.patientName}</span>
-                          <Badge variant="outline">#{item.patientId}</Badge>
+                          {specialtyLoaded ? (
+                            <>
+                              {showInternal ? (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedRecord(item.recordId)
+                                    setOpenInternal(true)
+                                  }}
+                                >
+                                  <Stethoscope className="mr-2 h-4 w-4" /> Khám Nội
+                                </Button>
+                              ) : null}
 
-                          {/* NEW: trạng thái 3 mảng (Nội/Nhi/XN) */}
-                          <CombinedStatusPill
-                            recordId={item.recordId}
-                            hasAllRequiredResults={item.hasAllRequiredResults} // XN đủ/thiếu
-                          />
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Lịch: {new Date(item.appointmentDate).toLocaleString()}
+                              {showPediatric ? (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedRecord(item.recordId)
+                                    setOpenPediatric(true)
+                                  }}
+                                >
+                                  <Baby className="mr-2 h-4 w-4" /> Khám Nhi
+                                </Button>
+                              ) : null}
+
+                              {!showInternal && !showPediatric ? (
+                                <span className="text-xs text-muted-foreground italic">
+                                  Chưa có hồ sơ Nội/Nhi để cập nhật
+                                </span>
+                              ) : null}
+                            </>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Đang kiểm tra chuyên khoa…
+                            </span>
+                          )}
+
+                          <Button
+                            variant="default"
+                            onClick={() => {
+                              setSelectedRecord(item.recordId)
+                              setDialogOpen(true)
+                            }}
+                          >
+                            Điền xét nghiệm
+                          </Button>
                         </div>
                       </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* Khám Nội */}
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedRecord(item.recordId)
-                            setOpenInternal(true)
-                          }}
-                        >
-                          <Stethoscope className="mr-2 h-4 w-4" /> Khám Nội
-                        </Button>
-
-                        {/* Khám Nhi */}
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedRecord(item.recordId)
-                            setOpenPediatric(true)
-                          }}
-                        >
-                          <Baby className="mr-2 h-4 w-4" /> Khám Nhi
-                        </Button>
-
-                        {/* Xét nghiệm */}
-                        <Button
-                          variant="default"
-                          onClick={() => {
-                            setSelectedRecord(item.recordId)
-                            setDialogOpen(true)
-                          }}
-                        >
-                          Điền xét nghiệm
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </CardContent>

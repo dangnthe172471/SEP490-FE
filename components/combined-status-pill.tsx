@@ -1,45 +1,55 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { getSpecialtyStatus } from "@/lib/services/internal-med-service"
-import type { SpecialtyStatus } from "@/lib/types/specialties"
+
+export type CombinedStatusSnapshot = {
+  hasInternal: boolean
+  internalComplete: boolean
+  hasPediatric: boolean
+  pediatricComplete: boolean
+  testsComplete: boolean
+}
 
 export function CombinedStatusPill({
-  recordId,
-  hasAllRequiredResults, // XN đủ (từ backend)
+  status,
 }: {
-  recordId: number
-  hasAllRequiredResults: boolean
+  status?: CombinedStatusSnapshot | null
 }) {
-  const [s, setS] = useState<SpecialtyStatus | null>(null)
+  if (!status) return <Badge variant="outline">Đang kiểm tra…</Badge>
 
-  useEffect(() => {
-    let alive = true
-    getSpecialtyStatus(recordId)
-      .then(x => { if (alive) setS(x) })
-      .catch(() => { if (alive) setS(null) })
-    return () => { alive = false }
-  }, [recordId])
+  const internalVariant = status.internalComplete ? "secondary" : "outline"
+  const internalLabel = status.hasInternal
+    ? status.internalComplete ? "Nội" : "Nội thiếu"
+    : "Nội"
 
-  if (!s) return <Badge variant="outline">Đang kiểm tra…</Badge>
+  const pediatricVariant = status.pediatricComplete ? "secondary" : "outline"
+  const pediatricLabel = status.hasPediatric
+    ? status.pediatricComplete ? "Nhi" : "Nhi thiếu"
+    : "Nhi"
+
+  const testsVariant = status.testsComplete ? "secondary" : "outline"
+  const testsLabel = status.testsComplete ? "XN đủ" : "XN thiếu"
 
   return (
     <div className="flex flex-wrap gap-1">
-      {/* Nội khoa */}
-      {s.hasInternalMed
-        ? <Badge variant="secondary">Nội</Badge>
-        : <Badge variant="outline">Nội</Badge>}
-
-      {/* Nhi khoa */}
-      {s.hasPediatric
-        ? <Badge variant="secondary">Nhi</Badge>
-        : <Badge variant="outline">Nhi</Badge>}
-
-      {/* Xét nghiệm */}
-      {hasAllRequiredResults
-        ? <Badge variant="secondary">XN đủ</Badge>
-        : <Badge variant="outline">XN thiếu</Badge>}
+      <Badge
+        variant={internalVariant}
+        className={!status.internalComplete ? "opacity-70" : undefined}
+      >
+        {internalLabel}
+      </Badge>
+      <Badge
+        variant={pediatricVariant}
+        className={!status.pediatricComplete ? "opacity-70" : undefined}
+      >
+        {pediatricLabel}
+      </Badge>
+      <Badge
+        variant={testsVariant}
+        className={!status.testsComplete ? "opacity-70" : undefined}
+      >
+        {testsLabel}
+      </Badge>
     </div>
   )
 }
