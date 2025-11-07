@@ -42,6 +42,7 @@ export interface TestResultDto {
   testResultId: number
   recordId: number
   testTypeId: number
+  testName?: string
   resultValue?: string | null
   unit?: string | null
   attachment?: string | null

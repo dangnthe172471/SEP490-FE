@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Loader2, ClipboardList, Filter, CheckCircle2, XCircle, Stethoscope, Baby } from "lucide-react"
 import { getNurseNavigation } from "@/lib/navigation/nurse-navigation"
-import { getTestWorklist } from "@/lib/services/test-results-service"
-import type { PagedResult, TestWorklistItemDto, RequiredState } from "@/lib/types/test-results"
+import { getTestWorklist, getTestResultsByRecord } from "@/lib/services/test-results-service"
+import type { PagedResult, TestWorklistItemDto, RequiredState, ReadTestResultDto } from "@/lib/types/test-results"
 import { TestResultDialog } from "@/components/test-result-dialog"
 
 // Toast (Radix)
@@ -32,6 +32,8 @@ type RecordActivity = {
   internalComplete: boolean
   hasPediatric: boolean
   pediatricComplete: boolean
+  testsRequested: number
+  testsComplete: boolean
 }
 
 const isNumberFilled = (value: number | null | undefined) =>
@@ -49,6 +51,13 @@ const isPediatricRecordComplete = (record: ReadPediatricRecordDto | null): boole
   isNumberFilled(record.heightCm) &&
   isNumberFilled(record.heartRate) &&
   isNumberFilled(record.temperatureC)
+
+const isPendingResult = (value: string | null | undefined) => {
+  if (!value) return true
+  const trimmed = value.trim().toLowerCase()
+  if (!trimmed) return true
+  return ["pending", "chờ", "đang chờ", "awaiting"].some(marker => trimmed.includes(marker))
+}
 
 export default function NurseTestWorklistPage() {
   const navigation = getNurseNavigation()
@@ -89,7 +98,7 @@ export default function NurseTestWorklistPage() {
       if (!a) return true
       const needsInternal = a.hasInternal && !a.internalComplete
       const needsPediatric = a.hasPediatric && !a.pediatricComplete
-      const needsTests = !it.hasAllRequiredResults
+      const needsTests = a.testsRequested > 0 && !a.testsComplete
       return needsInternal || needsPediatric || needsTests
     }).length
   }, [data, activityMap])
@@ -106,16 +115,20 @@ export default function NurseTestWorklistPage() {
     }
 
     const pairs = await Promise.all(items.map(async (it) => {
-      const [internal, pediatric] = await Promise.all([
+      const [internal, pediatric, tests] = await Promise.all([
         getInternalMed(it.recordId).catch(() => null),
         getPediatric(it.recordId).catch(() => null),
+        getTestResultsByRecord(it.recordId).catch(() => [] as ReadTestResultDto[]),
       ])
 
+      const pendingTests = tests.filter(t => isPendingResult(t.resultValue))
       const entry: RecordActivity = {
         hasInternal: !!internal,
         internalComplete: isInternalRecordComplete(internal),
         hasPediatric: !!pediatric,
         pediatricComplete: isPediatricRecordComplete(pediatric),
+        testsRequested: tests.length,
+        testsComplete: tests.length > 0 && pendingTests.length === 0,
       }
 
       return [it.recordId, entry] as const
@@ -271,7 +284,8 @@ export default function NurseTestWorklistPage() {
                           internalComplete: activity.internalComplete,
                           hasPediatric: activity.hasPediatric,
                           pediatricComplete: activity.pediatricComplete,
-                          testsComplete: item.hasAllRequiredResults,
+                          testsRequested: activity.testsRequested,
+                          testsComplete: activity.testsComplete,
                         }
                       : undefined
 

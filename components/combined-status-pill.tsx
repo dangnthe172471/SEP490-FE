@@ -7,6 +7,7 @@ export type CombinedStatusSnapshot = {
   internalComplete: boolean
   hasPediatric: boolean
   pediatricComplete: boolean
+  testsRequested: number
   testsComplete: boolean
 }
 
@@ -27,8 +28,12 @@ export function CombinedStatusPill({
     ? status.pediatricComplete ? "Nhi" : "Nhi thiếu"
     : "Nhi"
 
-  const testsVariant = status.testsComplete ? "secondary" : "outline"
-  const testsLabel = status.testsComplete ? "XN đủ" : "XN thiếu"
+  let testsVariant: "secondary" | "outline" = "outline"
+  let testsLabel = "XN chưa yêu cầu"
+  if (status.testsRequested > 0) {
+    testsVariant = status.testsComplete ? "secondary" : "outline"
+    testsLabel = status.testsComplete ? "XN đủ" : "XN chờ"
+  }
 
   return (
     <div className="flex flex-wrap gap-1">
@@ -46,7 +51,7 @@ export function CombinedStatusPill({
       </Badge>
       <Badge
         variant={testsVariant}
-        className={!status.testsComplete ? "opacity-70" : undefined}
+        className={status.testsRequested > 0 && !status.testsComplete ? "opacity-70" : undefined}
       >
         {testsLabel}
       </Badge>

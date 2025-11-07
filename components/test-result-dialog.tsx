@@ -70,6 +70,14 @@ export function TestResultDialog({
     return m
   }, [results])
 
+  const sanitizeValue = (value: string | null | undefined) => {
+    if (!value) return ""
+    const trimmed = value.trim().toLowerCase()
+    if (!trimmed) return ""
+    if (trimmed.includes("pending") || trimmed.includes("chờ")) return ""
+    return value
+  }
+
   useEffect(() => {
     if (!open) return
     let mounted = true
@@ -86,7 +94,7 @@ export function TestResultDialog({
 
         const exist = r.find(x => x.testTypeId === firstSelected)
         setForm({
-          resultValue: exist?.resultValue ?? "",
+          resultValue: sanitizeValue(exist?.resultValue),
           unit: exist?.unit ?? "",
           attachment: exist?.attachment ?? "",
           resultDate: exist?.resultDate ? toLocalDateTimeInputValue(new Date(exist.resultDate)) : toLocalDateTimeInputValue(new Date()),
@@ -107,7 +115,7 @@ export function TestResultDialog({
     setSelectedTypeId(id)
     const ex = existingByType.get(id)
     setForm({
-      resultValue: ex?.resultValue ?? "",
+      resultValue: sanitizeValue(ex?.resultValue),
       unit: ex?.unit ?? "",
       attachment: ex?.attachment ?? "",
       resultDate: ex?.resultDate ? toLocalDateTimeInputValue(new Date(ex.resultDate)) : toLocalDateTimeInputValue(new Date()),

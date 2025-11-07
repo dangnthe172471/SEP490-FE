@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -19,6 +19,8 @@ import {
   createPediatric,
 } from "@/lib/services/pediatric-service";
 import { toast } from "@/hooks/use-toast";
+import { createTestResult, getTestTypes } from "@/lib/services/test-results-service";
+import type { TestTypeLite } from "@/lib/types/test-results";
 
 interface PatientDetail {
   fullName: string;
@@ -47,6 +49,19 @@ export default function MedicalRecordDetailPage() {
   const [patientInfo, setPatientInfo] = useState<PatientDetail | null>(null);
   const [creatingInternal, setCreatingInternal] = useState(false);
   const [creatingPediatric, setCreatingPediatric] = useState(false);
+  const [testTypes, setTestTypes] = useState<TestTypeLite[]>([]);
+  const [loadingTestTypes, setLoadingTestTypes] = useState(false);
+  const [requestingTestTypeId, setRequestingTestTypeId] = useState<number | null>(null);
+
+  const testsByTypeId = useMemo(() => {
+    const map = new Map<number, MedicalRecordDto["testResults"][number]>();
+    if (record?.testResults) {
+      for (const test of record.testResults) {
+        map.set(test.testTypeId, test);
+      }
+    }
+    return map;
+  }, [record?.testResults]);
 
   useEffect(() => {
     if (!id) return;
@@ -114,6 +129,24 @@ export default function MedicalRecordDetailPage() {
     })();
   }, [id]);
 
+  useEffect(() => {
+    let aborted = false;
+    (async () => {
+      try {
+        setLoadingTestTypes(true);
+        const types = await getTestTypes();
+        if (!aborted) setTestTypes(types);
+      } catch (err) {
+        console.error("Không thể tải danh sách xét nghiệm", err);
+      } finally {
+        if (!aborted) setLoadingTestTypes(false);
+      }
+    })();
+    return () => {
+      aborted = true;
+    };
+  }, []);
+
   const save = async () => {
     if (!record) return;
     try {
@@ -125,6 +158,7 @@ export default function MedicalRecordDetailPage() {
       setRecord(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
+      window.location.reload();
     } catch (e) {
       alert("Không thể lưu hồ sơ");
     } finally {
@@ -222,6 +256,49 @@ export default function MedicalRecordDetailPage() {
     }
   };
 
+  const handleRequestTest = async (type: TestTypeLite) => {
+    if (!record) return;
+    if (testsByTypeId.has(type.testTypeId)) {
+      toast({
+        title: "Đã yêu cầu xét nghiệm",
+        description: `Xét nghiệm "${type.testName}" đã được tạo cho hồ sơ này.`,
+      });
+      return;
+    }
+
+    try {
+      setRequestingTestTypeId(type.testTypeId);
+      const created = await createTestResult({
+        recordId: record.recordId,
+        testTypeId: type.testTypeId,
+        resultValue: "PENDING",
+        notes: "Chờ điều dưỡng cập nhật kết quả",
+      });
+
+      setRecord((prev) =>
+        prev
+          ? {
+              ...prev,
+              testResults: [...(prev.testResults ?? []), created],
+            }
+          : prev
+      );
+
+      toast({
+        title: "Đã gửi yêu cầu",
+        description: `Đã gửi yêu cầu xét nghiệm "${type.testName}" tới điều dưỡng.`,
+      });
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi khi tạo xét nghiệm",
+        description: e?.message ?? "Không thể tạo yêu cầu xét nghiệm.",
+      });
+    } finally {
+      setRequestingTestTypeId(null);
+    }
+  };
+
   if (!record) {
     return (
       <DashboardLayout navigation={navigation}>
@@ -289,58 +366,125 @@ export default function MedicalRecordDetailPage() {
         </Card>
 
         <Card className="p-6 shadow-sm border border-gray-200 rounded-2xl">
-          <CardContent>
-            <div className="grid grid-cols-2 gap-6 items-center">
-              {/* Cột trái - Loại khám */}
-              <div className="flex flex-col items-center space-y-4">
-                <h3 className="text-base font-semibold text-gray-800">
-                  Loại khám
-                </h3>
-                <div className="flex gap-3">
-                  <Button
-                    className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium shadow-sm transition-all"
-                    onClick={handleCreateInternalMed}
-                    disabled={creatingInternal}
-                  >
-                    {creatingInternal ? "Đang tạo..." : "Khám nội"}
-                  </Button>
-                  <Button
-                    className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium shadow-sm transition-all"
-                    onClick={handleCreatePediatric}
-                    disabled={creatingPediatric}
-                  >
-                    {creatingPediatric ? "Đang tạo..." : "Khám nhi"}
-                  </Button>
-                </div>
+  <CardContent>
+    <div className="grid grid-cols-2 gap-6 items-start">
+      {/* Cột trái - Loại khám */}
+      <div className="space-y-4">
+        <h3 className="text-base font-semibold text-gray-800">Loại khám</h3>
+
+        <div className="space-y-3">
+          {[
+            {
+              id: "internal",
+              label: "Khám nội",
+              creating: creatingInternal,
+              created: !!record?.internalMedRecord, // nếu bạn có cờ đánh dấu record đã tạo nội khoa
+              onClick: handleCreateInternalMed,
+            },
+            {
+              id: "pediatric",
+              label: "Khám nhi",
+              creating: creatingPediatric,
+              created: !!record?.pediatricRecord, // nếu bạn có cờ đánh dấu record đã tạo nhi khoa
+              onClick: handleCreatePediatric,
+            },
+          ].map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3"
+            >
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-800">
+                  {item.label}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {item.created
+                    ? "Đã gửi yêu cầu khám"
+                    : "Chưa gửi yêu cầu khám"}
+                </p>
               </div>
 
-              {/* Cột phải - Loại xét nghiệm */}
-              <div className="flex flex-col items-center space-y-4 border-l border-gray-100">
-                <h3 className="text-base font-semibold text-gray-800">
-                  Loại xét nghiệm
-                </h3>
-                <div className="flex gap-3">
+              <Button
+                variant={item.created ? "secondary" : "outline"}
+                disabled={item.created || item.creating}
+                onClick={item.onClick}
+              >
+                {item.created
+                  ? "Đã gửi"
+                  : item.creating
+                  ? "Đang gửi..."
+                  : "Gửi điều dưỡng"}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cột phải - Loại xét nghiệm */}
+      <div className="space-y-4 border-l border-gray-100 pl-6">
+        <h3 className="text-base font-semibold text-gray-800">
+          Yêu cầu xét nghiệm
+        </h3>
+        {loadingTestTypes ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="w-3 h-3 border-2 border-t-transparent border-current rounded-full animate-spin" />
+            Đang tải danh sách xét nghiệm...
+          </div>
+        ) : testTypes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Chưa có danh mục xét nghiệm. Vui lòng liên hệ quản trị viên.
+          </p>
+        ) : (
+          <div className="space-y-3 w-full">
+            {testTypes.map((type) => {
+              const existing = testsByTypeId.get(type.testTypeId);
+              const isPending = existing?.resultValue
+                ? existing.resultValue.toLowerCase().includes("pending") ||
+                  existing.resultValue.toLowerCase().includes("chờ")
+                : true;
+              return (
+                <div
+                  key={type.testTypeId}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3"
+                >
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-800">
+                      {type.testName}
+                    </p>
+                    {existing ? (
+                      <p className="text-xs text-muted-foreground">
+                        Trạng thái:{" "}
+                        {isPending ? "Chờ điều dưỡng" : "Đã có kết quả"}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Chưa gửi yêu cầu cho điều dưỡng
+                      </p>
+                    )}
+                  </div>
                   <Button
-                    variant="outline"
-                    className="px-6 py-2 rounded-lg text-gray-700 border-gray-300 hover:bg-gray-50 text-sm font-medium transition-all"
-                    onClick={handleCreatePediatric}
-                    disabled={creatingPediatric}
+                    variant={existing ? "secondary" : "outline"}
+                    disabled={
+                      !!existing || requestingTestTypeId === type.testTypeId
+                    }
+                    onClick={() => handleRequestTest(type)}
                   >
-                    {creatingPediatric ? "Đang tạo..." : "Xét nghiệm X"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="px-6 py-2 rounded-lg text-gray-700 border-gray-300 hover:bg-gray-50 text-sm font-medium transition-all"
-                    onClick={handleCreatePediatric}
-                    disabled={creatingPediatric}
-                  >
-                    {creatingPediatric ? "Đang tạo..." : "Xét nghiệm Y"}
+                    {existing
+                      ? "Đã gửi"
+                      : requestingTestTypeId === type.testTypeId
+                      ? "Đang gửi..."
+                      : "Gửi điều dưỡng"}
                   </Button>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  </CardContent>
+</Card>
+
 
         <Card className="p-4">
           <div className="grid gap-4">
@@ -520,31 +664,38 @@ export default function MedicalRecordDetailPage() {
               </div>
               {record.testResults && record.testResults.length > 0 ? (
                 <div className="border rounded divide-y">
-                  {record.testResults.map((t) => (
-                    <div
-                      key={t.testResultId}
-                      className="grid grid-cols-4 gap-2 p-2 text-sm"
-                    >
-                      <div className="col-span-2">
-                        Loại:{" "}
-                        <span className="font-medium">
-                          {t.testResultId ?? "-"}
-                        </span>
+                  {record.testResults.map((t) => {
+                    const typeName =
+                      t.testName ??
+                      testTypes.find((tt) => tt.testTypeId === t.testTypeId)?.testName ??
+                        `Loại #${t.testTypeId}`;
+                    const pending = t.resultValue
+                      ? t.resultValue.toLowerCase().includes("pending") ||
+                        t.resultValue.toLowerCase().includes("chờ")
+                      : true;
+                    return (
+                      <div
+                        key={t.testResultId}
+                        className="grid grid-cols-4 gap-2 p-2 text-sm"
+                      >
+                        <div className="col-span-2">
+                          Xét nghiệm: <span className="font-medium">{typeName}</span>
+                        </div>
+                        <div className="col-span-2">
+                          Trạng thái: {" "}
+                          <span className="font-medium">
+                            {pending ? "Chờ kết quả" : t.resultValue ?? "-"}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          {t.resultDate
+                            ? new Date(t.resultDate).toLocaleDateString("vi-VN")
+                            : "-"}
+                        </div>
+                        <div className="col-span-2">{t.notes ?? ""}</div>
                       </div>
-                      <div className="col-span-2">
-                        KQ:{" "}
-                        <span className="font-medium">
-                          {t.resultValue ?? "-"}
-                        </span>
-                      </div>
-                      <div className="col-span-2">
-                        {t.resultDate
-                          ? new Date(t.resultDate).toLocaleDateString("vi-VN")
-                          : "-"}
-                      </div>
-                      <div className="col-span-2">{t.notes ?? ""}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -586,3 +737,4 @@ export default function MedicalRecordDetailPage() {
     </DashboardLayout>
   );
 }
+
