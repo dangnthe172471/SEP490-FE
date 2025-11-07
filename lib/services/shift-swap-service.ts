@@ -32,7 +32,6 @@ export class ShiftSwapService extends BaseApiService {
         }
     }
 
-
     async getAllRequests(): Promise<ShiftSwapRequestResponse[]> {
         const response = await this.request<ApiResponse<ShiftSwapRequestResponse[]>>('/api/ManagerShiftSwap/all-requests');
 
@@ -45,25 +44,20 @@ export class ShiftSwapService extends BaseApiService {
 
     async reviewShiftSwapRequest(exchangeId: number, status: "Approved" | "Rejected", note?: string): Promise<boolean> {
         try {
-            const response = await this.request<any>('/api/ManagerShiftSwap/review-request', {
+            const response = await this.request<ApiResponse<null>>('/api/DoctorShiftExchange/review-request', {
                 method: 'POST',
                 body: JSON.stringify({
                     exchangeId,
-                    status,
-                    managerNote: note
+                    status
                 })
             });
 
-            console.log("Review response:", response);
-
-            // Backend trả về { success: true, message: "Đã chấp nhận yêu cầu đổi ca thành công" }
             if (response && response.success === true) {
                 return true;
             } else {
                 throw new Error(response?.message || "Failed to review shift swap request");
             }
         } catch (error) {
-            console.error("Review request error:", error);
             throw error;
         }
     }
@@ -110,16 +104,12 @@ export class ShiftSwapService extends BaseApiService {
     }
 
     async validateShiftSwapRequest(request: CreateShiftSwapRequest): Promise<boolean> {
-        const response = await this.request<ApiResponse<{ isValid: boolean }>>('/api/DoctorShiftExchange/validate-request', {
+        const response = await this.request<ApiResponse<null>>('/api/DoctorShiftExchange/validate-request', {
             method: 'POST',
             body: JSON.stringify(request)
         });
 
-        if (!response.success || !response.data) {
-            throw new Error(response.message || "Failed to validate request");
-        }
-
-        return response.data.isValid;
+        return response.success === true;
     }
 
     async getDoctorIdByUserId(userId: number): Promise<number> {

@@ -18,10 +18,12 @@ import { showErrorAlert, showSuccessAlert } from "@/lib/sweetalert-config"
 import type { CreateShiftSwapRequest, ShiftSwapRequestResponse, DoctorShift, Doctor } from "@/lib/types/shift-swap"
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
 
+const DAYS_TO_FETCH = 30
+const ACTIVE_STATUS = "Active"
+const PENDING_STATUS = "Pending"
+
 export default function DoctorShiftSwapPage() {
     const [currentUser, setCurrentUser] = useState<any>(null)
-
-    // Get doctor navigation from centralized config
     const navigation = getDoctorNavigation()
 
     const [doctors, setDoctors] = useState<Doctor[]>([])
@@ -45,11 +47,21 @@ export default function DoctorShiftSwapPage() {
     const selectedTargetShift = targetShifts.find(s => s.doctorShiftId.toString() === formData.targetShiftId)
 
     const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 2)
+    tomorrow.setDate(tomorrow.getDate() + 1)
     tomorrow.setHours(0, 0, 0, 0)
 
-    const parseDateOnly = (value?: string) => value ? new Date(value) : undefined
-    const formatDateOnly = (d?: Date) => d ? d.toISOString().split('T')[0] : undefined
+    const parseDateOnly = (value?: string): Date | undefined => value ? new Date(value) : undefined
+    const formatDateOnly = (d?: Date): string | undefined => d ? d.toISOString().split('T')[0] : undefined
+    const getDateRange = (days: number = DAYS_TO_FETCH) => {
+        const from = new Date().toISOString().split('T')[0]
+        const to = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        return { from, to }
+    }
+    const getToday = (): Date => {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        return today
+    }
 
     const myFrom = parseDateOnly(selectedMyShift?.effectiveFrom)
     const myTo = parseDateOnly(selectedMyShift?.effectiveTo)
@@ -60,7 +72,9 @@ export default function DoctorShiftSwapPage() {
     const minCandidates: Date[] = [tomorrow]
     if (myFrom) minCandidates.push(myFrom)
     if (targetFrom) minCandidates.push(targetFrom)
-    const computedMinDate = minCandidates.reduce((max, d) => d > max ? d : max)
+    const computedMinDate = minCandidates.length > 0
+        ? minCandidates.reduce((max, d) => d > max ? d : max)
+        : tomorrow
 
     // maxDate = min(myTo, targetTo) — chỉ tính khi cả hai có giá trị
     let computedMaxDate: Date | undefined = undefined
@@ -85,11 +99,29 @@ export default function DoctorShiftSwapPage() {
 
     useEffect(() => {
         if (currentUser) {
-            fetchMyShifts()
             fetchMyRequests()
             fetchDoctorsBySpecialty()
+            if (swapType === "permanent") {
+                fetchMyShifts()
+            }
         }
     }, [currentUser])
+
+    useEffect(() => {
+        // Khi đổi swapType, reload shifts và reset form
+        if (currentUser) {
+            if (swapType === "permanent") {
+                setFormData(prev => ({ ...prev, exchangeDate: "", myShiftId: "", targetShiftId: "", targetDoctorId: "" }))
+                setMyShifts([])
+                setTargetShifts([])
+                fetchMyShifts()
+            } else {
+                setFormData(prev => ({ ...prev, myShiftId: "", targetShiftId: "", targetDoctorId: "" }))
+                setMyShifts([])
+                setTargetShifts([])
+            }
+        }
+    }, [swapType])
 
     const fetchDoctorsBySpecialty = async () => {
         if (!currentUser) return
@@ -97,12 +129,13 @@ export default function DoctorShiftSwapPage() {
         try {
             setDoctorsLoading(true)
             const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
+            const { from, to } = getDateRange()
+            const myShifts = await shiftSwapService.getDoctorShifts(doctorId, from, to)
 
-            const myShifts = await shiftSwapService.getDoctorShifts(doctorId, new Date().toISOString().split('T')[0], new Date().toISOString().split('T')[0])
-
-            let specialty = "Tim Mạch" // Default fallback
-            if (myShifts.length > 0 && myShifts[0].specialty) {
-                specialty = myShifts[0].specialty
+            const specialty = myShifts.find(shift => shift.specialty)?.specialty
+            if (!specialty) {
+                await showErrorAlert("Thông báo", "Không tìm thấy chuyên khoa của bạn")
+                return
             }
 
             const doctorsList = await shiftSwapService.getDoctorsBySpecialty(specialty)
@@ -113,7 +146,6 @@ export default function DoctorShiftSwapPage() {
                 await showErrorAlert("Thông báo", "Không có bác sĩ nào khác trong cùng chuyên khoa")
             }
         } catch (error) {
-            console.error('Error fetching doctors by specialty:', error)
             await showErrorAlert("Lỗi", "Không thể tải danh sách bác sĩ: " + (error as Error).message)
         } finally {
             setDoctorsLoading(false)
@@ -125,21 +157,46 @@ export default function DoctorShiftSwapPage() {
 
         try {
             setLoading(true)
-            const from = new Date().toISOString().split('T')[0]
-            const to = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days from now
-
             const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
-            const allShifts = await shiftSwapService.getDoctorShifts(doctorId, from, to)
 
-            // Chỉ lấy lịch có status "Active"
-            const activeShifts = allShifts.filter(shift => shift.status === "Active")
-            setMyShifts(activeShifts)
+            if (swapType === "temporary" && formData.exchangeDate) {
+                // Temporary: fetch shifts trong ngày đã chọn
+                const myShiftsForDate = await fetchShiftsForDate(doctorId, formData.exchangeDate)
+                setMyShifts(myShiftsForDate)
+            } else if (swapType === "permanent") {
+                // Permanent: fetch shifts của tháng sau
+                const nextMonthStart = new Date()
+                nextMonthStart.setMonth(nextMonthStart.getMonth() + 1, 1)
+                nextMonthStart.setHours(0, 0, 0, 0)
 
-            if (activeShifts.length === 0) {
-                await showErrorAlert("Thông báo", "Bạn chưa có ca làm việc nào đang hoạt động trong khoảng thời gian này")
+                // Tính ngày cuối tháng sau
+                const nextMonthEnd = new Date(nextMonthStart)
+                nextMonthEnd.setMonth(nextMonthEnd.getMonth() + 1, 0) // Ngày cuối của tháng sau
+                nextMonthEnd.setHours(23, 59, 59, 999)
+
+                const from = nextMonthStart.toISOString().split('T')[0]
+                const to = nextMonthEnd.toISOString().split('T')[0]
+
+                const allShifts = await shiftSwapService.getDoctorShifts(doctorId, from, to)
+                let activeShifts = allShifts.filter(shift => shift.status === ACTIVE_STATUS)
+
+                // Filter shifts có effectiveFrom >= đầu tháng sau
+                activeShifts = activeShifts.filter(shift => {
+                    const effectiveFrom = new Date(shift.effectiveFrom)
+                    effectiveFrom.setHours(0, 0, 0, 0)
+                    return effectiveFrom >= nextMonthStart
+                })
+
+                setMyShifts(activeShifts)
+
+                if (activeShifts.length === 0) {
+                    await showErrorAlert("Thông báo", "Bạn chưa có ca làm việc nào trong tháng sau")
+                }
+            } else {
+                // Temporary nhưng chưa chọn ngày: không fetch
+                setMyShifts([])
             }
         } catch (error) {
-            console.error('Error fetching shifts:', error)
             await showErrorAlert("Lỗi", "Không thể tải lịch làm việc: " + (error as Error).message)
         } finally {
             setLoading(false)
@@ -155,10 +212,51 @@ export default function DoctorShiftSwapPage() {
             const requests = await shiftSwapService.getRequestsByDoctorId(doctorId)
             setMyRequests(requests)
         } catch (error) {
-            console.error('Error fetching requests:', error)
             await showErrorAlert("Lỗi", "Không thể tải yêu cầu đổi ca: " + (error as Error).message)
         } finally {
             setRequestsLoading(false)
+        }
+    }
+
+    const fetchShiftsForDate = async (doctorId: number, date: string) => {
+        // Fetch shifts cho ngày cụ thể
+        const selectedDate = new Date(date)
+        const from = date
+        const to = date
+
+        const allShifts = await shiftSwapService.getDoctorShifts(doctorId, from, to)
+        const activeShifts = allShifts.filter(shift => {
+            if (shift.status !== ACTIVE_STATUS) return false
+
+            const effectiveFrom = new Date(shift.effectiveFrom)
+            const effectiveTo = new Date(shift.effectiveTo)
+            const checkDate = new Date(selectedDate)
+            checkDate.setHours(0, 0, 0, 0)
+
+            // Check xem ngày có nằm trong khoảng effectiveFrom và effectiveTo không
+            return effectiveFrom <= checkDate && effectiveTo >= checkDate
+        })
+
+        return activeShifts
+    }
+
+    const handleDateChange = async (date: string) => {
+        setFormData(prev => ({ ...prev, exchangeDate: date, myShiftId: "", targetShiftId: "", targetDoctorId: "" }))
+        setTargetShifts([])
+
+        if (!currentUser || swapType !== "temporary") return
+
+        try {
+            setLoading(true)
+            const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
+
+            // Fetch shifts của mình trong ngày đó
+            const myShiftsForDate = await fetchShiftsForDate(doctorId, date)
+            setMyShifts(myShiftsForDate)
+        } catch (error) {
+            await showErrorAlert("Lỗi", "Không thể tải lịch làm việc: " + (error as Error).message)
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -173,16 +271,38 @@ export default function DoctorShiftSwapPage() {
             const doctor = doctors.find(d => d.doctorID.toString() === doctorId)
             if (!doctor) return
 
-            const from = new Date().toISOString().split('T')[0]
-            const to = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            if (swapType === "temporary" && formData.exchangeDate) {
+                // Temporary: fetch shifts trong ngày đã chọn
+                const targetShiftsForDate = await fetchShiftsForDate(parseInt(doctorId), formData.exchangeDate)
+                setTargetShifts(targetShiftsForDate)
+            } else if (swapType === "permanent") {
+                // Permanent: fetch shifts của tháng sau
+                const nextMonthStart = new Date()
+                nextMonthStart.setMonth(nextMonthStart.getMonth() + 1, 1)
+                nextMonthStart.setHours(0, 0, 0, 0)
 
-            const allShifts = await shiftSwapService.getDoctorShifts(parseInt(doctorId), from, to)
+                // Tính ngày cuối tháng sau
+                const nextMonthEnd = new Date(nextMonthStart)
+                nextMonthEnd.setMonth(nextMonthEnd.getMonth() + 1, 0) // Ngày cuối của tháng sau
+                nextMonthEnd.setHours(23, 59, 59, 999)
 
-            // Chỉ lấy lịch có status "Active"
-            const activeShifts = allShifts.filter(shift => shift.status === "Active")
-            setTargetShifts(activeShifts)
+                const from = nextMonthStart.toISOString().split('T')[0]
+                const to = nextMonthEnd.toISOString().split('T')[0]
+
+                const allShifts = await shiftSwapService.getDoctorShifts(parseInt(doctorId), from, to)
+
+                let activeShifts = allShifts.filter(shift => shift.status === ACTIVE_STATUS)
+
+                // Filter shifts có effectiveFrom >= đầu tháng sau
+                activeShifts = activeShifts.filter(shift => {
+                    const effectiveFrom = new Date(shift.effectiveFrom)
+                    effectiveFrom.setHours(0, 0, 0, 0)
+                    return effectiveFrom >= nextMonthStart
+                })
+
+                setTargetShifts(activeShifts)
+            }
         } catch (error) {
-            console.error('Error fetching target doctor shifts:', error)
             await showErrorAlert("Lỗi", "Không thể tải lịch làm việc của bác sĩ: " + (error as Error).message)
         } finally {
             setDoctorsLoading(false)
@@ -202,9 +322,26 @@ export default function DoctorShiftSwapPage() {
             return
         }
 
-        if (!formData.exchangeDate) {
-            toast.error("Vui lòng chọn ngày đổi ca")
-            return
+        // Chỉ validate exchangeDate nếu temporary
+        if (swapType === "temporary") {
+            if (!formData.exchangeDate) {
+                toast.error("Vui lòng chọn ngày đổi ca")
+                return
+            }
+
+            const selectedDate = new Date(formData.exchangeDate)
+            selectedDate.setHours(0, 0, 0, 0)
+            const today = getToday()
+
+            if (selectedDate <= today) {
+                toast.error("Chỉ được đổi lịch từ ngày mai trở đi. Không thể đổi lịch hôm nay.")
+                return
+            }
+
+            if (!isRangeValid) {
+                toast.error("Khoảng ngày không hợp lệ giữa hai ca. Vui lòng chọn lại.")
+                return
+            }
         }
 
         try {
@@ -217,38 +354,32 @@ export default function DoctorShiftSwapPage() {
                 doctor2Id: parseInt(formData.targetDoctorId),
                 doctor1ShiftRefId: parseInt(formData.myShiftId),
                 doctor2ShiftRefId: parseInt(formData.targetShiftId),
-                exchangeDate: formData.exchangeDate,
+                ...(swapType === "temporary" && formData.exchangeDate ? { exchangeDate: formData.exchangeDate } : {}),
                 swapType: swapType
             }
 
-            // Validate: trong khoảng hợp lệ và từ ngày mai trở đi
-            const selectedDate = new Date(formData.exchangeDate)
-            selectedDate.setHours(0, 0, 0, 0)
-
-            if (selectedDate < tomorrow) {
-                toast.error("Chỉ được đổi lịch từ ngày mai trở đi. Không thể đổi lịch hôm nay.")
-                return
-            }
-
-            if (!isRangeValid) {
-                toast.error("Khoảng ngày không hợp lệ giữa hai ca. Vui lòng chọn lại.")
-                return
-            }
-
-            if (computedMaxDate && selectedDate > computedMaxDate) {
-                toast.error("Ngày đổi ca vượt quá ngày kết thúc cho phép.")
-                return
-            }
-
-            const existingRequests = myRequests.filter(req =>
-                (req.doctor1Id === doctorId && req.doctor2Id === parseInt(formData.targetDoctorId)) ||
-                (req.doctor1Id === parseInt(formData.targetDoctorId) && req.doctor2Id === doctorId)
-            ).filter(req => {
-                if (swapType === "temporary") {
-                    return req.exchangeDate === formData.exchangeDate && req.status === "Pending"
-                } else {
-                    return req.swapType === "permanent" && req.exchangeDate === formData.exchangeDate && req.status === "Pending"
+            // Chỉ validate selectedDate nếu temporary
+            if (swapType === "temporary" && computedMaxDate) {
+                const selectedDate = new Date(formData.exchangeDate)
+                selectedDate.setHours(0, 0, 0, 0)
+                if (selectedDate > computedMaxDate) {
+                    toast.error("Ngày đổi ca vượt quá ngày kết thúc cho phép.")
+                    return
                 }
+            }
+
+            const targetDoctorId = parseInt(formData.targetDoctorId)
+            const existingRequests = myRequests.filter(req => {
+                const isSameDoctors = (req.doctor1Id === doctorId && req.doctor2Id === targetDoctorId) ||
+                    (req.doctor1Id === targetDoctorId && req.doctor2Id === doctorId)
+                if (!isSameDoctors) return false
+
+                const reqSwapType = req.swapType?.toLowerCase()
+                const isSameSwapType = reqSwapType === swapType
+                const isSameDate = req.exchangeDate === formData.exchangeDate
+                const isPending = req.status === PENDING_STATUS
+
+                return isSameSwapType && isSameDate && isPending
             })
 
             if (existingRequests.length > 0) {
@@ -272,20 +403,15 @@ export default function DoctorShiftSwapPage() {
 
             fetchMyRequests()
         } catch (error: any) {
-            console.error('Error creating request:', error)
+            const errorMessage = error.message ||
+                error.response?.data?.message ||
+                "Không thể tạo yêu cầu đổi ca"
 
-            let errorMessage = "Không thể tạo yêu cầu đổi ca"
-            if (error.message) {
-                errorMessage = error.message
-            } else if (error.response?.data?.message) {
-                errorMessage = error.response.data.message
-            }
+            const finalMessage = errorMessage.includes("Invalid shift swap request")
+                ? "Yêu cầu đổi ca không hợp lệ. Có thể đã có yêu cầu đổi ca giữa 2 bác sĩ này trong ngày này, hoặc ca làm việc không tồn tại."
+                : errorMessage
 
-            if (errorMessage.includes("Invalid shift swap request")) {
-                errorMessage = "Yêu cầu đổi ca không hợp lệ. Có thể đã có yêu cầu đổi ca giữa 2 bác sĩ này trong ngày này, hoặc ca làm việc không tồn tại."
-            }
-
-            await showErrorAlert("Lỗi tạo yêu cầu", errorMessage)
+            await showErrorAlert("Lỗi tạo yêu cầu", finalMessage)
         } finally {
             setLoading(false)
         }
@@ -340,6 +466,35 @@ export default function DoctorShiftSwapPage() {
                                     </RadioGroup>
                                 </div>
 
+                                {swapType === "temporary" && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="exchangeDate">Ngày đổi ca</Label>
+                                        <Input
+                                            id="exchangeDate"
+                                            type="date"
+                                            value={formData.exchangeDate}
+                                            onChange={(e) => handleDateChange(e.target.value)}
+                                            min={formatDateOnly(tomorrow)}
+                                        />
+                                        <p className="text-sm text-gray-600">
+                                            Chọn ngày đổi ca (từ ngày mai trở đi). Sau đó sẽ hiển thị các ca làm việc trong ngày đó.
+                                        </p>
+                                        {formData.exchangeDate && (
+                                            <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                                                <strong>Đổi ca 1 ngày:</strong> Ca sẽ được đổi trong ngày {new Date(formData.exchangeDate).toLocaleDateString('vi-VN')} và trở về bình thường từ ngày hôm sau.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {swapType === "permanent" && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                                            <strong>Đổi ca vĩnh viễn:</strong> Chỉ cho phép đổi ca của tháng sau. Ca của 2 bác sĩ sẽ đổi cho nhau vĩnh viễn từ khi được duyệt.
+                                        </p>
+                                    </div>
+                                )}
+
                                 <div className="space-y-2">
                                     <Label htmlFor="targetDoctor">Bác sĩ muốn đổi ca</Label>
                                     <Select
@@ -348,6 +503,7 @@ export default function DoctorShiftSwapPage() {
                                             setFormData(prev => ({ ...prev, targetDoctorId: value, targetShiftId: "" }))
                                             handleTargetDoctorChange(value)
                                         }}
+                                        disabled={swapType === "temporary" && !formData.exchangeDate}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Chọn bác sĩ" />
@@ -360,84 +516,58 @@ export default function DoctorShiftSwapPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {swapType === "temporary" && !formData.exchangeDate && (
+                                        <p className="text-xs text-gray-500">Vui lòng chọn ngày đổi ca trước</p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="myShift">Ca của tôi</Label>
+                                    <Label htmlFor="myShift">Ca của tôi {swapType === "temporary" && formData.exchangeDate && `(ngày ${new Date(formData.exchangeDate).toLocaleDateString('vi-VN')})`}</Label>
                                     <Select
                                         value={formData.myShiftId}
                                         onValueChange={(value) => setFormData(prev => ({ ...prev, myShiftId: value }))}
+                                        disabled={swapType === "temporary" && !formData.exchangeDate}
                                     >
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Chọn ca của bạn" />
+                                            <SelectValue placeholder={swapType === "temporary" && !formData.exchangeDate ? "Chọn ngày đổi ca trước" : "Chọn ca của bạn"} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {myShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
-                                                    {shift.shiftName}  ({new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
-                                                    - {new Date(shift.effectiveTo).toLocaleDateString('vi-VN')})
+                                                    {shift.shiftName}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {swapType === "temporary" && formData.exchangeDate && myShifts.length === 0 && (
+                                        <p className="text-xs text-orange-500">Bạn không có ca làm việc nào trong ngày này</p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="targetShift">Ca muốn đổi</Label>
+                                    <Label htmlFor="targetShift">Ca muốn đổi {swapType === "temporary" && formData.exchangeDate && `(ngày ${new Date(formData.exchangeDate).toLocaleDateString('vi-VN')})`}</Label>
                                     <Select
                                         value={formData.targetShiftId}
                                         onValueChange={(value) => setFormData(prev => ({ ...prev, targetShiftId: value }))}
-                                        disabled={!formData.targetDoctorId || doctorsLoading}
+                                        disabled={!formData.targetDoctorId || doctorsLoading || (swapType === "temporary" && !formData.exchangeDate)}
                                     >
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Chọn ca muốn đổi" />
+                                            <SelectValue placeholder={!formData.targetDoctorId ? "Chọn bác sĩ trước" : (swapType === "temporary" && !formData.exchangeDate ? "Chọn ngày đổi ca trước" : "Chọn ca muốn đổi")} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {targetShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
-                                                    {shift.shiftName}  ({new Date(shift.effectiveFrom).toLocaleDateString('vi-VN')}
-                                                    - {new Date(shift.effectiveTo).toLocaleDateString('vi-VN')})
+                                                    {shift.shiftName}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="exchangeDate">
-                                        {swapType === "temporary" ? "Ngày đổi ca" : "Ngày bắt đầu đổi ca"}
-                                    </Label>
-                                    <Input
-                                        id="exchangeDate"
-                                        type="date"
-                                        value={formData.exchangeDate}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, exchangeDate: e.target.value }))}
-                                        min={minDateStr}
-                                        max={maxDateStr}
-                                        disabled={!formData.myShiftId || !formData.targetShiftId || !isRangeValid}
-                                    />
-                                    <p className="text-sm text-gray-600">
-                                        Chỉ được chọn từ ngày mai và trong khoảng hợp lệ của hai ca.
-                                    </p>
-                                    {formData.myShiftId && formData.targetShiftId && (
-                                        <p className="text-xs text-gray-500">
-                                            Phạm vi: {minDateStr} {maxDateStr ? `→ ${maxDateStr}` : ""}
-                                        </p>
-                                    )}
-                                    {swapType === "temporary" ? (
-                                        <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                                            <strong>Đổi ca 1 ngày:</strong> Ca sẽ được đổi trong ngày {formData.exchangeDate ? new Date(formData.exchangeDate).toLocaleDateString('vi-VN') : 'đã chọn'} và trở về bình thường từ ngày hôm sau.
-                                        </p>
-                                    ) : (
-                                        <p className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
-                                            <strong>Đổi ca vĩnh viễn:</strong> Từ ngày {formData.exchangeDate ? new Date(formData.exchangeDate).toLocaleDateString('vi-VN') : 'đã chọn'} trở đi, ca của 2 bác sĩ sẽ đổi cho nhau.
-                                        </p>
+                                    {swapType === "temporary" && formData.exchangeDate && formData.targetDoctorId && targetShifts.length === 0 && (
+                                        <p className="text-xs text-orange-500">Bác sĩ này không có ca làm việc nào trong ngày này</p>
                                     )}
                                 </div>
 
-
-
-                                <Button type="submit" className="w-full" disabled={loading || !isRangeValid || !formData.myShiftId || !formData.targetShiftId}>
+                                <Button type="submit" className="w-full" disabled={loading || (swapType === "temporary" && (!isRangeValid || !formData.exchangeDate)) || !formData.myShiftId || !formData.targetShiftId}>
                                     {loading
                                         ? "Đang tạo yêu cầu..."
                                         : swapType === "temporary"
@@ -489,12 +619,10 @@ export default function DoctorShiftSwapPage() {
                                                 {getStatusBadge(request.status)}
                                             </div>
                                             <div className="text-sm text-muted-foreground space-y-1">
-                                                <p><strong>Ca của tôi:</strong> {request.doctor1ShiftName}</p>
-                                                <p><strong>Ca muốn đổi:</strong> {request.doctor2ShiftName}</p>
-                                                {request.swapType?.toLowerCase() === "temporary" ? (
-                                                    <p><strong>Ngày đổi:</strong> {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}</p>
-                                                ) : (
-                                                    <p><strong>Ngày bắt đầu:</strong> {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}</p>
+                                                <p><strong>Ca của tôi: </strong> {request.doctorOld1ShiftName || request.doctor1ShiftName}</p>
+                                                <p><strong>Ca muốn đổi: </strong> {request.doctorOld2ShiftName || request.doctor2ShiftName}</p>
+                                                {request.exchangeDate && (
+                                                    <p><strong>Ngày đổi: </strong> {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}</p>
                                                 )}
                                                 <p><strong>Loại đổi ca:</strong> {
                                                     request.swapType?.toLowerCase() === "permanent"
