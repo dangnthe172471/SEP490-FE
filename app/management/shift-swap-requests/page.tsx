@@ -97,7 +97,10 @@ export default function ManagerShiftSwapRequestsPage() {
             let comparison = 0
             switch (sortBy) {
                 case "date":
-                    comparison = new Date(a.exchangeDate).getTime() - new Date(b.exchangeDate).getTime()
+                    // Handle null exchangeDate for permanent swaps
+                    const dateA = a.exchangeDate ? new Date(a.exchangeDate).getTime() : 0
+                    const dateB = b.exchangeDate ? new Date(b.exchangeDate).getTime() : 0
+                    comparison = dateA - dateB
                     break
                 case "doctor1":
                     comparison = a.doctor1Name.localeCompare(b.doctor1Name)
@@ -438,10 +441,12 @@ export default function ManagerShiftSwapRequestsPage() {
                                                             Yêu cầu đổi ca #{request.exchangeId}
                                                         </CardTitle>
                                                         <CardDescription className="flex items-center gap-4 mt-1">
-                                                            <span className="flex items-center gap-1">
-                                                                <Calendar className="w-4 h-4" />
-                                                                {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
-                                                            </span>
+                                                            {request.exchangeDate && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <Calendar className="w-4 h-4" />
+                                                                    {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
+                                                                </span>
+                                                            )}
                                                             <Badge variant="outline" className="text-xs">
                                                                 {getSwapTypeText(request.swapType)}
                                                             </Badge>
@@ -465,7 +470,7 @@ export default function ManagerShiftSwapRequestsPage() {
                                                         <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
                                                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                                                             <Clock className="w-3 h-3" />
-                                                            {request.doctor1ShiftName}
+                                                            Ca: {request.doctor1ShiftName}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -479,7 +484,7 @@ export default function ManagerShiftSwapRequestsPage() {
                                                         <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
                                                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                                                             <Clock className="w-3 h-3" />
-                                                            {request.doctor2ShiftName}
+                                                            Ca: {request.doctor2ShiftName}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -583,10 +588,12 @@ export default function ManagerShiftSwapRequestsPage() {
                                                         Yêu cầu đổi ca #{request.exchangeId}
                                                     </CardTitle>
                                                     <CardDescription className="flex items-center gap-4 mt-1">
-                                                        <span className="flex items-center gap-1">
-                                                            <Calendar className="w-4 h-4" />
-                                                            {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
-                                                        </span>
+                                                        {request.exchangeDate && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Calendar className="w-4 h-4" />
+                                                                {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
+                                                            </span>
+                                                        )}
                                                         <Badge variant="outline" className="text-xs">
                                                             {getSwapTypeText(request.swapType)}
                                                         </Badge>
@@ -607,10 +614,12 @@ export default function ManagerShiftSwapRequestsPage() {
                                                     <div className="bg-blue-50 p-3 rounded-lg">
                                                         <p className="font-medium text-gray-900">{request.doctor1Name}</p>
                                                         <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
-                                                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {request.doctor1ShiftName}
-                                                        </p>
+                                                        {request.doctorOld1ShiftName && (
+                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                <Clock className="w-3 h-3" />
+                                                                Ca cũ: {request.doctorOld1ShiftName}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="space-y-3">
@@ -621,10 +630,12 @@ export default function ManagerShiftSwapRequestsPage() {
                                                     <div className="bg-green-50 p-3 rounded-lg">
                                                         <p className="font-medium text-gray-900">{request.doctor2Name}</p>
                                                         <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
-                                                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {request.doctor2ShiftName}
-                                                        </p>
+                                                        {request.doctorOld2ShiftName && (
+                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                <Clock className="w-3 h-3" />
+                                                                Ca cũ: {request.doctorOld2ShiftName}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -656,10 +667,12 @@ export default function ManagerShiftSwapRequestsPage() {
                                                         Yêu cầu đổi ca #{request.exchangeId}
                                                     </CardTitle>
                                                     <CardDescription className="flex items-center gap-4 mt-1">
-                                                        <span className="flex items-center gap-1">
-                                                            <Calendar className="w-4 h-4" />
-                                                            {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
-                                                        </span>
+                                                        {request.exchangeDate && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Calendar className="w-4 h-4" />
+                                                                {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
+                                                            </span>
+                                                        )}
                                                         <Badge variant="outline" className="text-xs">
                                                             {getSwapTypeText(request.swapType)}
                                                         </Badge>
@@ -680,10 +693,12 @@ export default function ManagerShiftSwapRequestsPage() {
                                                     <div className="bg-blue-50 p-3 rounded-lg">
                                                         <p className="font-medium text-gray-900">{request.doctor1Name}</p>
                                                         <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
-                                                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {request.doctor1ShiftName}
-                                                        </p>
+                                                        {request.doctorOld1ShiftName && (
+                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                <Clock className="w-3 h-3" />
+                                                                Ca cũ: {request.doctorOld1ShiftName}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="space-y-3">
@@ -694,10 +709,12 @@ export default function ManagerShiftSwapRequestsPage() {
                                                     <div className="bg-green-50 p-3 rounded-lg">
                                                         <p className="font-medium text-gray-900">{request.doctor2Name}</p>
                                                         <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
-                                                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {request.doctor2ShiftName}
-                                                        </p>
+                                                        {request.doctorOld2ShiftName && (
+                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                <Clock className="w-3 h-3" />
+                                                                Ca cũ: {request.doctorOld2ShiftName}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
