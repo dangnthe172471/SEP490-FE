@@ -361,7 +361,7 @@ function MonthYearPicker({
     currentYear: number
     onChange: (month: number, year: number) => void
 }) {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const months = ["T 1", "T 2", "T 3", "T 4", "T 5", "T 6", "T 7", "T 8", "T 9", "T 10", "T 11", "T 12"]
     const [yearStr, setYearStr] = useState<string>(String(currentYear))
     const [error, setError] = useState<string | null>(null)
 

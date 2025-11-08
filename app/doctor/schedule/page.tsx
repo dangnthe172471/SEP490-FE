@@ -180,7 +180,7 @@ export default function DoctorSchedulePage() {
         const today = new Date()
         const formatted = today.toISOString().split("T")[0]
 
-     
+
         setSelectedDate(formatted)
         setCurrentDate(today)
     }
@@ -240,12 +240,12 @@ export default function DoctorSchedulePage() {
                                     <CardTitle>Thứ 2 - Chủ nhật</CardTitle>
                                 </div> */}
                                 <CardTitle>
-                                <input
-                                    type="date"
-                                    value={selectedDate}
-                                    onChange={(e) => handleDateChange(e.target.value)}
-                                    className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-                                />
+                                    <input
+                                        type="date"
+                                        value={selectedDate}
+                                        onChange={(e) => handleDateChange(e.target.value)}
+                                        className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                    />
                                 </CardTitle>
 
                                 <div className="flex items-center gap-2">
@@ -320,17 +320,6 @@ export default function DoctorSchedulePage() {
                                 )}
                             </div>
                         </CardContent>
-                    </Card>
-
-                    {/* Tóm tắt tuần */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Tóm tắt tuần</CardTitle>
-                            {/* {doctorId && (
-                            <CardDescription>Bác sĩ ID: {doctorId}</CardDescription>
-                        )} */}
-                            <CardDescription>Thống kê nhanh các ca làm việc</CardDescription>
-                        </CardHeader>
                         <CardContent>
                             <div className="grid gap-4 md:grid-cols-3">
                                 {shifts.map((shift) => (
@@ -345,19 +334,35 @@ export default function DoctorSchedulePage() {
                                             {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
                                         </p>
 
-                                        <p className="text-xs text-muted-foreground">{stats.shiftCounts[shift.shiftID]} ngày trong tuần</p>
+                                        {/* <p className="text-xs text-muted-foreground">{stats.shiftCounts[shift.shiftID]} ngày trong tuần</p> */}
                                     </div>
                                 ))}
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Tóm tắt tuần */}
+                    <Card>
+                  
+                        <CardHeader>
+                            <CardTitle>Tóm tắt tuần</CardTitle>
+                            {/* {doctorId && (
+                            <CardDescription>Bác sĩ ID: {doctorId}</CardDescription>
+                        )} */}
+                            <CardDescription>Thống kê nhanh các ca làm việc</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+
 
                             <div className="mt-6 p-4 rounded-lg bg-muted">
+
                                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                                     <div>
                                         <p className="text-sm text-muted-foreground">Tổng ca làm việc</p>
                                         <p className="text-2xl font-bold">{stats.totalShifts}</p>
                                     </div>
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Giờ làm việc</p>
+                                        <p className="text-sm text-muted-foreground">Giờ làm việc </p>
                                         <p className="text-2xl font-bold">{stats.totalHours}</p>
                                     </div>
                                     <div>

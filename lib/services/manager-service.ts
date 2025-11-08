@@ -1,4 +1,16 @@
-import type { DoctorDto, ShiftResponseDto, CreateScheduleRequest, DailyWorkScheduleDto, PagedResult, DailySummaryDto, WorkScheduleGroupDto, UpdateDoctorShiftRangeRequest } from "@/lib/types/manager-type"
+"use client"
+
+import { toast } from "sonner"
+import type {
+    DoctorDto,
+    ShiftResponseDto,
+    CreateScheduleRequest,
+    DailyWorkScheduleDto,
+    PagedResult,
+    DailySummaryDto,
+    WorkScheduleGroupDto,
+    UpdateDoctorShiftRangeRequest,
+} from "@/lib/types/manager-type"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -12,7 +24,11 @@ class BaseService {
         }
     }
 
-    protected async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    protected async request<T>(
+        endpoint: string,
+        options: RequestInit = {},
+        silent = false
+    ): Promise<T | null> {
         const url = `${this.baseURL}${endpoint}`
         const config: RequestInit = {
             headers: {
@@ -23,62 +39,106 @@ class BaseService {
             ...options,
         }
 
-        const res = await fetch(url, config)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const text = await res.text()
-        return text ? JSON.parse(text) : ({} as T)
+        try {
+            const res = await fetch(url, config)
+
+            if (!res.ok) {
+                if (!silent) {
+                    console.warn(`[ManagerService] HTTP ${res.status}: ${url}`)
+                    toast.warning(`API lỗi ${res.status}: ${res.statusText}`)
+                }
+                return null
+            }
+
+            const text = await res.text()
+            if (!text) return {} as T
+
+            try {
+                return JSON.parse(text)
+            } catch (parseErr) {
+                if (!silent) {
+                    console.error("[ManagerService] JSON parse error:", parseErr)
+                    toast.error("Lỗi khi đọc dữ liệu từ máy chủ.")
+                }
+                return null
+            }
+        } catch (err: any) {
+            if (!silent) {
+                console.error("[ManagerService] Fetch error:", err)
+                toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.")
+            }
+            return null
+        }
     }
 }
 
 class ManagerService extends BaseService {
     async getAllShifts(): Promise<ShiftResponseDto[]> {
-        return this.request<ShiftResponseDto[]>("/api/manager/shifts")
+        const res = await this.request<ShiftResponseDto[]>("/api/ManageSchedule/shifts")
+        return res ?? []
     }
 
     async getAllDoctors(): Promise<DoctorDto[]> {
-        return this.request<DoctorDto[]>("/api/manager/doctors")
+        const res = await this.request<DoctorDto[]>("/api/ManageSchedule/doctors")
+        return res ?? []
     }
 
     async searchDoctors(keyword: string): Promise<DoctorDto[]> {
         const query = keyword ? `?keyword=${encodeURIComponent(keyword)}` : ""
-        return this.request<DoctorDto[]>(`/api/manager/doctors/search${query}`)
+        const res = await this.request<DoctorDto[]>(`/api/ManageSchedule/doctors/search${query}`)
+        return res ?? []
     }
 
     async createSchedule(data: CreateScheduleRequest): Promise<{ message: string }> {
-        return this.request<{ message: string }>("/api/manager/create-schedule", {
-            method: "POST",
-            body: JSON.stringify(data),
-        })
+        const res = await this.request<{ message: string }>(
+            "/api/ManageSchedule/create-schedule",
+            {
+                method: "POST",
+                body: JSON.stringify(data),
+            }
+        )
+        return res ?? { message: "Không thể tạo lịch. Vui lòng thử lại." }
     }
-    // Lấy lịch theo khoảng ngày
+
     async getWorkScheduleByRange(startDate: string, endDate: string): Promise<DailyWorkScheduleDto[]> {
-        return this.request<DailyWorkScheduleDto[]>(`/api/manager/getScheduleByRange?start=${startDate}&end=${endDate}`)
+        const res = await this.request<DailyWorkScheduleDto[]>(
+            `/api/ManageSchedule/getScheduleByRange?start=${startDate}&end=${endDate}`
+        )
+        return res ?? []
     }
 
-    // Lấy lịch theo ngày 
     async getWorkScheduleByDate(date: string, pageNumber = 1, pageSize = 10): Promise<PagedResult<DailyWorkScheduleDto>> {
-        return this.request<PagedResult<DailyWorkScheduleDto>>(
-            `/api/manager/getScheduleByDate?date=${date}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+        const res = await this.request<PagedResult<DailyWorkScheduleDto>>(
+            `/api/ManageSchedule/getScheduleByDate?date=${date}&pageNumber=${pageNumber}&pageSize=${pageSize}`
         )
+        return res ?? { items: [], totalCount: 0, totalPages: 0, pageNumber, pageSize }
     }
+
     async getMonthlySummary(year: number, month: number): Promise<DailySummaryDto[]> {
-        return this.request(`/api/manager/monthly-summary?year=${year}&month=${month}`)
-    }
-
-    // Lấy danh sách lịch làm việc đã group theo khoảng thời gian hiệu lực và kết thúc
-    async listGroupSchedule(pageNumber = 1, pageSize = 5): Promise<PagedResult<WorkScheduleGroupDto>> {
-        return this.request<PagedResult<WorkScheduleGroupDto>>(
-            `/api/manager/listGroupSchedule?pageNumber=${pageNumber}&pageSize=${pageSize}`
+        const res = await this.request<DailySummaryDto[]>(
+            `/api/ManageSchedule/monthly-summary?year=${year}&month=${month}`
         )
-    }
-    async updateDoctorShiftRange(payload: UpdateDoctorShiftRangeRequest): Promise<{ message: string }> {
-        return this.request<{ message: string }>("/api/manager/update-doctor-shifts-range", {
-            method: "PUT",
-            body: JSON.stringify(payload),
-        })
+        return res ?? []
     }
 
-    //Cập nhật nhiều ca (tự động gọi tuần tự)
+    async listGroupSchedule(pageNumber = 1, pageSize = 5): Promise<PagedResult<WorkScheduleGroupDto>> {
+        const res = await this.request<PagedResult<WorkScheduleGroupDto>>(
+            `/api/ManageSchedule/listGroupSchedule?pageNumber=${pageNumber}&pageSize=${pageSize}`
+        )
+        return res ?? { items: [], totalCount: 0, totalPages: 0, pageNumber, pageSize }
+    }
+
+    async updateDoctorShiftRange(payload: UpdateDoctorShiftRangeRequest): Promise<{ message: string }> {
+        const res = await this.request<{ message: string }>(
+            "/api/ManageSchedule/update-doctor-shifts-range",
+            {
+                method: "PUT",
+                body: JSON.stringify(payload),
+            }
+        )
+        return res ?? { message: "Cập nhật thất bại. Vui lòng thử lại." }
+    }
+
     async updateMultipleShiftRanges(
         fromDate: string,
         toDate: string,
@@ -95,11 +155,40 @@ class ManagerService extends BaseService {
                 removeDoctorIds: update.removeDoctorIds,
             })
         }
+        toast.success("Cập nhật lịch làm việc thành công.")
         return { message: "Cập nhật lịch làm việc thành công." }
     }
+
+    async checkDoctorShiftLimit(doctorId: number, date: string): Promise<boolean> {
+        const res = await this.request<boolean>(
+            `/api/ManageSchedule/check-limit?doctorId=${doctorId}&date=${date}`,
+            {},
+            true
+        )
+
+        if (res === null) {
+            toast.error("Không thể kiểm tra giới hạn ca làm việc.")
+            return false
+        }
+
+        return res
+    }
+    async checkDoctorShiftLimitRange(doctorId: number, fromDate: string, toDate: string): Promise<boolean> {
+        const res = await this.request<boolean>(
+            `/api/ManageSchedule/check-limit-range?doctorId=${doctorId}&from=${fromDate}&to=${toDate}`,
+            {},
+            true
+        )
+
+        if (res === null) {
+            toast.error("Không thể kiểm tra giới hạn ca làm việc trong khoảng thời gian này.")
+            return false
+        }
+
+        return res
+    }
+
+
 }
-
-
-
 
 export const managerService = new ManagerService()

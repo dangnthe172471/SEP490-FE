@@ -1,4 +1,12 @@
-import type { ApiResponse, CreateNotificationDto, NotificationDto, UnreadCountDto } from "@/lib/types/notification-type"
+"use client"
+
+import { toast } from "sonner"
+import type {
+    ApiResponse,
+    CreateNotificationDto,
+    NotificationDto,
+    UnreadCountDto,
+} from "@/lib/types/notification-type"
 
 export class NotificationService {
     private readonly baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168"
@@ -13,99 +21,137 @@ export class NotificationService {
 
             if (!response.ok) {
                 const text = await response.text()
-                throw new Error(text || `Request failed with status ${response.status}`)
+                console.warn(`SendNotification lỗi ${response.status}: ${text}`)
+                toast.warning("Không thể gửi thông báo. Vui lòng thử lại.")
+                return false
             }
 
             const data: ApiResponse<any> = await response.json()
-
             if (!data.success) {
-                const errorMessage = data.message || "Gửi thông báo thất bại"
-                throw new Error(errorMessage)
+                toast.warning(data.message || "Gửi thông báo thất bại.")
+                return false
+            }
+
+            toast.success("Gửi thông báo thành công.")
+            return true
+        } catch (error: any) {
+            console.error("SendNotification lỗi:", error)
+            toast.error("Không thể kết nối đến máy chủ.")
+            return false
+        }
+    }
+
+    async getUserNotifications(userId: number, pageNumber = 1, pageSize = 10): Promise<NotificationDto[]> {
+        try {
+            const response = await fetch(
+                `${this.baseUrl}/api/Notification/user/${userId}?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+                { method: "GET", headers: { "Content-Type": "application/json" } }
+            )
+
+            if (!response.ok) {
+                console.warn(`GetUserNotifications lỗi ${response.status}`)
+                toast.warning("Không thể tải danh sách thông báo.")
+                return []
+            }
+
+            const data = await response.json()
+            return data.items || []
+        } catch (error) {
+            console.error("GetUserNotifications lỗi:", error)
+            toast.error("Không thể kết nối đến máy chủ.")
+            return []
+        }
+    }
+
+    async markAsRead(userId: string, notificationId: number): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/Notification/read/${userId}/${notificationId}`, {
+                method: "PUT",
+            })
+
+            if (!response.ok) {
+                console.warn(`MarkAsRead lỗi ${response.status}`)
+                toast.warning("Không thể đánh dấu đã đọc.")
+                return false
             }
 
             return true
-        } catch (error: any) {
-            throw new Error(error.message || "Không thể gửi thông báo")
+        } catch (error) {
+            console.error("MarkAsRead lỗi:", error)
+            toast.error("Không thể kết nối đến máy chủ.")
+            return false
         }
     }
-    async getUserNotifications(userId: number, pageNumber = 1, pageSize = 10): Promise<NotificationDto[]> {
-        const response = await fetch(
-            `${this.baseUrl}/api/Notification/user/${userId}?pageNumber=${pageNumber}&pageSize=${pageSize}`,
-            {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-            }
-        )
 
-        if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`)
-        }
-
-        const data = await response.json()
-
-        //  Sửa tại đây — vì BE trả về { items: [...] }
-        const notifications = data.items || []
-
-        // console.log(" Nhận thông báo từ API:", notifications)
-        return notifications
-    }
-
-
-
-    /**
-     Đánh dấu một thông báo là đã đọc
-    */
-    async markAsRead(userId: string, notificationId: number): Promise<boolean> {
-        const response = await fetch(`${this.baseUrl}/api/Notification/read/${userId}/${notificationId}`, {
-            method: "PUT",
-        })
-        if (!response.ok) throw new Error(`Không thể đánh dấu đã đọc (status: ${response.status})`)
-        return true
-    }
-
-    /**
-    Lấy số lượng thông báo chưa đọc
-     */
     async getUnreadCount(userId: string): Promise<number> {
-        const response = await fetch(`${this.baseUrl}/api/Notification/unread-count/${userId}`)
-        if (!response.ok) throw new Error(`Không thể lấy số lượng chưa đọc (status: ${response.status})`)
+        try {
+            const response = await fetch(`${this.baseUrl}/api/Notification/unread-count/${userId}`)
 
-        const data = await response.json()
-        if (typeof data === "number") return data
-        return data.data?.unreadCount || 0
+            if (!response.ok) {
+                console.warn(`GetUnreadCount lỗi ${response.status}`)
+                return 0
+            }
+
+            const data = await response.json()
+            if (typeof data === "number") return data
+            return data.data?.unreadCount || 0
+        } catch (error) {
+            console.error("GetUnreadCount lỗi:", error)
+            return 0
+        }
     }
 
-    //  đánh dấu tất cả là đã đọc
     async markAllAsRead(userId: number): Promise<void> {
-        const response = await fetch(`${this.baseUrl}/api/Notification/read-all/${userId}`, {
-            method: "PUT",
-        })
-        if (!response.ok) throw new Error("Không thể đánh dấu tất cả là đã đọc")
+        try {
+            const response = await fetch(`${this.baseUrl}/api/Notification/read-all/${userId}`, {
+                method: "PUT",
+            })
+
+            if (!response.ok) {
+                console.warn(`MarkAllAsRead lỗi ${response.status}`)
+                toast.warning("Không thể đánh dấu tất cả là đã đọc.")
+            } else {
+                toast.success("Tất cả thông báo đã được đánh dấu là đã đọc.")
+            }
+        } catch (error) {
+            console.error("MarkAllAsRead lỗi:", error)
+            toast.error("Không thể kết nối đến máy chủ.")
+        }
     }
 
-    async getAllNotifications(pageNumber = 1, pageSize = 10): Promise<{
+    async getAllNotifications(
+        pageNumber = 1,
+        pageSize = 10
+    ): Promise<{
         items: NotificationDto[]
         totalCount: number
         totalPages: number
         pageNumber: number
         pageSize: number
     }> {
-        const response = await fetch(
-            `${this.baseUrl}/api/Notification/list-notification?pageNumber=${pageNumber}&pageSize=${pageSize}`,
-            {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
+        try {
+            const response = await fetch(
+                `${this.baseUrl}/api/Notification/list-notification?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+                {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                }
+            )
+
+            if (!response.ok) {
+                console.warn(`GetAllNotifications lỗi ${response.status}`)
+                toast.warning("Không thể tải danh sách thông báo.")
+                return { items: [], totalCount: 0, totalPages: 0, pageNumber, pageSize }
             }
-        )
 
-        if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`)
+            const data = await response.json()
+            return data
+        } catch (error) {
+            console.error("GetAllNotifications lỗi:", error)
+            toast.error("Không thể kết nối đến máy chủ.")
+            return { items: [], totalCount: 0, totalPages: 0, pageNumber, pageSize }
         }
-
-        const data = await response.json()
-        return data
     }
-
 }
 
 export const notificationService = new NotificationService()

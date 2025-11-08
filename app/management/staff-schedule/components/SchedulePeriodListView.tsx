@@ -13,7 +13,7 @@ export default function SchedulePeriodListView() {
     const [expanded, setExpanded] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
 
-   
+
     //  Phân trang
     const [pageNumber, setPageNumber] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
@@ -105,12 +105,24 @@ export default function SchedulePeriodListView() {
                                             variant="outline"
                                             size="sm"
                                             onClick={() => {
+                                                const today = new Date().toISOString().split("T")[0]
+                                                const from = item.effectiveFrom.split("T")[0]
+                                                const to = item.effectiveTo.split("T")[0]
+
+
+                                                if ((from <= today && today <= to) || to < today) {
+                                                    alert("Khoảng thời gian này đã qua hoặc đang diễn ra, không thể chỉnh sửa lịch làm việc!")
+                                                    return
+                                                }
+
+
                                                 setSelectedSchedule(item)
                                                 setEditOpen(true)
                                             }}
                                         >
                                             📝 Chỉnh sửa
                                         </Button>
+
                                     </div>
                                 </CardHeader>
 
@@ -189,25 +201,25 @@ export default function SchedulePeriodListView() {
                         >
                             Trang sau <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
-                                {/* --- Dialog chỉnh sửa lịch --- */}
-                                {selectedSchedule && (
-                                    <ScheduleEditDialog
-                                        open={editOpen}
-                                        onOpenChange={setEditOpen}
-                                        effectiveFrom={selectedSchedule.effectiveFrom}
-                                        effectiveTo={selectedSchedule.effectiveTo}
-                                        shifts={selectedSchedule.shifts}
-                                        doctors={doctors}
-                                        onUpdated={() => fetchSchedules(pageNumber)}
-                                    />
-                                )}
+                        {/* --- Dialog chỉnh sửa lịch --- */}
+                        {selectedSchedule && (
+                            <ScheduleEditDialog
+                                open={editOpen}
+                                onOpenChange={setEditOpen}
+                                effectiveFrom={selectedSchedule.effectiveFrom}
+                                effectiveTo={selectedSchedule.effectiveTo}
+                                shifts={selectedSchedule.shifts}
+                                doctors={doctors}
+                                onUpdated={() => fetchSchedules(pageNumber)}
+                            />
+                        )}
 
                     </div>
-                    
+
                 </>
             )}
         </div>
-        
+
     )
-    
+
 }

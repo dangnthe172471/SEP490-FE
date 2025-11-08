@@ -34,6 +34,16 @@ export default function ScheduleCreateDialog({
     const [selectedShifts, setSelectedShifts] = useState<string[]>([])
     const [doctorsByShift, setDoctorsByShift] = useState<Record<string, string[]>>({})
     const [searchDoctors, setSearchDoctors] = useState<Record<string, string>>({})
+    // Trạng thái giới hạn ca của bác sĩ
+    const [doctorLimitStatus, setDoctorLimitStatus] = useState<Record<string, boolean>>({})
+
+    // Chọn lịch theo tuần hoặc theo tháng
+    const [mode, setMode] = useState<"week" | "month">("week")
+    // Chọn tháng, năm, và tuần
+    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+    const [selectedWeek, setSelectedWeek] = useState<number>(1)
+    const [dateError, setDateError] = useState<string>("")
 
     useEffect(() => {
         if (selectedDateFrom && selectedDateTo && selectedDateTo < selectedDateFrom) {
@@ -41,12 +51,107 @@ export default function ScheduleCreateDialog({
         }
     }, [selectedDateFrom, selectedDateTo])
 
+    const getMonthRange = (year: number, month: number) => {
+        const start = new Date(year, month - 1, 1)
+        const end = new Date(year, month, 0)
+        return {
+            from: start.toISOString().split("T")[0],
+            to: end.toISOString().split("T")[0],
+        }
+    }
+    const getWeekRange = (year: number, month: number, week: number) => {
+
+        const firstDayOfMonth = new Date(year, month - 1, 1)
+
+        // Tìm thứ Hai đầu tiên trong (hoặc trước) tháng
+        const day = firstDayOfMonth.getDay()
+        const diffToMonday = day === 0 ? -6 : 1 - day
+        const firstMonday = new Date(firstDayOfMonth)
+        firstMonday.setDate(firstDayOfMonth.getDate() + diffToMonday)
+
+
+        const startOfWeek = new Date(firstMonday)
+        startOfWeek.setDate(firstMonday.getDate() + (week - 1) * 7)
+
+        // Ngày kết thúc tuần (Chủ nhật)
+        const endOfWeek = new Date(startOfWeek)
+        endOfWeek.setDate(startOfWeek.getDate() + 6)
+
+        return {
+            from: startOfWeek.toISOString().split("T")[0],
+            to: endOfWeek.toISOString().split("T")[0],
+        }
+    }
+
+
+    const getWeekCountInMonth = (year: number, month: number) => {
+        const firstDay = new Date(year, month - 1, 1)
+        const lastDay = new Date(year, month, 0)
+        const used = firstDay.getDay() + lastDay.getDate() // tổng offset + số ngày
+        return Math.ceil(used / 7)
+    }
+    const [totalWeeks, setTotalWeeks] = useState<number>(getWeekCountInMonth(selectedYear, selectedMonth))
+
+    useEffect(() => {
+        // Cập nhật số tuần của tháng
+        const weekCount = getWeekCountInMonth(selectedYear, selectedMonth)
+        setTotalWeeks(weekCount)
+
+        let range: { from: string; to: string } | null = null
+        if (mode === "month") {
+            range = getMonthRange(selectedYear, selectedMonth)
+        } else {
+            range = getWeekRange(selectedYear, selectedMonth, selectedWeek)
+        }
+
+        const today = new Date().toISOString().split("T")[0]
+
+        if (!range) {
+            setDateError("") // reset cảnh báo khi range null
+            setSelectedDateFrom("")
+            setSelectedDateTo("")
+            return
+        }
+
+
+        if (range.from <= today && today <= range.to) {
+            setDateError("Khoảng thời gian này đang diễn ra, không thể tạo lịch.")
+            setSelectedDateFrom("")
+            setSelectedDateTo("")
+        } else if (range.to < today) {
+            setDateError("Khoảng thời gian này đã qua, không thể tạo lịch.")
+            setSelectedDateFrom("")
+            setSelectedDateTo("")
+        } else {
+            setDateError("")
+            setSelectedDateFrom(range.from)
+            setSelectedDateTo(range.to)
+        }
+    }, [mode, selectedMonth, selectedYear, selectedWeek])
+
+
+
+    // Check giới hạn khi chọn ngày
+    useEffect(() => {
+        const fetchDoctorLimits = async () => {
+            if (!selectedDateFrom) return
+            const newStatus: Record<string, boolean> = {}
+            for (const doctor of doctors) {
+                const canAdd = await managerService.checkDoctorShiftLimit(doctor.doctorID, selectedDateFrom)
+                newStatus[doctor.doctorID] = !canAdd // true = đã đủ 2 ca
+            }
+            setDoctorLimitStatus(newStatus)
+        }
+        fetchDoctorLimits()
+    }, [selectedDateFrom, doctors])
+
     const resetForm = () => {
         setSelectedDateFrom("")
         setSelectedDateTo("")
         setSelectedShifts([])
         setDoctorsByShift({})
         setSearchDoctors({})
+        setDoctorLimitStatus({})
     }
 
     const toggleShift = (shiftType: string) => {
@@ -127,32 +232,101 @@ export default function ScheduleCreateDialog({
                     <DialogDescription>Chọn khoảng ngày, ca và bác sĩ</DialogDescription>
                 </DialogHeader>
 
-                {/* chọn khoảng ngày */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* 🔹 Chọn chế độ tạo lịch */}
+                <div className="flex gap-4 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" checked={mode === "week"} onChange={() => setMode("week")} />
+                        <span>Theo tuần</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" checked={mode === "month"} onChange={() => setMode("month")} />
+                        <span>Theo tháng</span>
+                    </label>
+                </div>
+
+                {/*  Chọn tháng và năm */}
+                <div className="grid grid-cols-2 gap-3 mt-3">
+
+                    <div>
+                        <label className="text-sm font-medium">Tháng</label>
+                        <select
+                            className="w-full border rounded-md h-9 px-2"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        >
+                            {Array.from({ length: 12 }, (_, i) => (
+                                <option key={i + 1} value={i + 1}>
+                                    Tháng {i + 1}
+                                </option>
+                            ))}
+                        </select>
+
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium">Năm</label>
+                        <select
+                            className="w-full border rounded-md h-9 px-2"
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        >
+                            {Array.from({ length: 5 }, (_, i) => {
+                                const year = new Date().getFullYear() + i
+                                return (
+                                    <option key={year} value={year}>
+                                        {year}
+                                    </option>
+                                )
+                            })}
+                        </select>
+                    </div>
+
+                </div>
+
+                {/* Nếu theo tuần thì cho chọn tuần */}
+                {mode === "week" && (
+                    <div className="mt-3">
+                        <label className="text-sm font-medium">Tuần</label>
+                        <select
+                            className="w-full border rounded-md h-9 px-2"
+                            value={selectedWeek}
+                            onChange={(e) => setSelectedWeek(Number(e.target.value))}
+                        >
+                            {Array.from({ length: totalWeeks }, (_, i) => {
+                                const week = i + 1
+                                const range = getWeekRange(selectedYear, selectedMonth, week)
+                                if (!range) return null
+                                return (
+                                    <option key={week} value={week}>
+                                        Tuần {week} {"\u00A0"}   {"\u00A0"}  ({range.from.slice(8, 10)}/{range.from.slice(5, 7)} – {range.to.slice(8, 10)}/{range.to.slice(5, 7)})
+                                    </option>
+                                )
+                            })}
+                        </select>
+
+                    </div>
+                )}
+                <div className="grid  pointer-events-none">
+
+                    {dateError && (
+                        <p className="text-sm text-red-500 mt-2">{dateError}</p>
+                    )}
+                </div>
+                {/*  Hiển thị khoảng ngày (chỉ xem) */}
+                <div className="grid grid-cols-2 gap-3 mt-4 opacity-60 pointer-events-none">
                     <div>
                         <label className="text-sm font-medium">Từ ngày</label>
-                        <Input
-                            type="date"
-                            value={selectedDateFrom}
-                            onChange={(e) => setSelectedDateFrom(e.target.value)}
-                            min={new Date().toISOString().split("T")[0]}
-                        />
+                        <Input type="date" value={selectedDateFrom} readOnly />
                     </div>
                     <div>
                         <label className="text-sm font-medium">Đến ngày</label>
-                        <Input
-                            type="date"
-                            value={selectedDateTo}
-                            onChange={(e) => setSelectedDateTo(e.target.value)}
-                            min={selectedDateFrom || new Date().toISOString().split("T")[0]}
-                        />
+                        <Input type="date" value={selectedDateTo} readOnly />
                     </div>
                 </div>
+
 
                 {/* danh sách ca và bác sĩ */}
                 <div className="space-y-4 mt-4 border rounded-lg p-4 bg-muted/30">
                     {shifts.map((shift) => {
-                        // search trong scope của từng shift
                         const search = (searchDoctors[shift.shiftType] || "").toLowerCase()
 
                         return (
@@ -210,14 +384,17 @@ export default function ScheduleCreateDialog({
                                                 const isInCurrentShift = (doctorsByShift[shift.shiftType] || []).includes(
                                                     doctor.doctorID.toString()
                                                 )
-                                                const disabled = count >= 2 && !isInCurrentShift
+                                                // Điều kiện limit
+                                                const disabled =
+                                                    !isInCurrentShift &&
+                                                    (count >= 2 || doctorLimitStatus[doctor.doctorID])
 
                                                 return (
                                                     <label
                                                         key={doctor.doctorID}
                                                         className={`flex items-center gap-3 p-2 rounded ${disabled
-                                                                ? "opacity-50 cursor-not-allowed"
-                                                                : "hover:bg-muted/50"
+                                                            ? "opacity-50 cursor-not-allowed"
+                                                            : "hover:bg-muted/50"
                                                             }`}
                                                     >
                                                         <Checkbox
@@ -255,7 +432,8 @@ export default function ScheduleCreateDialog({
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Hủy
                     </Button>
-                    <Button onClick={handleCreate} disabled={loading}>
+                    <Button onClick={handleCreate} disabled={loading || !selectedDateFrom}>
+
                         {loading ? "Đang tạo..." : "Tạo lịch làm việc"}
                     </Button>
                 </div>
