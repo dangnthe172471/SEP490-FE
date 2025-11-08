@@ -1,3 +1,5 @@
+import type { ReadInternalMedRecordDto, ReadPediatricRecordDto } from "@/lib/types/specialties"
+
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7168'
 const API_BASE_URL = `${API_ORIGIN}/api/MedicalRecord`
 
@@ -8,14 +10,6 @@ export interface AppointmentLiteDto {
   appointmentDate: string
   status: string
   reasonForVisit?: string | null
-}
-
-export interface InternalMedRecordDto {
-  recordId: number
-  bloodPressure?: number | null
-  heartRate?: number | null
-  bloodSugar?: number | null
-  notes?: string | null
 }
 
 export interface PaymentDto {
@@ -48,6 +42,7 @@ export interface TestResultDto {
   testResultId: number
   recordId: number
   testTypeId: number
+  testName?: string
   resultValue?: string | null
   unit?: string | null
   attachment?: string | null
@@ -62,9 +57,9 @@ export interface MedicalRecordDto {
   diagnosis?: string | null
   createdAt?: string | null
   appointment?: AppointmentLiteDto | null
-  internalMedRecord?: InternalMedRecordDto | null
+  internalMedRecord?: ReadInternalMedRecordDto | null
   obstetricRecord?: unknown | null
-  pediatricRecord?: unknown | null
+  pediatricRecord?: ReadPediatricRecordDto | null
   payments: PaymentDto[]
   prescriptions: PrescriptionDto[]
   testResults: TestResultDto[]

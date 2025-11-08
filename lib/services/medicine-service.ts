@@ -54,24 +54,6 @@ export const medicineService = {
     return payload as PagedResult<ReadMedicineDto>;
   },
 
-  async getMine(token: string): Promise<ReadMedicineDto[]> {
-    if (!token) throw new Error("Thiếu token xác thực.");
-    const url = `${API_BASE_URL}/Medicine/mine`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      const payload = await readBodySafe(res);
-      const msg =
-        (payload && typeof payload === "object" && "message" in payload
-          ? (payload as any).message
-          : payload) || `Failed to fetch medicines (${res.status})`;
-      throw new Error(String(msg));
-    }
-    return res.json();
-  },
-
   async getById(id: number, token: string): Promise<ReadMedicineDto> {
     if (!token) throw new Error("Thiếu token xác thực.");
     const res = await fetch(`${API_BASE_URL}/Medicine/${id}`, {

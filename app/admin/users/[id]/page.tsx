@@ -26,7 +26,7 @@ import {
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { userService } from "@/lib/services/user.service"
+import { adminService } from "@/lib/services/admin-service"
 import { UserDto, UpdateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
@@ -85,7 +85,7 @@ export default function UserDetailPage() {
     setError(null)
 
     try {
-      const userData = await userService.fetchUserById(parseInt(userId))
+      const userData = await adminService.fetchUserById(parseInt(userId))
       setUser(userData)
       setEditData({
         fullName: userData.fullName,
@@ -164,7 +164,7 @@ export default function UserDetailPage() {
         return
       }
 
-      const updatedUser = await userService.updateUser(parseInt(userId), updateData)
+      const updatedUser = await adminService.updateUser(parseInt(userId), updateData)
       setUser(updatedUser)
       setIsEditing(false)
       toast.success("Cập nhật thông tin thành công")
@@ -207,7 +207,7 @@ export default function UserDetailPage() {
 
     try {
       setIsTogglingStatus(true)
-      const updatedUser = await userService.toggleUserStatus(parseInt(userId))
+      const updatedUser = await adminService.toggleUserStatus(parseInt(userId))
       setUser(updatedUser)
       toast.success(`Đã ${action} tài khoản thành công`)
     } catch (err: any) {
@@ -226,7 +226,7 @@ export default function UserDetailPage() {
 
     try {
       setIsResettingPassword(true)
-      await userService.updateUser(parseInt(userId), { password: "123456" })
+      await adminService.updateUser(parseInt(userId), { password: "123456" })
       toast.success("Đã đặt lại mật khẩu về 123456")
     } catch (err: any) {
       console.warn("Reset password failed:", err)

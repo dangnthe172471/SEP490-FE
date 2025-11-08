@@ -33,7 +33,7 @@ import {
 } from "lucide-react"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { userService } from "@/lib/services/user.service"
+import { adminService } from "@/lib/services/admin-service"
 import { UserDto } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
@@ -63,7 +63,7 @@ export default function AdminUsersPage() {
     setLoading(true)
     setError(null)
     try {
-      const usersData = await userService.fetchAllUsers()
+      const usersData = await adminService.fetchAllUsers()
 
       const processedUsers: User[] = usersData
         .filter((user) => user != null)

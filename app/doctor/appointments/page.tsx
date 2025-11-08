@@ -31,6 +31,12 @@ const SHIFTS: Record<ShiftKey, { label: string; timeWindow: string; startHour: n
   evening: { label: "Tối", timeWindow: "17:00 – 21:00", startHour: 17, endHour: 21 },
 }
 
+/* ===== Màu theo Status: Confirmed -> xanh, Cancelled -> đỏ ===== */
+const statusToClasses = (s: Appointment["status"]) =>
+  s === "Cancelled"
+    ? "bg-red-100 text-red-800 border border-red-300"
+    : "bg-green-100 text-green-800 border border-green-300"; // default coi như Confirmed
+
 /* ===== Date helpers ===== */
 const toISO = (d: Date) => {
   const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0")
@@ -41,7 +47,7 @@ const addDays = (iso: string, days: number) => {
 }
 const startOfWeekMonday = (iso: string) => {
   const d = new Date(iso + "T00:00:00")
-  const day = d.getDay() === 0 ? 7 : d.getDay() // Sun=0 -> 7
+  const day = d.getDay() === 0 ? 7 : d.getDay()
   d.setDate(d.getDate() - (day - 1))
   return toISO(d)
 }
@@ -61,11 +67,10 @@ const formatDM = (iso: string) => {
 }
 const weekLabel = (startISO: string) => `${formatDM(startISO)} To ${formatDM(addDays(startISO, 6))}`
 
-/** Tạo danh sách tất cả tuần (bắt đầu Thứ Hai) bao phủ cả năm chỉ định */
+/** Tạo danh sách tuần (bắt đầu Thứ Hai) của năm */
 const weeksOfYear = (year: number) => {
   const jan1 = new Date(year, 0, 1)
   const dec31 = new Date(year, 11, 31)
-  // Thứ Hai đầu tiên bao phủ ngày 1/1
   const firstISO = startOfWeekMonday(toISO(jan1))
   const list: string[] = []
   let cur = firstISO
@@ -91,16 +96,13 @@ export default function DoctorAppointmentsPage() {
   const [year, setYear] = useState<number>(today.getFullYear())
   const [weekStart, setWeekStart] = useState<string>(currentWeekStart)
 
-  // Danh sách năm (có thể nới rộng nếu muốn)
   const yearOptions = useMemo(() => {
     const y = today.getFullYear()
-    return Array.from({ length: 9 }, (_, i) => y - 4 + i) // [y-4 .. y+4]
+    return Array.from({ length: 9 }, (_, i) => y - 4 + i)
   }, [today])
 
-  // Danh sách tuần của năm đang chọn
   const weekOptions = useMemo(() => weeksOfYear(year), [year])
 
-  // Nếu đổi năm mà tuần hiện tại không thuộc năm đó → chọn tuần đầu năm
   useEffect(() => {
     const wsYear = new Date(weekStart + "T00:00:00").getFullYear()
     if (wsYear !== year && weekOptions.length) setWeekStart(weekOptions[0])
@@ -321,7 +323,7 @@ export default function DoctorAppointmentsPage() {
                               <button
                                 key={apt.appointmentId}
                                 onClick={() => openDetail(apt)}
-                                className="w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer bg-green-100 text-green-800 border border-green-300 hover:shadow-md"
+                                className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer border hover:shadow-md ${statusToClasses(apt.status)}`}
                                 title={`${apt.patientName} (${apt.appointmentTime})`}
                               >
                                 <div className="flex items-center gap-3 leading-none">
@@ -365,9 +367,9 @@ export default function DoctorAppointmentsPage() {
               {detailError && <p className="text-sm text-red-600">{detailError}</p>}
               <div className="space-y-4">
                 <div className="bg-slate-50 p-4 rounded">
-                  <label className="text-xs font-semibold text-slate-600 uppercase">Trạng thái:  </label>
-                  <Badge className="mt-2 bg-green-100 text-green-800 border border-green-300 text-base py-1 px-3">
-                    Confirmed
+                  <label className="text-xs font-semibold text-slate-600 uppercase">Trạng thái: </label>
+                  <Badge className={`mt-2 text-base py-1 px-3 ${statusToClasses(selected.status)}`}>
+                    {selected.status}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -376,7 +378,7 @@ export default function DoctorAppointmentsPage() {
                       <CalendarIcon className="w-4 h-4 text-blue-600" /> Ngày khám
                     </label>
                     <p className="font-medium">
-                      {new Date(selected.appointmentDateISO + "T00:00:00").toLocaleDateString("vi-WN", {
+                      {new Date(selected.appointmentDateISO + "T00:00:00").toLocaleDateString("vi-VN", {
                         weekday: "short", year: "numeric", month: "2-digit", day: "2-digit",
                       })}
                     </p>

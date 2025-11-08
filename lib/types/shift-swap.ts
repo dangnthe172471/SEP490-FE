@@ -3,7 +3,7 @@ export interface CreateShiftSwapRequest {
     doctor2Id: number;
     doctor1ShiftRefId: number;
     doctor2ShiftRefId: number;
-    exchangeDate: string; // DateOnly as string
+    exchangeDate?: string; // DateOnly as string, optional for permanent
     swapType: "temporary" | "permanent";
 }
 
@@ -25,7 +25,11 @@ export interface ShiftSwapRequestResponse {
     doctor1ShiftName: string;
     doctor2ShiftRefId: number;
     doctor2ShiftName: string;
-    exchangeDate: string;
+    doctorOld1ShiftId: number;
+    doctorOld1ShiftName: string;
+    doctorOld2ShiftId?: number;
+    doctorOld2ShiftName: string;
+    exchangeDate?: string; // Đầu tháng sau cho permanent, ngày cụ thể cho temporary
     status: string;
     swapType?: "temporary" | "permanent";
 }
