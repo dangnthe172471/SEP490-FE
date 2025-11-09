@@ -31,3 +31,8 @@ export interface UnreadCountDto {
     userId: string
     unreadCount: number
 }
+export interface NotificationUserDto {
+    userId: number
+    fullName: string
+    role: string
+}

@@ -6,6 +6,7 @@ import type {
     CreateNotificationDto,
     NotificationDto,
     UnreadCountDto,
+    NotificationUserDto
 } from "@/lib/types/notification-type"
 
 export class NotificationService {
@@ -152,6 +153,36 @@ export class NotificationService {
             return { items: [], totalCount: 0, totalPages: 0, pageNumber, pageSize }
         }
     }
+    async getAllUsers(): Promise<NotificationUserDto[]> {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/Notification/all-user`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            })
+
+            if (!response.ok) {
+                console.warn(`GetAllUsers lỗi ${response.status}`)
+                toast.warning("Không thể tải danh sách người dùng.")
+                return []
+            }
+
+            const data = await response.json()
+
+            // chỉ lấy 3 trường cần thiết
+            const users: NotificationUserDto[] = data.map((u: any) => ({
+                userId: u.userId,
+                fullName: u.fullName,
+                role: u.role,
+            }))
+
+            return users
+        } catch (error) {
+            console.error("GetAllUsers lỗi:", error)
+            toast.error("Không thể kết nối đến máy chủ.")
+            return []
+        }
+    }
+
 }
 
 export const notificationService = new NotificationService()

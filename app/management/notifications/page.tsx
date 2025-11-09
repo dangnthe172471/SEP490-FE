@@ -22,15 +22,8 @@ import { Search, Plus, Send } from "lucide-react"
 import { toast } from "sonner"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 import { notificationService } from "@/lib/services/notification-service"
+import type { NotificationUserDto } from "@/lib/types/notification-type"
 
-const mockStaff = [
-    { id: 1, name: "BS. Trần Văn B", role: "doctor", department: "Nội khoa" },
-    { id: 2, name: "BS. Lê Thị D", role: "doctor", department: "Nhi khoa" },
-    { id: 3, name: "Y tá Nguyễn Thị E", role: "nurse", department: "Nội khoa" },
-    { id: 4, name: "Y tá Phạm Văn F", role: "nurse", department: "Nhi khoa" },
-    { id: 5, name: "Dược sĩ Hoàng Thị G", role: "pharmacist", department: "Nhà thuốc" },
-    { id: 6, name: "Lễ tân Trần Văn H", role: "receptionist", department: "Lễ tân" },
-]
 
 interface NotificationFormData {
     recipientType: "individual" | "department" | "all"
@@ -42,6 +35,7 @@ interface NotificationFormData {
 }
 
 export default function NotificationsPage() {
+    const [staffList, setStaffList] = useState<NotificationUserDto[]>([])
     const navigation = getManagerNavigation()
     const [searchQuery, setSearchQuery] = useState("")
     const [showCustomInput, setShowCustomInput] = useState(false)
@@ -59,6 +53,13 @@ export default function NotificationsPage() {
     const [totalPages, setTotalPages] = useState(1)
     const [isLoading, setIsLoading] = useState(false)
 
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const data = await notificationService.getAllUsers()
+            setStaffList(data)
+        }
+        fetchUsers()
+    }, [])
     const fetchNotifications = async (page = 1) => {
         try {
             setIsLoading(true)
@@ -72,16 +73,41 @@ export default function NotificationsPage() {
             setIsLoading(false)
         }
     }
+    const getRoleLabel = (role: string) => {
+        switch (role) {
+            case "Doctor":
+                return "Bác sĩ"
+            case "Nurse":
+                return "Y tá"
+            case "Pharmacy Provider":
+                return "Dược sĩ"
+            case "Receptionist":
+                return "Lễ tân"
+            case "Clinic Manager":
+                return "Quản lý"
+            case "Administrator":
+                return "Quản trị viên"
+            case "Patient":
+                return "Bệnh nhân"
+            default:
+                return "Khách"
+        }
+    }
+
 
     useEffect(() => {
         fetchNotifications(pageNumber)
     }, [pageNumber])
 
-    const filteredStaff = mockStaff.filter(
-        (s) =>
-            s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.department.toLowerCase().includes(searchQuery.toLowerCase())
+    const removeAccents = (str: string) =>
+        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+
+    const filteredStaff = staffList.filter((s) =>
+        removeAccents(s.fullName.toLowerCase()).includes(
+            removeAccents(searchQuery.toLowerCase())
+        )
     )
+
 
     const handleSendNotification = async () => {
         if (!formData.title.trim() || !formData.message.trim()) {
@@ -188,7 +214,7 @@ export default function NotificationsPage() {
                                             <SelectValue placeholder="Chọn loại gửi" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="individual">Gửi cho nhân viên cụ thể</SelectItem>
+                                            <SelectItem value="individual">Gửi cho nhân viên hoặc người dùng cụ thể</SelectItem>
                                             <SelectItem value="department">Gửi cho toàn bộ vai trò</SelectItem>
                                             <SelectItem value="all">Gửi cho tất cả nhân viên</SelectItem>
                                         </SelectContent>
@@ -210,28 +236,29 @@ export default function NotificationsPage() {
                                         </div>
                                         <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                                             {filteredStaff.map((s) => (
-                                                <div key={s.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded">
+                                                <div key={s.userId} className="flex items-center gap-3 p-2 hover:bg-muted rounded">
                                                     <input
                                                         type="checkbox"
-                                                        id={`staff-${s.id}`}
-                                                        checked={formData.recipients.includes(s.id)}
+                                                        id={`staff-${s.userId}`}
+                                                        checked={formData.recipients.includes(s.userId)}
                                                         onChange={(e) => {
                                                             if (e.target.checked)
-                                                                setFormData({ ...formData, recipients: [...formData.recipients, s.id] })
+                                                                setFormData({ ...formData, recipients: [...formData.recipients, s.userId] })
                                                             else
                                                                 setFormData({
                                                                     ...formData,
-                                                                    recipients: formData.recipients.filter((id) => id !== s.id),
+                                                                    recipients: formData.recipients.filter((id) => id !== s.userId),
                                                                 })
                                                         }}
                                                         className="h-4 w-4"
                                                     />
-                                                    <label htmlFor={`staff-${s.id}`} className="cursor-pointer flex-1">
-                                                        <div className="font-medium">{s.name}</div>
-                                                        <div className="text-sm text-muted-foreground">{s.department}</div>
+                                                    <label htmlFor={`staff-${s.userId}`} className="cursor-pointer flex-1">
+                                                        <div className="font-medium">{s.fullName}</div>
+                                                        <div className="text-sm text-muted-foreground">{getRoleLabel(s.role)}</div>
                                                     </label>
                                                 </div>
                                             ))}
+
                                         </div>
                                     </div>
                                 )}
@@ -248,10 +275,10 @@ export default function NotificationsPage() {
                                                 <SelectValue placeholder="Chọn vai trò" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="Bác sĩ">Bác sĩ</SelectItem>
-                                                <SelectItem value="Y tá">Y tá</SelectItem>
-                                                <SelectItem value="Dược sĩ">Dược sĩ</SelectItem>
-                                                <SelectItem value="Lễ tân">Lễ tân</SelectItem>
+                                                <SelectItem value="Doctor">Bác sĩ</SelectItem>
+                                                <SelectItem value="Nurse">Y tá</SelectItem>
+                                                <SelectItem value="Pharmacy Provider">Dược sĩ</SelectItem>
+                                                <SelectItem value="Receptionist">Lễ tân</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
