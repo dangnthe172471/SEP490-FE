@@ -36,6 +36,8 @@ import {
 } from "recharts"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 import PageGuard from "@/components/PageGuard"
+import { RevenueChartSection } from "./charts/RevenueChart"
+
 // Mock data for charts
 const revenueData = [
   { month: "T1", revenue: 45000000, expenses: 32000000 },
@@ -127,194 +129,174 @@ export default function ManagementDashboard() {
 
   return (
     <PageGuard allowedRoles={["management", "admin"]}>
-    <DashboardLayout navigation={navigation}>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard Quản lý</h1>
-          <p className="text-muted-foreground">Tổng quan hoạt động và phân tích kinh doanh</p>
-        </div>
+      <DashboardLayout navigation={navigation}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard Quản lý</h1>
+            <p className="text-muted-foreground">Tổng quan hoạt động và phân tích kinh doanh</p>
+          </div>
 
-        {/* Key Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <Card key={stat.title}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                  <Icon className={`h-4 w-4 ${stat.color}`} />
+          {/* Key Metrics */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {stats.map((stat) => {
+              const Icon = stat.icon
+              return (
+                <Card key={stat.title}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                    <Icon className={`h-4 w-4 ${stat.color}`} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      {stat.trend === "up" ? (
+                        <ArrowUp className="h-3 w-3 text-chart-2" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 text-destructive" />
+                      )}
+                      <span className={stat.trend === "up" ? "text-chart-2" : "text-destructive"}>{stat.change}</span>
+                      <span>so với tháng trước</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          <Tabs defaultValue="revenue" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="revenue">Doanh thu</TabsTrigger>
+              <TabsTrigger value="patients">Bệnh nhân</TabsTrigger>
+              <TabsTrigger value="departments">Khoa phòng</TabsTrigger>
+              <TabsTrigger value="appointments">Lịch hẹn</TabsTrigger>
+            </TabsList>
+
+            {/* Revenue Chart */}
+            <RevenueChartSection />
+
+            {/* Patients Chart */}
+            <TabsContent value="patients" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Lượng bệnh nhân</CardTitle>
+                  <CardDescription>Số lượng bệnh nhân khám 6 tháng gần nhất</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    {stat.trend === "up" ? (
-                      <ArrowUp className="h-3 w-3 text-chart-2" />
-                    ) : (
-                      <ArrowDown className="h-3 w-3 text-destructive" />
-                    )}
-                    <span className={stat.trend === "up" ? "text-chart-2" : "text-destructive"}>{stat.change}</span>
-                    <span>so với tháng trước</span>
-                  </div>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <LineChart data={patientData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="patients"
+                        name="Bệnh nhân"
+                        stroke="hsl(var(--chart-1))"
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
-            )
-          })}
-        </div>
+            </TabsContent>
 
-        <Tabs defaultValue="revenue" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="revenue">Doanh thu</TabsTrigger>
-            <TabsTrigger value="patients">Bệnh nhân</TabsTrigger>
-            <TabsTrigger value="departments">Khoa phòng</TabsTrigger>
-            <TabsTrigger value="appointments">Lịch hẹn</TabsTrigger>
-          </TabsList>
+            {/* Departments Chart */}
+            <TabsContent value="departments" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Phân bổ theo khoa</CardTitle>
+                  <CardDescription>Tỷ lệ bệnh nhân theo từng khoa phòng</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <PieChart>
+                      <Pie
+                        data={departmentData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {departmentData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {/* Revenue Chart */}
-          <TabsContent value="revenue" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Doanh thu & Chi phí</CardTitle>
-                <CardDescription>Biểu đồ doanh thu và chi phí 6 tháng gần nhất</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={revenueData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `${value / 1000000}M`} />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
-                    <Bar dataKey="revenue" name="Doanh thu" fill="hsl(var(--chart-2))" />
-                    <Bar dataKey="expenses" name="Chi phí" fill="hsl(var(--chart-1))" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            {/* Appointments Chart */}
+            <TabsContent value="appointments" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Trạng thái lịch hẹn</CardTitle>
+                  <CardDescription>Phân bổ trạng thái các lịch hẹn</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <PieChart>
+                      <Pie
+                        data={appointmentStatusData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {appointmentStatusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
 
-          {/* Patients Chart */}
-          <TabsContent value="patients" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lượng bệnh nhân</CardTitle>
-                <CardDescription>Số lượng bệnh nhân khám 6 tháng gần nhất</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={patientData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="patients"
-                      name="Bệnh nhân"
-                      stroke="hsl(var(--chart-1))"
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Departments Chart */}
-          <TabsContent value="departments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Phân bổ theo khoa</CardTitle>
-                <CardDescription>Tỷ lệ bệnh nhân theo từng khoa phòng</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <PieChart>
-                    <Pie
-                      data={departmentData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {departmentData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Appointments Chart */}
-          <TabsContent value="appointments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Trạng thái lịch hẹn</CardTitle>
-                <CardDescription>Phân bổ trạng thái các lịch hẹn</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <PieChart>
-                    <Pie
-                      data={appointmentStatusData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {appointmentStatusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Top Doctors */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bác sĩ xuất sắc</CardTitle>
-            <CardDescription>Top 5 bác sĩ có hiệu suất cao nhất</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topDoctors.map((doctor, index) => (
-                <div key={doctor.name} className="flex items-center justify-between border-b pb-4 last:border-0">
-                  <div className="flex items-center gap-4">
-                    <Badge variant="outline" className="h-8 w-8 rounded-full flex items-center justify-center">
-                      {index + 1}
-                    </Badge>
-                    <div>
-                      <p className="font-medium">{doctor.name}</p>
-                      <div className="flex gap-4 text-sm text-muted-foreground">
-                        <span>{doctor.patients} bệnh nhân</span>
-                        <span>•</span>
-                        <span>{formatCurrency(doctor.revenue)}</span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">⭐ {doctor.rating}</span>
+          {/* Top Doctors */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Bác sĩ xuất sắc</CardTitle>
+              <CardDescription>Top 5 bác sĩ có hiệu suất cao nhất</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {topDoctors.map((doctor, index) => (
+                  <div key={doctor.name} className="flex items-center justify-between border-b pb-4 last:border-0">
+                    <div className="flex items-center gap-4">
+                      <Badge variant="outline" className="h-8 w-8 rounded-full flex items-center justify-center">
+                        {index + 1}
+                      </Badge>
+                      <div>
+                        <p className="font-medium">{doctor.name}</p>
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                          <span>{doctor.patients} bệnh nhân</span>
+                          <span>•</span>
+                          <span>{formatCurrency(doctor.revenue)}</span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">⭐ {doctor.rating}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </DashboardLayout>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
     </PageGuard>
   )
 }
