@@ -18,6 +18,8 @@ import {
   Clock,
   TestTube,
   Building2,
+  AlertCircle,
+  Loader2,
 } from "lucide-react"
 import {
   Bar,
@@ -91,6 +93,8 @@ export default function ManagementDashboard() {
   const [statusStats, setStatusStats] = useState<{ name: string; value: number; color: string }[]>([])
   const [range, setRange] = useState(30)
   const [groupBy, setGroupBy] = useState<"day" | "month">("day")
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false)
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
 
   const rangeOptions = [
     { label: "7 ngày", value: 7 },
@@ -120,26 +124,77 @@ export default function ManagementDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
+        setAppointmentsLoading(true)
+        setAppointmentsError(null)
+
         const { from, to } = computeRange(range)
-        const [series, heatmap, stats] = await Promise.all([
-          appointmentService.getAppointmentTimeSeries({ from, to, groupBy }),
-          appointmentService.getAppointmentHeatmap({ from, to }),
-          appointmentService.getAppointmentStatistics(),
-        ])
-        setTsData(series)
-        setHmData(heatmap)
-        setStatusStats([
-          { name: "Đang chờ", value: stats.pendingAppointments ?? 0, color: "hsl(var(--chart-1))" },
-          { name: "Đã xác nhận", value: stats.confirmedAppointments ?? 0, color: "hsl(var(--chart-2))" },
-          { name: "Hoàn thành", value: stats.completedAppointments ?? 0, color: "hsl(var(--chart-3))" },
-          { name: "Đã hủy", value: stats.cancelledAppointments ?? 0, color: "hsl(var(--destructive))" },
-          { name: "Không đến", value: stats.noShowAppointments ?? 0, color: "hsl(var(--muted))" },
-        ])
-      } catch (e) {
-        console.warn("Appointments analytics load failed", e)
+        console.log("📊 Loading appointments analytics:", { from, to, groupBy, range })
+
+        // Load từng API riêng biệt để xác định API nào bị lỗi
+        let series: AppointmentTimeSeriesPoint[] = []
+        let heatmap: AppointmentHeatmapPoint[] = []
+        let stats: any = null
+        const errors: string[] = []
+
+        // Load statistics first (đơn giản nhất)
+        try {
+          stats = await appointmentService.getAppointmentStatistics()
+          console.log("✅ Statistics loaded:", stats)
+        } catch (e: any) {
+          console.error("❌ Failed to load statistics:", e)
+          errors.push(`Statistics: ${e?.message || 'Unknown error'}`)
+        }
+
+        // Load time series
+        try {
+          series = await appointmentService.getAppointmentTimeSeries({ from, to, groupBy })
+          console.log("✅ Time series loaded:", series?.length ?? 0, "items")
+        } catch (e: any) {
+          console.error("❌ Failed to load time series:", e)
+          errors.push(`Time series: ${e?.message || 'Unknown error'}`)
+        }
+
+        // Load heatmap
+        try {
+          heatmap = await appointmentService.getAppointmentHeatmap({ from, to })
+          console.log("✅ Heatmap loaded:", heatmap?.length ?? 0, "items")
+        } catch (e: any) {
+          console.error("❌ Failed to load heatmap:", e)
+          errors.push(`Heatmap: ${e?.message || 'Unknown error'}`)
+        }
+
+        // Set data (ngay cả khi một số API fail)
+        setTsData(series || [])
+        setHmData(heatmap || [])
+
+        if (stats) {
+          setStatusStats([
+            { name: "Đang chờ", value: stats.pendingAppointments ?? 0, color: "hsl(var(--chart-1))" },
+            { name: "Đã xác nhận", value: stats.confirmedAppointments ?? 0, color: "hsl(var(--chart-2))" },
+            { name: "Hoàn thành", value: stats.completedAppointments ?? 0, color: "hsl(var(--chart-3))" },
+            { name: "Đã hủy", value: stats.cancelledAppointments ?? 0, color: "hsl(var(--destructive))" },
+            { name: "Không đến", value: stats.noShowAppointments ?? 0, color: "hsl(var(--muted))" },
+          ])
+        } else {
+          setStatusStats([])
+        }
+
+        // Hiển thị lỗi nếu có
+        if (errors.length > 0) {
+          const errorMessage = `Một số dữ liệu không tải được:\n${errors.join('\n')}`
+          setAppointmentsError(errorMessage)
+          console.warn("⚠️ Some data failed to load:", errors)
+        }
+
+      } catch (e: any) {
+        console.error("❌ Appointments analytics load failed:", e)
+        const errorMessage = e?.message || "Không thể tải dữ liệu lịch hẹn"
+        setAppointmentsError(errorMessage)
         setTsData([])
         setHmData([])
         setStatusStats([])
+      } finally {
+        setAppointmentsLoading(false)
       }
     }
     load()
@@ -332,112 +387,156 @@ export default function ManagementDashboard() {
                 </Select>
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-3">
-                {/* Line chart */}
-                <Card className="xl:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Xu hướng lịch hẹn</CardTitle>
-                    <CardDescription>Số lượng lịch hẹn theo {groupBy === "day" ? "ngày" : "tháng"} trong {rangeLabel}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {lineChartData.length ? (
-                      <ResponsiveContainer width="100%" height={320}>
-                        <LineChart data={lineChartData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" />
-                          <YAxis allowDecimals={false} />
-                          <Tooltip />
-                          <Legend />
-                          <Line type="monotone" dataKey="count" name="Số lịch hẹn" stroke="hsl(var(--chart-1))" strokeWidth={3} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
-                        Không có dữ liệu lịch hẹn trong khoảng thời gian này.
+              {/* Error Message */}
+              {appointmentsError && (
+                <Card className="border-red-200 bg-red-50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3 text-red-800">
+                      <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-medium mb-2">Lỗi khi tải dữ liệu lịch hẹn</p>
+                        <div className="text-sm text-red-600 whitespace-pre-line mb-2">
+                          {appointmentsError}
+                        </div>
+                        <div className="text-xs text-red-500 mt-2 space-y-1">
+                          <p><strong>Vui lòng kiểm tra:</strong></p>
+                          <ul className="list-disc list-inside space-y-0.5 ml-2">
+                            <li>Bạn đã đăng nhập với role "Clinic Manager"</li>
+                            <li>Kết nối với backend đang hoạt động</li>
+                            <li>Console (F12) để xem chi tiết lỗi</li>
+                            <li>Backend logs để xem lỗi server</li>
+                          </ul>
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
+              )}
 
-                {/* Status bar */}
+              {/* Loading State */}
+              {appointmentsLoading && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Trạng thái lịch hẹn</CardTitle>
-                    <CardDescription>Phân bổ trạng thái trong {rangeLabel}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {statusStats.length ? (
-                      <ResponsiveContainer width="100%" height={320}>
-                        <BarChart data={statusStats}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis allowDecimals={false} />
-                          <Tooltip />
-                          <Bar dataKey="value" name="Số lịch hẹn">
-                            {statusStats.map((entry, index) => (
-                              <Cell key={`cell-st-${index}`} fill={entry.color} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
-                        Không có dữ liệu trạng thái.
-                      </div>
-                    )}
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                      <span className="text-muted-foreground">Đang tải dữ liệu lịch hẹn...</span>
+                    </div>
                   </CardContent>
                 </Card>
-              </div>
+              )}
+
+              {!appointmentsLoading && !appointmentsError && (
+                <div className="grid gap-6 xl:grid-cols-3">
+                  {/* Line chart */}
+                  <Card className="xl:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Xu hướng lịch hẹn</CardTitle>
+                      <CardDescription>Số lượng lịch hẹn theo {groupBy === "day" ? "ngày" : "tháng"} trong {rangeLabel}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {lineChartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={320}>
+                          <LineChart data={lineChartData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="label" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="count" name="Số lịch hẹn" stroke="hsl(var(--chart-1))" strokeWidth={3} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                          {tsData.length === 0
+                            ? "Không có dữ liệu lịch hẹn trong khoảng thời gian này."
+                            : "Đang xử lý dữ liệu..."}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Status bar */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Trạng thái lịch hẹn</CardTitle>
+                      <CardDescription>Phân bổ trạng thái trong {rangeLabel}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {statusStats.length > 0 && statusStats.some(s => s.value > 0) ? (
+                        <ResponsiveContainer width="100%" height={320}>
+                          <BarChart data={statusStats}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Bar dataKey="value" name="Số lịch hẹn">
+                              {statusStats.map((entry, index) => (
+                                <Cell key={`cell-st-${index}`} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                          Không có dữ liệu trạng thái.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
               {/* Heatmap simple grid */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Heatmap theo giờ</CardTitle>
-                  <CardDescription>Mức độ bận rộn theo thứ và giờ trong {rangeLabel}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {hmData.length ? (
-                    <div className="overflow-x-auto">
-                      <div
-                        className="inline-grid gap-1"
-                        style={{ gridTemplateColumns: `repeat(${HOURS.length + 1}, minmax(44px, 1fr))` }}
-                      >
-                        <div className="text-xs font-medium text-muted-foreground" />
-                        {HOURS.map((h) => (
-                          <div key={`h-${h}`} className="text-xs text-center text-muted-foreground">
-                            {h.toString().padStart(2, "0")}
-                          </div>
-                        ))}
-                        {WEEKDAY_LABELS.map((label, weekdayIndex) => (
-                          <React.Fragment key={`row-${label}`}>
-                            <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-                            {HOURS.map((hour) => {
-                              const count = heatmapLookup.get(`${weekdayIndex}-${hour}`) ?? 0
-                              const max = Math.max(1, maxHeatmapCount)
-                              const intensity = max ? count / max : 0
-                              const alpha = 0.2 + intensity * 0.7
-                              const color = `rgba(37,99,235,${alpha})`
-                              return (
-                                <div
-                                  key={`cell-${label}-${hour}`}
-                                  className="h-9 flex items-center justify-center rounded-md text-[11px] font-semibold"
-                                  style={{ backgroundColor: color, color: intensity > 0.6 ? "#fff" : "#111827" }}
-                                >
-                                  {count || ""}
-                                </div>
-                              )
-                            })}
-                          </React.Fragment>
-                        ))}
+              {!appointmentsLoading && !appointmentsError && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Heatmap theo giờ</CardTitle>
+                    <CardDescription>Mức độ bận rộn theo thứ và giờ trong {rangeLabel}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {hmData.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <div
+                          className="inline-grid gap-1"
+                          style={{ gridTemplateColumns: `repeat(${HOURS.length + 1}, minmax(44px, 1fr))` }}
+                        >
+                          <div className="text-xs font-medium text-muted-foreground" />
+                          {HOURS.map((h) => (
+                            <div key={`h-${h}`} className="text-xs text-center text-muted-foreground">
+                              {h.toString().padStart(2, "0")}
+                            </div>
+                          ))}
+                          {WEEKDAY_LABELS.map((label, weekdayIndex) => (
+                            <React.Fragment key={`row-${label}`}>
+                              <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+                              {HOURS.map((hour) => {
+                                const count = heatmapLookup.get(`${weekdayIndex}-${hour}`) ?? 0
+                                const max = Math.max(1, maxHeatmapCount)
+                                const intensity = max ? count / max : 0
+                                const alpha = 0.2 + intensity * 0.7
+                                const color = `rgba(37,99,235,${alpha})`
+                                return (
+                                  <div
+                                    key={`cell-${label}-${hour}`}
+                                    className="h-9 flex items-center justify-center rounded-md text-[11px] font-semibold"
+                                    style={{ backgroundColor: color, color: intensity > 0.6 ? "#fff" : "#111827" }}
+                                  >
+                                    {count || ""}
+                                  </div>
+                                )
+                              })}
+                            </React.Fragment>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
-                      Không có dữ liệu heatmap.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    ) : (
+                      <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                        Không có dữ liệu heatmap.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
 
