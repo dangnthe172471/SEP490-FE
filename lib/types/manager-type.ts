@@ -10,7 +10,7 @@ export interface ShiftResponseDto {
     shiftType: string
     startTime: string
     endTime: string
-    doctors: DoctorDto[] 
+    doctors: DoctorDto[]
 }
 
 export interface CreateScheduleRequest {
@@ -23,7 +23,7 @@ export interface CreateScheduleRequest {
 }
 
 export interface DailyWorkScheduleDto {
-    date: string 
+    date: string
     shifts: ShiftResponseDto[]
 }
 export interface PagedResult<T> {
@@ -31,7 +31,7 @@ export interface PagedResult<T> {
     pageNumber: number
     pageSize: number
     totalCount: number
-    totalPages?: number    
+    totalPages?: number
     hasPrevious?: boolean
     hasNext?: boolean
 }
@@ -52,10 +52,21 @@ export interface WorkScheduleGroupDto {
 export interface UpdateDoctorShiftRangeRequest {
     fromDate: string
     toDate: string
-    newToDate?: string 
+    newToDate?: string
     shiftId: number
     addDoctorIds: number[]
     removeDoctorIds: number[]
 }
 
 
+export interface DoctorActiveScheduleRangeDto {
+    doctorId: number
+    doctorName: string
+    specialty: string
+    roomName: string
+    date: string
+    shiftType: string
+    startTime: string
+    endTime: string
+    status: string
+}
