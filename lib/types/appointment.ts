@@ -80,3 +80,14 @@ export interface BookingData {
     time: string      // Định dạng HH:MM
     doctorId: number  // ID bác sĩ được chọn
 }
+
+export interface AppointmentTimeSeriesPoint {
+    period: string
+    count: number
+}
+
+export interface AppointmentHeatmapPoint {
+    weekday: number
+    hour: number
+    count: number
+}

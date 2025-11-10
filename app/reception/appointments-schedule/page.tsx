@@ -122,7 +122,10 @@ export default function ReceptionAppointmentsSchedulePage() {
 
     // Convert AppointmentDto to AppointmentDisplay
     const items: AppointmentDisplay[] = useMemo(() => {
-        return appointments.map((apt) => {
+        // Chỉ lấy các lịch đã xác nhận (Confirmed)
+        const confirmed = appointments.filter(a => (a.status || '').toLowerCase() === 'confirmed')
+
+        return confirmed.map((apt) => {
             const date = new Date(apt.appointmentDate)
             const dateISO = toISO(date)
             const time = date.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })

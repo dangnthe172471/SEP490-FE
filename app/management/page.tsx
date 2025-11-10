@@ -35,8 +35,13 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
+import React from "react"
 import PageGuard from "@/components/PageGuard"
 import { RevenueChartSection } from "./charts/RevenueChart"
+import { useEffect, useMemo, useState } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { appointmentService } from "@/lib/services/appointment-service"
+import type { AppointmentTimeSeriesPoint, AppointmentHeatmapPoint } from "@/lib/types/appointment"
 
 // Mock data for charts
 const revenueData = [
@@ -65,12 +70,8 @@ const departmentData = [
   { name: "Khác", value: 5, color: "hsl(var(--chart-5))" },
 ]
 
-const appointmentStatusData = [
-  { name: "Hoàn thành", value: 65, color: "hsl(var(--chart-2))" },
-  { name: "Đã đặt", value: 20, color: "hsl(var(--chart-1))" },
-  { name: "Đã hủy", value: 10, color: "hsl(var(--destructive))" },
-  { name: "Không đến", value: 5, color: "hsl(var(--muted))" },
-]
+const WEEKDAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
 const topDoctors = [
   { name: "BS. Trần Văn B", patients: 145, revenue: 87000000, rating: 4.8 },
@@ -83,6 +84,80 @@ const topDoctors = [
 export default function ManagementDashboard() {
   // Get manager navigation from centralized config
   const navigation = getManagerNavigation()
+
+  // Appointments analytics states
+  const [tsData, setTsData] = useState<AppointmentTimeSeriesPoint[]>([])
+  const [hmData, setHmData] = useState<AppointmentHeatmapPoint[]>([])
+  const [statusStats, setStatusStats] = useState<{ name: string; value: number; color: string }[]>([])
+  const [range, setRange] = useState(30)
+  const [groupBy, setGroupBy] = useState<"day" | "month">("day")
+
+  const rangeOptions = [
+    { label: "7 ngày", value: 7 },
+    { label: "30 ngày", value: 30 },
+    { label: "90 ngày", value: 90 },
+  ]
+
+  const formatDateParam = (date: Date) => date.toISOString().split("T")[0]
+  const computeRange = (days: number) => {
+    const end = new Date()
+    const start = new Date()
+    start.setDate(end.getDate() - (days - 1))
+    return { from: formatDateParam(start), to: formatDateParam(end) }
+  }
+
+  const formatPeriodLabel = (period: string, groupBy: "day" | "month") => {
+    if (groupBy === "day") {
+      const date = new Date(`${period}T00:00:00`)
+      if (Number.isNaN(date.getTime())) return period
+      return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
+    }
+    const [year, month] = period.split("-")
+    if (!year || !month) return period
+    return `${month}/${year}`
+  }
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { from, to } = computeRange(range)
+        const [series, heatmap, stats] = await Promise.all([
+          appointmentService.getAppointmentTimeSeries({ from, to, groupBy }),
+          appointmentService.getAppointmentHeatmap({ from, to }),
+          appointmentService.getAppointmentStatistics(),
+        ])
+        setTsData(series)
+        setHmData(heatmap)
+        setStatusStats([
+          { name: "Đang chờ", value: stats.pendingAppointments ?? 0, color: "hsl(var(--chart-1))" },
+          { name: "Đã xác nhận", value: stats.confirmedAppointments ?? 0, color: "hsl(var(--chart-2))" },
+          { name: "Hoàn thành", value: stats.completedAppointments ?? 0, color: "hsl(var(--chart-3))" },
+          { name: "Đã hủy", value: stats.cancelledAppointments ?? 0, color: "hsl(var(--destructive))" },
+          { name: "Không đến", value: stats.noShowAppointments ?? 0, color: "hsl(var(--muted))" },
+        ])
+      } catch (e) {
+        console.warn("Appointments analytics load failed", e)
+        setTsData([])
+        setHmData([])
+        setStatusStats([])
+      }
+    }
+    load()
+  }, [range, groupBy])
+
+  const lineChartData = useMemo(() => tsData.map(point => ({
+    label: formatPeriodLabel(point.period, groupBy),
+    count: point.count,
+  })), [tsData, groupBy])
+
+  const heatmapLookup = useMemo(() => {
+    const map = new Map<string, number>()
+    hmData.forEach(point => map.set(`${point.weekday}-${point.hour}`, point.count))
+    return map
+  }, [hmData])
+
+  const maxHeatmapCount = useMemo(() => hmData.reduce((max, point) => Math.max(max, point.count), 0), [hmData])
+  const rangeLabel = rangeOptions.find(o => o.value === range)?.label ?? `${range} ngày`
 
   const stats = [
     {
@@ -235,31 +310,132 @@ export default function ManagementDashboard() {
 
             {/* Appointments Chart */}
             <TabsContent value="appointments" className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={String(range)} onValueChange={(v) => setRange(parseInt(v, 10))}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Khoảng thời gian" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rangeOptions.map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Nhóm theo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Theo ngày</SelectItem>
+                    <SelectItem value="month">Theo tháng</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-3">
+                {/* Line chart */}
+                <Card className="xl:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Xu hướng lịch hẹn</CardTitle>
+                    <CardDescription>Số lượng lịch hẹn theo {groupBy === "day" ? "ngày" : "tháng"} trong {rangeLabel}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {lineChartData.length ? (
+                      <ResponsiveContainer width="100%" height={320}>
+                        <LineChart data={lineChartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Legend />
+                          <Line type="monotone" dataKey="count" name="Số lịch hẹn" stroke="hsl(var(--chart-1))" strokeWidth={3} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                        Không có dữ liệu lịch hẹn trong khoảng thời gian này.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Status bar */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Trạng thái lịch hẹn</CardTitle>
+                    <CardDescription>Phân bổ trạng thái trong {rangeLabel}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {statusStats.length ? (
+                      <ResponsiveContainer width="100%" height={320}>
+                        <BarChart data={statusStats}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Bar dataKey="value" name="Số lịch hẹn">
+                            {statusStats.map((entry, index) => (
+                              <Cell key={`cell-st-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                        Không có dữ liệu trạng thái.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Heatmap simple grid */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Trạng thái lịch hẹn</CardTitle>
-                  <CardDescription>Phân bổ trạng thái các lịch hẹn</CardDescription>
+                  <CardTitle>Heatmap theo giờ</CardTitle>
+                  <CardDescription>Mức độ bận rộn theo thứ và giờ trong {rangeLabel}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={350}>
-                    <PieChart>
-                      <Pie
-                        data={appointmentStatusData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={120}
-                        fill="#8884d8"
-                        dataKey="value"
+                  {hmData.length ? (
+                    <div className="overflow-x-auto">
+                      <div
+                        className="inline-grid gap-1"
+                        style={{ gridTemplateColumns: `repeat(${HOURS.length + 1}, minmax(44px, 1fr))` }}
                       >
-                        {appointmentStatusData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        <div className="text-xs font-medium text-muted-foreground" />
+                        {HOURS.map((h) => (
+                          <div key={`h-${h}`} className="text-xs text-center text-muted-foreground">
+                            {h.toString().padStart(2, "0")}
+                          </div>
                         ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                        {WEEKDAY_LABELS.map((label, weekdayIndex) => (
+                          <React.Fragment key={`row-${label}`}>
+                            <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+                            {HOURS.map((hour) => {
+                              const count = heatmapLookup.get(`${weekdayIndex}-${hour}`) ?? 0
+                              const max = Math.max(1, maxHeatmapCount)
+                              const intensity = max ? count / max : 0
+                              const alpha = 0.2 + intensity * 0.7
+                              const color = `rgba(37,99,235,${alpha})`
+                              return (
+                                <div
+                                  key={`cell-${label}-${hour}`}
+                                  className="h-9 flex items-center justify-center rounded-md text-[11px] font-semibold"
+                                  style={{ backgroundColor: color, color: intensity > 0.6 ? "#fff" : "#111827" }}
+                                >
+                                  {count || ""}
+                                </div>
+                              )
+                            })}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                      Không có dữ liệu heatmap.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

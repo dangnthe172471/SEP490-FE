@@ -6,15 +6,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Stethoscope, Award, Briefcase, GraduationCap, Check, Loader2 } from "lucide-react"
-import { getToken } from "@/lib/auth"
-
-// Manager API DTOs
-export interface DoctorDTO {
-    doctorID: number
-    fullName: string
-    specialty: string
-    email: string
-}
+import { managerService } from "@/lib/services/manager-service"
+import type { DoctorDto } from "@/lib/types/manager-type"
 
 // Define props: accepts onSelect callback
 interface ServiceSelectionProps {
@@ -22,61 +15,37 @@ interface ServiceSelectionProps {
 }
 
 export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
-    const [selectedDoctor, setSelectedDoctor] = useState<DoctorDTO | null>(null)
+    const [selectedDoctor, setSelectedDoctor] = useState<DoctorDto | null>(null)
 
     // State for API data
-    const [doctors, setDoctors] = useState<DoctorDTO[]>([])
+    const [doctors, setDoctors] = useState<DoctorDto[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Fetch doctors from Manager API
-    const fetchDoctors = async () => {
-        const token = getToken()
-        if (!token) {
-            setError('Không tìm thấy token xác thực. Vui lòng đăng nhập lại.')
-            return
-        }
-
-        try {
-            const response = await fetch('https://localhost:7168/api/Manager/doctors', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.status} ${response.statusText}`)
-            }
-
-            const data = await response.json()
-            setDoctors(data)
-            console.log('👨‍⚕️ Fetched doctors from Manager API:', data)
-        } catch (err: any) {
-            console.error('Error fetching doctors:', err)
-            setError(err.message || 'Không thể tải danh sách bác sĩ')
-        }
-    }
-
-    // Fetch doctors when component mounts
+    // Fetch doctors from centralized ManagerService (uses NEXT_PUBLIC_API_URL)
     useEffect(() => {
-        const fetchAllDoctors = async () => {
-            setIsLoading(true)
-            setError(null)
-            try {
-                await fetchDoctors()
-            } catch (err: any) {
-                setError(err.message || "Không thể tải danh sách bác sĩ.")
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        fetchAllDoctors()
+        let mounted = true
+            ; (async () => {
+                setIsLoading(true)
+                setError(null)
+                try {
+                    const data = await managerService.getAllDoctors()
+                    if (mounted) {
+                        setDoctors(data)
+                    }
+                } catch (err: any) {
+                    if (mounted) {
+                        setError(err?.message || "Không thể tải danh sách bác sĩ.")
+                    }
+                } finally {
+                    if (mounted) setIsLoading(false)
+                }
+            })()
+        return () => { mounted = false }
     }, [])
 
     // Handler when a doctor card is clicked
-    const handleDoctorSelect = (doctor: DoctorDTO) => {
+    const handleDoctorSelect = (doctor: DoctorDto) => {
         setSelectedDoctor(doctor) // Update state to highlight selection
 
         // Determine service name from doctor's specialty
