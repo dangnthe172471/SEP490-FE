@@ -10,6 +10,7 @@ import type {
     DailySummaryDto,
     WorkScheduleGroupDto,
     UpdateDoctorShiftRangeRequest,
+    DoctorActiveScheduleRangeDto
 } from "@/lib/types/manager-type"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
@@ -186,6 +187,12 @@ class ManagerService extends BaseService {
         }
 
         return res
+    }
+    async getAllDoctorSchedules(startDate: string, endDate: string): Promise<DoctorActiveScheduleRangeDto[]> {
+        const res = await this.request<DoctorActiveScheduleRangeDto[]>(
+            `/api/ManageSchedule/get-all-doctor-schedule?startDate=${startDate}&endDate=${endDate}`
+        )
+        return res ?? []
     }
 
 
