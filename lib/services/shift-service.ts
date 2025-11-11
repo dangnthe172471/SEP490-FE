@@ -39,12 +39,12 @@ class ShiftService {
 
     /**
      * ✅ Get all shifts
-     * GET /api/Manager/shifts
+     * GET /api/ManageSchedule/shifts
      */
     async getAllShifts(): Promise<ShiftResponseDTO[]> {
-        console.log('📤 Fetching shifts from /api/Manager/shifts')
+        console.log('📤 Fetching shifts from /api/ManageSchedule/shifts')
 
-        return this.request<ShiftResponseDTO[]>('/api/Manager/shifts', {
+        return this.request<ShiftResponseDTO[]>('/api/ManageSchedule/shifts', {
             method: 'GET'
         })
     }

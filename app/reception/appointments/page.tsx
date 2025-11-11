@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar, Users, UserPlus, Activity, Plus, Clock, Loader2, AlertCircle, X, MessageCircle, FileText } from "lucide-react"
 import { mockAppointments } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
@@ -28,6 +30,11 @@ export default function ReceptionAppointmentsPage() {
     isOpen: boolean
     appointment: AppointmentDto | null
   }>({ isOpen: false, appointment: null })
+  // Search / Sort / Pagination state
+  const [search, setSearch] = useState("")
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc">("date_desc")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
 
   useEffect(() => {
     const currentUser = getCurrentUser()
@@ -49,7 +56,8 @@ export default function ReceptionAppointmentsPage() {
           data = await appointmentService.getMyReceptionistAppointments()
         }
 
-        setAppointments(data)
+        // Hiển thị TẤT CẢ lịch (bao gồm đã xác nhận và đã hủy)
+        setAppointments(data || [])
       } catch (err: any) {
         console.error('❌ [ERROR] Failed to fetch appointments:', err)
         setError(err.message || 'Không thể tải danh sách lịch hẹn')
@@ -93,7 +101,8 @@ export default function ReceptionAppointmentsPage() {
           data = await appointmentService.getMyReceptionistAppointments()
         }
 
-        setAppointments(data)
+        // Hiển thị TẤT CẢ lịch (bao gồm đã xác nhận và đã hủy)
+        setAppointments(data || [])
       } catch (err: any) {
         console.error('❌ [ERROR] Failed to fetch appointments:', err)
         setError(err.message || 'Không thể tải danh sách lịch hẹn')
@@ -122,20 +131,98 @@ export default function ReceptionAppointmentsPage() {
     return canCancelResult
   }
 
-  // Lọc lịch hẹn theo status - Sử dụng backend valid statuses
-  const scheduledAppointments = appointments.filter((a) =>
-    a.status === "Pending" ||
-    a.status === "Confirmed"
-  )
-  const inProgressAppointments = appointments.filter((a) =>
-    a.status === "In-Progress" // Nếu có status này
-  )
-  const completedAppointments = appointments.filter((a) =>
-    a.status === "Completed"
-  )
-  const cancelledAppointments = appointments.filter((a) =>
-    a.status === "Cancelled"
-  )
+  // Nhóm theo trạng thái
+  const confirmedAppointments = appointments.filter((a) => (a.status || "").toLowerCase() === "confirmed")
+  const completedAppointments = appointments.filter((a) => (a.status || "").toLowerCase() === "completed")
+  const cancelledAppointments = appointments.filter((a) => (a.status || "").toLowerCase() === "cancelled")
+
+  // Helpers: filter + sort + paginate
+  const applyFilterSortPaginate = (list: AppointmentDto[]) => {
+    // Search by patient name, phone, doctor, code
+    const q = search.trim().toLowerCase()
+    let filtered = !q
+      ? list
+      : list.filter(a => {
+        return (
+          a.patientName?.toLowerCase().includes(q) ||
+          a.patientPhone?.toLowerCase().includes(q) ||
+          a.doctorName?.toLowerCase().includes(q) ||
+          String(a.appointmentId).toLowerCase().includes(q)
+        )
+      })
+
+    // Sort by date
+    filtered = filtered.sort((a, b) => {
+      const ta = new Date(a.appointmentDate).getTime()
+      const tb = new Date(b.appointmentDate).getTime()
+      return sortBy === "date_desc" ? tb - ta : ta - tb
+    })
+
+    // Pagination
+    const total = filtered.length
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    const currentPage = Math.min(page, totalPages)
+    const start = (currentPage - 1) * pageSize
+    const end = start + pageSize
+    const items = filtered.slice(start, end)
+
+    return { items, total, totalPages, currentPage }
+  }
+
+  const renderList = (list: AppointmentDto[]) => {
+    const { items, total, totalPages, currentPage } = applyFilterSortPaginate(list)
+
+    return (
+      <>
+        {items.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">Không có lịch hẹn nào</p>
+            </CardContent>
+          </Card>
+        ) : (
+          items.map((appointment) => (
+            <AppointmentCard key={appointment.appointmentId} appointment={appointment} />
+          ))
+        )}
+
+        {/* Pagination controls */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-muted-foreground">
+            Hiển thị {(currentPage - 1) * pageSize + (items.length ? 1 : 0)}-
+            {(currentPage - 1) * pageSize + items.length} / {total}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(1)}>
+              «
+            </Button>
+            <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
+              Trước
+            </Button>
+            <span className="text-sm">
+              Trang {currentPage}/{totalPages}
+            </span>
+            <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>
+              Sau
+            </Button>
+            <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPage(totalPages)}>
+              »
+            </Button>
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setPage(1) }}>
+              <SelectTrigger className="h-8 w-[90px]">
+                <SelectValue placeholder="Kích thước" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 / trang</SelectItem>
+                <SelectItem value="10">10 / trang</SelectItem>
+                <SelectItem value="20">20 / trang</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -214,13 +301,6 @@ export default function ReceptionAppointmentsPage() {
                   <span className="text-sm text-muted-foreground">{appointment.patientPhone}</span>
                 </div>
               )}
-              {/* Debug info */}
-              <div className="text-xs text-gray-500 mt-2">
-                <div>Status: {appointment.status || 'null'}</div>
-                <div>Patient ID: {appointment.patientId}</div>
-                <div>Doctor ID: {appointment.doctorId}</div>
-                {appointment.receptionistId && <div>Receptionist ID: {appointment.receptionistId}</div>}
-              </div>
             </div>
           </div>
           <div className="flex gap-2 ml-4">
@@ -345,80 +425,47 @@ export default function ReceptionAppointmentsPage() {
           <Tabs defaultValue="all" className="space-y-4">
             <TabsList>
               <TabsTrigger value="all">Tất cả ({appointments.length})</TabsTrigger>
-              <TabsTrigger value="scheduled">Đã đặt ({scheduledAppointments.length})</TabsTrigger>
-              <TabsTrigger value="in-progress">Đang khám ({inProgressAppointments.length})</TabsTrigger>
+              <TabsTrigger value="confirmed">Đã xác nhận ({confirmedAppointments.length})</TabsTrigger>
               <TabsTrigger value="completed">Hoàn thành ({completedAppointments.length})</TabsTrigger>
               <TabsTrigger value="cancelled">Đã hủy ({cancelledAppointments.length})</TabsTrigger>
             </TabsList>
 
+            {/* Search & Sort */}
+            <div className="flex items-center justify-between gap-2">
+              <Input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                placeholder="Tìm theo tên bệnh nhân / SĐT / bác sĩ / mã lịch..."
+                className="max-w-md"
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Sắp xếp:</span>
+                <Select value={sortBy} onValueChange={(v: any) => { setSortBy(v); setPage(1) }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sắp xếp theo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date_desc">Mới nhất</SelectItem>
+                    <SelectItem value="date_asc">Cũ nhất</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <TabsContent value="all" className="space-y-4">
-              {appointments.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Không có lịch hẹn nào</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                appointments.map((appointment) => (
-                  <AppointmentCard key={appointment.appointmentId} appointment={appointment} />
-                ))
-              )}
+              {renderList(appointments)}
             </TabsContent>
 
-            <TabsContent value="scheduled" className="space-y-4">
-              {scheduledAppointments.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Không có lịch hẹn nào</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                scheduledAppointments.map((appointment) => (
-                  <AppointmentCard key={appointment.appointmentId} appointment={appointment} />
-                ))
-              )}
-            </TabsContent>
-
-            <TabsContent value="in-progress" className="space-y-4">
-              {inProgressAppointments.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Không có lịch hẹn đang khám</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                inProgressAppointments.map((appointment) => (
-                  <AppointmentCard key={appointment.appointmentId} appointment={appointment} />
-                ))
-              )}
+            <TabsContent value="confirmed" className="space-y-4">
+              {renderList(confirmedAppointments)}
             </TabsContent>
 
             <TabsContent value="completed" className="space-y-4">
-              {completedAppointments.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Không có lịch hẹn hoàn thành</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                completedAppointments.map((appointment) => (
-                  <AppointmentCard key={appointment.appointmentId} appointment={appointment} />
-                ))
-              )}
+              {renderList(completedAppointments)}
             </TabsContent>
 
             <TabsContent value="cancelled" className="space-y-4">
-              {cancelledAppointments.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Không có lịch hẹn đã hủy</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                cancelledAppointments.map((appointment) => (
-                  <AppointmentCard key={appointment.appointmentId} appointment={appointment} />
-                ))
-              )}
+              {renderList(cancelledAppointments)}
             </TabsContent>
           </Tabs>
         )}
