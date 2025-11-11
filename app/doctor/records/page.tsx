@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, FileText, Users, Activity, Plus, MessageCircle, UserPlus, HeartPulse } from "lucide-react"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 import { getDoctorNavigation } from "@/lib/navigation"
+import { getCurrentUser } from "@/lib/auth"
+import { userService } from "@/lib/services/user.service"
+import { appointmentService } from "@/lib/services/appointment-service"
 
 interface MedicalRecord {
   recordId: number
@@ -67,9 +70,16 @@ export default function DoctorRecordsPage() {
   const [appointmentCache, setAppointmentCache] = useState<Record<number, AppointmentDetail>>({})
 
   useEffect(() => {
+    const user = getCurrentUser()
+    
+    if (!user?.id) {
+      console.error("User chưa đăng nhập hoặc không có ID");
+      return;
+    }
+
     const fetchRecords = async () => {
       try {
-        const res = await fetch("https://localhost:7168/api/MedicalRecord")
+        const res = await fetch(`https://localhost:7168/api/MedicalRecord/by-doctor/${user.id}`)
         if (!res.ok) throw new Error("Failed to fetch records")
         const data = await res.json()
         // song song fetch thêm dữ liệu từ appointment và user
