@@ -13,6 +13,31 @@ const API_BASE_URL = `${API_ORIGIN}/api/Appointments`
 
 class AppointmentService {
     /**
+     * Dịch thông báo lỗi API sang tiếng Việt (một số case phổ biến)
+     */
+    private translateApiMessage(message: string): string {
+        const msg = (message || '').trim()
+
+        // Các mẫu tiếng Anh phổ biến từ BE → tiếng Việt
+        const mapping: Array<{ test: RegExp, vi: string }> = [
+            { test: /appointment date cannot be in the past/i, vi: 'Ngày hẹn không được ở trong quá khứ.' },
+            { test: /appointment.*must be in the future/i, vi: 'Thời gian hẹn phải ở trong tương lai.' },
+            { test: /invalid date|time is invalid/i, vi: 'Thời gian không hợp lệ. Vui lòng chọn lại.' },
+            { test: /patient not found/i, vi: 'Không tìm thấy thông tin bệnh nhân.' },
+            { test: /doctor not found/i, vi: 'Không tìm thấy thông tin bác sĩ.' },
+            { test: /unauthorized|forbidden/i, vi: 'Bạn không có quyền thực hiện thao tác này.' },
+            { test: /cannot reschedule within/i, vi: 'Không thể đổi lịch trong khoảng thời gian quy định.' },
+            { test: /overlap|conflict/i, vi: 'Thời gian hẹn bị trùng. Vui lòng chọn khung giờ khác.' },
+        ]
+
+        for (const rule of mapping) {
+            if (rule.test.test(msg)) return rule.vi
+        }
+
+        return msg // Mặc định giữ nguyên nếu chưa có mapping
+    }
+
+    /**
      * Hàm request chung, xử lý token và headers
      */
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -30,6 +55,8 @@ class AppointmentService {
         // Thêm Authorization header nếu có token
         if (token) {
             defaultHeaders['Authorization'] = `Bearer ${token}`
+        } else {
+            console.warn("⚠️ [appointment-service] No token found in localStorage")
         }
 
         const config: RequestInit = {
@@ -40,19 +67,80 @@ class AppointmentService {
             },
         }
 
+        console.log(`🔵 [appointment-service] ${options.method || 'GET'} ${url}`)
+
         const response = await fetch(url, config)
 
+        console.log(`🔵 [appointment-service] Response status: ${response.status} ${response.statusText}`)
+
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            const errorMessage = errorData.message || errorData.title || `HTTP error! status: ${response.status}`
-            throw new Error(errorMessage)
+            // Clone response để có thể đọc body nhiều lần
+            const responseClone = response.clone()
+            let rawMessage = `HTTP error! status: ${response.status}`
+            let errorData: any = null
+            let responseText: string = ""
+            
+            try {
+                responseText = await responseClone.text()
+                console.error(`❌ [appointment-service] Error response body (raw):`, responseText)
+                
+                if (responseText && responseText.trim()) {
+                    try {
+                        errorData = JSON.parse(responseText)
+                        rawMessage = errorData.message || errorData.title || errorData.error || errorData.detail || rawMessage
+                        console.error(`❌ [appointment-service] Error response (parsed):`, errorData)
+                    } catch (parseError) {
+                        rawMessage = responseText || rawMessage
+                        console.error(`❌ [appointment-service] Failed to parse error response as JSON:`, parseError)
+                    }
+                } else {
+                    console.warn(`⚠️ [appointment-service] Empty error response body`)
+                }
+            } catch (readError) {
+                console.error(`❌ [appointment-service] Failed to read error response:`, readError)
+            }
+
+            console.error(`❌ [appointment-service] Error response summary:`, {
+                url: url,
+                status: response.status,
+                statusText: response.statusText,
+                message: rawMessage,
+                errorData: errorData,
+                responseText: responseText.substring(0, 500) // Limit log size
+            })
+
+            // Xử lý các lỗi phổ biến
+            if (response.status === 401) {
+                throw new Error("Không được phép truy cập. Vui lòng đăng nhập lại.")
+            }
+            if (response.status === 403) {
+                throw new Error("Không có quyền truy cập. Vui lòng kiểm tra role của tài khoản.")
+            }
+            if (response.status === 404) {
+                throw new Error("Không tìm thấy endpoint. Vui lòng kiểm tra API URL.")
+            }
+            if (response.status >= 500) {
+                // Thêm thông tin chi tiết hơn cho lỗi server
+                const detailedMessage = errorData?.message || errorData?.title || errorData?.error || rawMessage
+                throw new Error(`Lỗi server (${response.status}): ${detailedMessage || 'Vui lòng kiểm tra backend logs và thử lại sau.'}`)
+            }
+
+            // Dịch sang tiếng Việt nếu có thể
+            const viMessage = this.translateApiMessage(rawMessage)
+            throw new Error(viMessage)
         }
 
         if (response.status === 204) {
             return {} as T
         }
 
-        return response.json()
+        try {
+            const data = await response.json()
+            return data
+        } catch (error) {
+            console.error("❌ [appointment-service] Failed to parse JSON response:", error)
+            throw new Error("Không thể parse response từ server.")
+        }
     }
 
     /**
@@ -151,12 +239,66 @@ class AppointmentService {
     }
 
     /**
-     * ✅ Lấy lịch hẹn của bác sĩ đang đăng nhập
-     * GET /api/Appointments/doctor/my-appointments
-     * Backend tự lấy userId từ JWT token
+     * ✅ Lấy lịch hẹn của bác sĩ đang đăng nhập (sử dụng DoctorAppointments controller ổn định)
+     * GET /api/DoctorAppointments/appointments
+     * Backend tự lấy doctor theo JWT → tránh lỗi map userId = doctorId
      */
     async getMyDoctorAppointments(): Promise<AppointmentDto[]> {
-        return this.request<AppointmentDto[]>(`/doctor/my-appointments`)
+        // Gọi API chuyên biệt cho bác sĩ
+        const baseOrigin = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7168'
+        const url = `${baseOrigin}/api/DoctorAppointments/appointments`
+
+        // Lấy token
+        const token = typeof window !== 'undefined'
+            ? localStorage.getItem('token') || localStorage.getItem('auth_token')
+            : null
+
+        const res = await fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            credentials: 'include'
+        })
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => '')
+            throw new Error(text || `HTTP error! status: ${res.status}`)
+        }
+
+        // Dữ liệu trả về của endpoint này là danh sách item theo ngày/giờ tách rời
+        const items = await res.json() as Array<{
+            appointmentId: number
+            appointmentDate: string // dd/MM/yyyy
+            appointmentTime: string // HH:mm
+            status: string
+            patientId: number
+            patientName: string
+            patientPhone: string
+        }>
+
+        // Map sang AppointmentDto dùng chung trong FE
+        const mapped: AppointmentDto[] = items.map(it => {
+            // chuyển dd/MM/yyyy → yyyy-MM-dd
+            const [dd, mm, yyyy] = it.appointmentDate.split('/')
+            const isoDate = `${yyyy}-${mm}-${dd}`
+            const appointmentDateISO = `${isoDate}T${it.appointmentTime}:00`
+
+            return {
+                appointmentId: it.appointmentId,
+                patientId: it.patientId,
+                patientName: it.patientName,
+                patientPhone: it.patientPhone,
+                patientEmail: '',
+                doctorId: 0,
+                doctorName: '',
+                doctorSpecialty: '',
+                appointmentDate: appointmentDateISO,
+                status: it.status,
+            }
+        })
+
+        return mapped
     }
 
     /**
@@ -267,14 +409,69 @@ class AppointmentService {
         cancelledAppointments: number
         noShowAppointments: number
     }> {
-        return this.request<{
-            totalAppointments: number
-            pendingAppointments: number
-            confirmedAppointments: number
-            completedAppointments: number
-            cancelledAppointments: number
-            noShowAppointments: number
-        }>(`/statistics`)
+        try {
+            console.log("📊 [getAppointmentStatistics] Request: /statistics")
+            const result = await this.request<{
+                totalAppointments: number
+                pendingAppointments: number
+                confirmedAppointments: number
+                completedAppointments: number
+                cancelledAppointments: number
+                noShowAppointments: number
+            }>(`/statistics`)
+            console.log("📊 [getAppointmentStatistics] Response:", result)
+            return result
+        } catch (error: any) {
+            console.error("❌ [getAppointmentStatistics] Error:", error)
+            // Check for authorization errors
+            if (error?.message?.includes("401") || error?.message?.includes("403") || error?.message?.includes("Unauthorized") || error?.message?.includes("Forbidden")) {
+                throw new Error("Không có quyền truy cập. Vui lòng đăng nhập với role 'Clinic Manager'.")
+            }
+            throw error
+        }
+    }
+
+    async getAppointmentTimeSeries(params: { from?: string; to?: string; groupBy?: "day" | "month" } = {}): Promise<Array<{ period: string; count: number }>> {
+        try {
+            const searchParams = new URLSearchParams()
+            if (params.from) searchParams.append("from", params.from)
+            if (params.to) searchParams.append("to", params.to)
+            if (params.groupBy) searchParams.append("groupBy", params.groupBy)
+            const query = searchParams.toString()
+            const endpoint = `/stats/timeseries${query ? `?${query}` : ""}`
+            console.log("📊 [getAppointmentTimeSeries] Request:", endpoint)
+            const result = await this.request<Array<{ period: string; count: number }>>(endpoint)
+            console.log("📊 [getAppointmentTimeSeries] Response:", result?.length ?? 0, "items")
+            return result || []
+        } catch (error: any) {
+            console.error("❌ [getAppointmentTimeSeries] Error:", error)
+            // Check for authorization errors
+            if (error?.message?.includes("401") || error?.message?.includes("403") || error?.message?.includes("Unauthorized") || error?.message?.includes("Forbidden")) {
+                throw new Error("Không có quyền truy cập. Vui lòng đăng nhập với role 'Clinic Manager'.")
+            }
+            throw error
+        }
+    }
+
+    async getAppointmentHeatmap(params: { from?: string; to?: string } = {}): Promise<Array<{ weekday: number; hour: number; count: number }>> {
+        try {
+            const searchParams = new URLSearchParams()
+            if (params.from) searchParams.append("from", params.from)
+            if (params.to) searchParams.append("to", params.to)
+            const query = searchParams.toString()
+            const endpoint = `/stats/heatmap${query ? `?${query}` : ""}`
+            console.log("📊 [getAppointmentHeatmap] Request:", endpoint)
+            const result = await this.request<Array<{ weekday: number; hour: number; count: number }>>(endpoint)
+            console.log("📊 [getAppointmentHeatmap] Response:", result?.length ?? 0, "items")
+            return result || []
+        } catch (error: any) {
+            console.error("❌ [getAppointmentHeatmap] Error:", error)
+            // Check for authorization errors
+            if (error?.message?.includes("401") || error?.message?.includes("403") || error?.message?.includes("Unauthorized") || error?.message?.includes("Forbidden")) {
+                throw new Error("Không có quyền truy cập. Vui lòng đăng nhập với role 'Clinic Manager'.")
+            }
+            throw error
+        }
     }
 }
 
