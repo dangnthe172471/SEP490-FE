@@ -35,54 +35,39 @@ export function PatientSearch({
     const searchRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
-    // Load default patients on mount
+    // Load default patients on mount (non-blocking)
     useEffect(() => {
+        // Load trong background, không block UI
         loadDefaultPatients()
     }, [])
 
     // Handle default patients display when defaultPatients changes
     useEffect(() => {
-        console.log('🔄 [PatientSearch] Default patients effect triggered:', {
-            defaultPatientsLength: defaultPatients.length,
-            searchTerm: searchTerm,
-            searchTermLength: searchTerm.trim().length
-        })
-
-        if (defaultPatients.length > 0 && searchTerm.trim().length === 0) {
-            console.log('📋 [PatientSearch] Setting default patients:', defaultPatients)
+        // Cập nhật patients khi defaultPatients load xong và dropdown đang mở
+        if (defaultPatients.length > 0 && searchTerm.trim().length === 0 && isOpen) {
             setPatients(defaultPatients)
-            setIsOpen(true)
         }
-    }, [defaultPatients, searchTerm])
+    }, [defaultPatients, searchTerm, isOpen])
 
     // Debounce search
     useEffect(() => {
-        console.log('🔄 [PatientSearch] Debounce search effect triggered:', {
-            searchTerm: searchTerm,
-            searchTermLength: searchTerm.trim().length,
-            defaultPatientsLength: defaultPatients.length
-        })
-
         const timeoutId = setTimeout(() => {
-            console.log('⏰ [PatientSearch] Debounce timeout triggered')
-
             if (searchTerm.trim().length >= 2) {
-                console.log('🔍 [PatientSearch] Triggering search for term:', searchTerm.trim())
                 searchPatients(searchTerm.trim())
             } else if (searchTerm.trim().length === 0) {
-                console.log('📋 [PatientSearch] Showing default patients')
-                // Nếu search term rỗng, hiển thị default patients
-                setPatients(defaultPatients)
+                // Nếu search term rỗng, hiển thị default patients (nếu có)
+                if (defaultPatients.length > 0) {
+                    setPatients(defaultPatients)
+                }
                 setIsOpen(true)
             } else {
-                console.log('❌ [PatientSearch] Hiding dropdown for short term')
                 setPatients([])
                 setIsOpen(false)
             }
         }, 300)
 
         return () => clearTimeout(timeoutId)
-    }, [searchTerm])
+    }, [searchTerm, defaultPatients])
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -101,13 +86,18 @@ export function PatientSearch({
             setIsLoadingDefault(true)
             setError(null)
 
-            // Sử dụng method mới để lấy tất cả bệnh nhân từ database
+            // Load trong background, không block UI
             const patientInfos = await patientService.getAllPatientsFromDatabase()
 
             setDefaultPatients(patientInfos)
+
+            // Nếu dropdown đang mở và chưa có patients, cập nhật ngay
+            if (isOpen && searchTerm.trim().length === 0) {
+                setPatients(patientInfos)
+            }
         } catch (err: any) {
             console.error('❌ [ERROR] Failed to load default patients:', err)
-            setError(err.message || 'Không thể tải danh sách bệnh nhân')
+            // Không set error để không block UI, chỉ log
         } finally {
             setIsLoadingDefault(false)
         }
@@ -132,13 +122,6 @@ export function PatientSearch({
         }
     }
 
-    const handlePatientSelect = (patient: PatientInfoDto) => {
-        setSelectedPatient(patient)
-        setSearchTerm(`${patient.userId} - ${patient.fullName}`)
-        setIsOpen(false)
-        // Sử dụng patientId cho appointment creation
-        onChange(patient.patientId.toString(), patient.fullName)
-    }
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value
@@ -152,13 +135,25 @@ export function PatientSearch({
     }
 
     const handleInputFocus = () => {
-        // Khi focus vào input, hiển thị default patients ngay lập tức
+        // Mở dropdown ngay lập tức khi focus, không cần đợi
+        setIsOpen(true)
+
         if (searchTerm.trim().length === 0) {
-            setPatients(defaultPatients)
-            setIsOpen(true)
+            // Hiển thị ngay với dữ liệu có sẵn (nếu có)
+            if (defaultPatients.length > 0) {
+                setPatients(defaultPatients)
+            }
         } else if (searchTerm.trim().length >= 2 && patients.length > 0) {
-            setIsOpen(true)
+            // Giữ nguyên kết quả search hiện tại
         }
+    }
+
+    const handlePatientSelect = (patient: PatientInfoDto) => {
+        // Select ngay lập tức, không cần đợi
+        setSelectedPatient(patient)
+        setSearchTerm(`${patient.userId} - ${patient.fullName}`)
+        setIsOpen(false)
+        onChange(patient.patientId.toString(), patient.fullName)
     }
 
     return (
@@ -195,7 +190,7 @@ export function PatientSearch({
                                     <AlertCircle className="h-4 w-4" />
                                     <span className="text-sm">{error}</span>
                                 </div>
-                            ) : (isLoading || isLoadingDefault) ? ( // Show loading for both search and default load
+                            ) : (isLoading || (isLoadingDefault && patients.length === 0)) ? (
                                 <div className="p-4 text-center text-muted-foreground">
                                     <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-primary" />
                                     <p className="text-sm">Đang tải danh sách bệnh nhân...</p>

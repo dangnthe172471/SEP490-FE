@@ -7,7 +7,8 @@ import {
   Calendar,
   FileText,
   Clock,
-  LucideTimer
+  LucideTimer,
+  Bot
 } from "lucide-react"
 import type { NavigationItem } from "./types"
 
@@ -20,6 +21,7 @@ export const DOCTOR_NAVIGATION: NavigationItem[] = [
   { name: "Lịch làm việc", href: "/doctor/schedule", icon: Clock },
   { name: "Chi tiết khám", href: "/doctor/patient-records", icon: FileText },
   { name: "Đổi ca", href: "/doctor/shift-swap", icon: LucideTimer },
+  { name: "AI Hỗ trợ", href: "/doctor/ai-chat", icon: Bot },
 ]
 
 // Helper function to get doctor navigation
