@@ -2,6 +2,7 @@
 
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { AIChatInterface } from "@/components/ai-chat-interface"
+import { ClientOnly } from "@/components/client-only"
 import { Card, CardContent } from "@/components/ui/card"
 import { getCurrentUser } from "@/lib/auth"
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
@@ -75,7 +76,9 @@ export default function DoctorAIChatPage() {
 
         <Card>
           <CardContent className="p-0">
-            <AIChatInterface />
+            <ClientOnly>
+              <AIChatInterface />
+            </ClientOnly>
           </CardContent>
         </Card>
       </div>
