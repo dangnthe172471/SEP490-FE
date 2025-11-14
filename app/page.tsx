@@ -1,6 +1,3 @@
-"use client"
-
-import { useEffect } from "react"
 import { Footer } from "@/components/footer"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
@@ -21,49 +18,10 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { logout, isLoggedIn } from "@/lib/auth"
-import { authService } from "@/lib/services/auth.service"
-
-const isUnauthorizedError = (error: any): boolean => {
-  if (!error) return false
-
-  const message = error?.message?.toLowerCase() || ""
-  const status = error?.status
-
-  return (
-    message === "unauthorized" ||
-    message.includes("unauthorized") ||
-    status === 401 ||
-    status === 403 ||
-    message.includes("401") ||
-    message.includes("403") ||
-    message.includes("failed to fetch") ||
-    message.includes("networkerror") ||
-    message.includes("network request failed")
-  )
-}
 
 export default function HomePage() {
-  useEffect(() => {
-    const verifyAuth = async () => {
-      if (!isLoggedIn()) return
-
-      try {
-        await authService.getProfile()
-      } catch (error) {
-        if (isUnauthorizedError(error)) {
-          console.warn("Token không hợp lệ hoặc không kết nối được API. Tự động đăng xuất...")
-          logout()
-          window.location.reload()
-        }
-      }
-    }
-
-    verifyAuth()
-  }, [])
-
   return (
-    <div className="flex min-h-screen flex-col" suppressHydrationWarning>
+    <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">

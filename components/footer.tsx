@@ -3,9 +3,9 @@ import { Facebook, Instagram, Youtube, Mail, MapPin, Phone } from "lucide-react"
 
 export function Footer() {
   return (
-    <footer className="border-t bg-muted/30" suppressHydrationWarning>
-      <div className="container mx-auto px-4 py-12" suppressHydrationWarning>
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4" suppressHydrationWarning>
+    <footer className="border-t bg-muted/30">
+      <div className="container mx-auto px-4 py-12">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* About */}
           <div>
             <div className="mb-4 flex items-center gap-2">
