@@ -11,7 +11,6 @@ import { Send, Bot, User, Loader2, FileText, Search, Calendar } from "lucide-rea
 import { toast } from "sonner"
 import { getDoctorRecords } from "@/lib/services/doctor-record-service"
 import { patientService } from "@/lib/services/patient-service"
-import { AIChatHistoryService } from "@/lib/services/ai-chat-history.service"
 import type { RecordListItemDto } from "@/lib/types/doctor-record"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -99,6 +98,7 @@ export function AIChatInterface() {
         return `${prefix}-${now}-${random}`
     }
 
+
     const formatRecordInfo = (record: RecordListItemDto, patientInfo?: { allergies?: string; medicalHistory?: string }) => {
         const dobFormatted = record.dob
             ? format(new Date(record.dob), "dd/MM/yyyy", { locale: vi })
@@ -126,37 +126,14 @@ export function AIChatInterface() {
         setLoadingPatientInfo(true)
 
         try {
-            const [patientInfoResult, chatHistoryResult] = await Promise.allSettled([
-                patientService.getPatientById(record.patientId),
-                AIChatHistoryService.getChatHistory(record.patientId),
-            ])
-
-            const patientInfo = patientInfoResult.status === 'fulfilled' ? patientInfoResult.value : undefined
-            const chatHistory = chatHistoryResult.status === 'fulfilled' ? chatHistoryResult.value : []
-
-            if (patientInfoResult.status === 'rejected') {
-                console.error("Failed to load patient medical info:", patientInfoResult.reason)
-            }
-
-            setPatientContext(formatRecordInfo(record, patientInfo))
-
-            if (chatHistory.length > 0) {
-                const firebaseMessages: Message[] = chatHistory.map((msg) => ({
-                    id: msg.id,
-                    role: msg.role,
-                    content: msg.content,
-                    timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
-                }))
-                setMessages(firebaseMessages)
-                toast.success(`Đã tải lịch sử chat cho ${record.patientName}`)
-            } else {
-                setMessages([initialMessage])
-                toast.success(`Đã chọn hồ sơ của ${record.patientName}. Thông tin bệnh nhân sẽ được thêm vào mỗi tin nhắn.`)
-            }
+            const patientInfo = await patientService.getPatientById(record.patientId)
+            const recordInfo = formatRecordInfo(record, patientInfo)
+            setPatientContext(recordInfo)
+            toast.success(`Đã chọn hồ sơ của ${record.patientName}. Thông tin bệnh nhân sẽ được thêm vào mỗi tin nhắn.`)
         } catch (error) {
-            console.error("Unexpected error:", error)
-            setPatientContext(formatRecordInfo(record))
-            setMessages([initialMessage])
+            console.error("Failed to load patient medical info:", error)
+            const recordInfo = formatRecordInfo(record)
+            setPatientContext(recordInfo)
             toast.success(`Đã chọn hồ sơ của ${record.patientName}. Thông tin bệnh nhân sẽ được thêm vào mỗi tin nhắn.`)
         } finally {
             setLoadingPatientInfo(false)
@@ -169,25 +146,6 @@ export function AIChatInterface() {
         content,
         timestamp: new Date(),
     })
-
-    const saveMessagesToFirebase = async (userContent: string, assistantContent: string) => {
-        if (!selectedRecord) return
-
-        try {
-            await Promise.all([
-                AIChatHistoryService.saveMessage(selectedRecord.patientId, {
-                    role: "user",
-                    content: userContent,
-                }),
-                AIChatHistoryService.saveMessage(selectedRecord.patientId, {
-                    role: "assistant",
-                    content: assistantContent,
-                }),
-            ])
-        } catch (error) {
-            console.error("Failed to save messages to Firebase:", error)
-        }
-    }
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return
@@ -229,15 +187,10 @@ export function AIChatInterface() {
             const data = await response.json()
             const assistantMessage = createMessage("assistant", data.response)
             setMessages((prev) => [...prev, assistantMessage])
-
-            await saveMessagesToFirebase(messageText, data.response)
         } catch (error: any) {
             toast.error(error.message || "Không thể gửi tin nhắn")
-            const errorContent = "Xin lỗi, tôi gặp sự cố. Vui lòng thử lại sau."
-            const errorMessage = createMessage("assistant", errorContent)
+            const errorMessage = createMessage("assistant", "Xin lỗi, tôi gặp sự cố. Vui lòng thử lại sau.")
             setMessages((prev) => [...prev, errorMessage])
-
-            await saveMessagesToFirebase(messageText, errorContent)
         } finally {
             setIsLoading(false)
         }
@@ -257,7 +210,7 @@ export function AIChatInterface() {
         })
     }
 
-    const formatMarkdown = (text: string): string => {
+    const formatMarkdown = (text: string) => {
         let formatted = text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>')
