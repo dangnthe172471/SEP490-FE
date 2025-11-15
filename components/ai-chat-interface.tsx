@@ -7,10 +7,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Send, Bot, User, Loader2, FileText, Search, Calendar } from "lucide-react"
+import { Send, Bot, User, Loader2, FileText, Search, Calendar, ClipboardList } from "lucide-react"
 import { toast } from "sonner"
 import { getDoctorRecords } from "@/lib/services/doctor-record-service"
 import { patientService } from "@/lib/services/patient-service"
+import { AIChatHistoryService } from "@/lib/services/ai-chat-history.service"
 import type { RecordListItemDto } from "@/lib/types/doctor-record"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -39,6 +40,7 @@ export function AIChatInterface() {
     const [recordsLoading, setRecordsLoading] = useState(true)
     const [loadingPatientInfo, setLoadingPatientInfo] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
+    const [isSummarizing, setIsSummarizing] = useState(false)
     const scrollAreaRef = useRef<HTMLDivElement>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -98,7 +100,6 @@ export function AIChatInterface() {
         return `${prefix}-${now}-${random}`
     }
 
-
     const formatRecordInfo = (record: RecordListItemDto, patientInfo?: { allergies?: string; medicalHistory?: string }) => {
         const dobFormatted = record.dob
             ? format(new Date(record.dob), "dd/MM/yyyy", { locale: vi })
@@ -126,14 +127,37 @@ export function AIChatInterface() {
         setLoadingPatientInfo(true)
 
         try {
-            const patientInfo = await patientService.getPatientById(record.patientId)
-            const recordInfo = formatRecordInfo(record, patientInfo)
-            setPatientContext(recordInfo)
-            toast.success(`Đã chọn hồ sơ của ${record.patientName}. Thông tin bệnh nhân sẽ được thêm vào mỗi tin nhắn.`)
+            const [patientInfoResult, chatHistoryResult] = await Promise.allSettled([
+                patientService.getPatientById(record.patientId),
+                AIChatHistoryService.getChatHistory(record.patientId),
+            ])
+
+            const patientInfo = patientInfoResult.status === 'fulfilled' ? patientInfoResult.value : undefined
+            const chatHistory = chatHistoryResult.status === 'fulfilled' ? chatHistoryResult.value : []
+
+            if (patientInfoResult.status === 'rejected') {
+                console.error("Failed to load patient medical info:", patientInfoResult.reason)
+            }
+
+            setPatientContext(formatRecordInfo(record, patientInfo))
+
+            if (chatHistory.length > 0) {
+                const firebaseMessages: Message[] = chatHistory.map((msg) => ({
+                    id: msg.id,
+                    role: msg.role,
+                    content: msg.content,
+                    timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+                }))
+                setMessages(firebaseMessages)
+                toast.success(`Đã tải lịch sử chat cho ${record.patientName}`)
+            } else {
+                setMessages([initialMessage])
+                toast.success(`Đã chọn hồ sơ của ${record.patientName}. Thông tin bệnh nhân sẽ được thêm vào mỗi tin nhắn.`)
+            }
         } catch (error) {
-            console.error("Failed to load patient medical info:", error)
-            const recordInfo = formatRecordInfo(record)
-            setPatientContext(recordInfo)
+            console.error("Unexpected error:", error)
+            setPatientContext(formatRecordInfo(record))
+            setMessages([initialMessage])
             toast.success(`Đã chọn hồ sơ của ${record.patientName}. Thông tin bệnh nhân sẽ được thêm vào mỗi tin nhắn.`)
         } finally {
             setLoadingPatientInfo(false)
@@ -146,6 +170,25 @@ export function AIChatInterface() {
         content,
         timestamp: new Date(),
     })
+
+    const saveMessagesToFirebase = async (userContent: string, assistantContent: string) => {
+        if (!selectedRecord) return
+
+        try {
+            await Promise.all([
+                AIChatHistoryService.saveMessage(selectedRecord.patientId, {
+                    role: "user",
+                    content: userContent,
+                }),
+                AIChatHistoryService.saveMessage(selectedRecord.patientId, {
+                    role: "assistant",
+                    content: assistantContent,
+                }),
+            ])
+        } catch (error) {
+            console.error("Failed to save messages to Firebase:", error)
+        }
+    }
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return
@@ -187,10 +230,15 @@ export function AIChatInterface() {
             const data = await response.json()
             const assistantMessage = createMessage("assistant", data.response)
             setMessages((prev) => [...prev, assistantMessage])
+
+            await saveMessagesToFirebase(messageText, data.response)
         } catch (error: any) {
             toast.error(error.message || "Không thể gửi tin nhắn")
-            const errorMessage = createMessage("assistant", "Xin lỗi, tôi gặp sự cố. Vui lòng thử lại sau.")
+            const errorContent = "Xin lỗi, tôi gặp sự cố. Vui lòng thử lại sau."
+            const errorMessage = createMessage("assistant", errorContent)
             setMessages((prev) => [...prev, errorMessage])
+
+            await saveMessagesToFirebase(messageText, errorContent)
         } finally {
             setIsLoading(false)
         }
@@ -203,6 +251,70 @@ export function AIChatInterface() {
         }
     }
 
+    const handleSummarize = async () => {
+        // Chỉ tổng hợp nếu có ít nhất 2 tin nhắn (không tính initial message)
+        const userMessages = messages.filter(msg => msg.role === "user")
+        if (userMessages.length === 0) {
+            toast.error("Chưa có cuộc trò chuyện để tổng hợp")
+            return
+        }
+
+        setIsSummarizing(true)
+
+        try {
+            const conversationHistory = messages.map((msg) => ({
+                role: msg.role,
+                content: msg.content,
+            }))
+
+            const summarizePrompt = `Hãy tổng hợp toàn bộ cuộc trò chuyện trên và rút ra kết luận:
+
+1. TÓM TẮT: Tóm tắt ngắn gọn các vấn đề đã thảo luận
+2. CHẨN ĐOÁN PHÂN BIỆT: Liệt kê các khả năng chẩn đoán đã đề cập
+3. XÉT NGHIỆM: Tổng hợp các xét nghiệm đã đề xuất
+4. HƯỚNG XỬ TRÍ: Tóm tắt các hướng xử trí đã thảo luận
+5. KẾT LUẬN: Đưa ra kết luận tổng hợp và khuyến nghị cuối cùng
+
+Hãy trình bày rõ ràng, ngắn gọn, có cấu trúc.`
+
+            const response = await fetch("/api/ai/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: summarizePrompt,
+                    conversationHistory,
+                }),
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || "Không thể tổng hợp cuộc trò chuyện")
+            }
+
+            const data = await response.json()
+            const summaryMessage = createMessage("assistant", `## 📋 TỔNG HỢP CUỘC TRÒ CHUYỆN\n\n${data.response}`)
+            setMessages((prev) => [...prev, summaryMessage])
+
+            // Lưu vào Firebase nếu có selectedRecord
+            if (selectedRecord) {
+                try {
+                    await AIChatHistoryService.saveMessage(selectedRecord.patientId, {
+                        role: "assistant",
+                        content: summaryMessage.content,
+                    })
+                } catch (error) {
+                    console.error("Failed to save summary to Firebase:", error)
+                }
+            }
+
+            toast.success("Đã tổng hợp cuộc trò chuyện")
+        } catch (error: any) {
+            toast.error(error.message || "Không thể tổng hợp cuộc trò chuyện")
+        } finally {
+            setIsSummarizing(false)
+        }
+    }
+
     const formatTime = (date: Date) => {
         return date.toLocaleTimeString("vi-VN", {
             hour: "2-digit",
@@ -210,7 +322,7 @@ export function AIChatInterface() {
         })
     }
 
-    const formatMarkdown = (text: string) => {
+    const formatMarkdown = (text: string): string => {
         let formatted = text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>')
@@ -220,6 +332,18 @@ export function AIChatInterface() {
         let inList = false
 
         for (const line of lines) {
+            // Handle headings (## Heading)
+            const headingMatch = line.match(/^##\s+(.+)$/)
+            if (headingMatch) {
+                if (inList) {
+                    result.push('</ul>')
+                    inList = false
+                }
+                result.push(`<h3 class="font-bold text-base mt-4 mb-2">${headingMatch[1]}</h3>`)
+                continue
+            }
+
+            // Handle list items
             const listMatch = line.match(/^\s*[-*]\s+(.+)$/)
             if (listMatch) {
                 if (!inList) {
@@ -240,7 +364,7 @@ export function AIChatInterface() {
 
         if (inList) result.push('</ul>')
 
-        return `<p class="mb-2">${result.join('\n').replace(/\n\n+/g, '</p><p class="mb-2">').replace(/\n/g, '<br>')}</p>`
+        return `<div class="mb-2">${result.join('\n').replace(/\n\n+/g, '</p><p class="mb-2">').replace(/\n/g, '<br>')}</div>`
     }
 
     return (
@@ -331,18 +455,39 @@ export function AIChatInterface() {
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
                 <div className="p-4 border-b bg-muted/50 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 bg-primary/10">
-                            <AvatarFallback className="bg-primary/20">
-                                <Bot className="h-5 w-5 text-primary" />
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                            <h3 className="font-semibold text-sm">AI Hỗ trợ Chẩn đoán</h3>
-                            <p className="text-xs text-muted-foreground">
-                                {selectedRecord ? `Đang xem: ${selectedRecord.patientName}` : "Sẵn sàng hỗ trợ"}
-                            </p>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1">
+                            <Avatar className="h-9 w-9 bg-primary/10">
+                                <AvatarFallback className="bg-primary/20">
+                                    <Bot className="h-5 w-5 text-primary" />
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-sm">AI Hỗ trợ Chẩn đoán</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {selectedRecord ? `Đang xem: ${selectedRecord.patientName}` : "Sẵn sàng hỗ trợ"}
+                                </p>
+                            </div>
                         </div>
+                        <Button
+                            onClick={handleSummarize}
+                            disabled={isSummarizing || isLoading || messages.filter(msg => msg.role === "user").length === 0}
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                        >
+                            {isSummarizing ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Đang tổng hợp...
+                                </>
+                            ) : (
+                                <>
+                                    <ClipboardList className="h-4 w-4 mr-2" />
+                                    Tổng hợp
+                                </>
+                            )}
+                        </Button>
                     </div>
                 </div>
 
