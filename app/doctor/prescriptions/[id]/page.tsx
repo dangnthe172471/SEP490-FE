@@ -34,7 +34,9 @@ export default function PrescriptionDetailPage() {
         if (mounted) setLoading(false)
       }
     })()
-    return () => { mounted = false }
+    return () => {
+      mounted = false
+    }
   }, [id])
 
   const issuedAtStr = useMemo(() => {
@@ -67,6 +69,7 @@ export default function PrescriptionDetailPage() {
   return (
     <main className="min-h-screen bg-background p-4 md:p-6 print:p-0">
       <div className="max-w-5xl mx-auto">
+        {/* ACTION BAR (ẩn khi in) */}
         <div className="flex items-center justify-between mb-4 print:hidden">
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.back()}>
@@ -91,14 +94,18 @@ export default function PrescriptionDetailPage() {
             <div className="p-6 text-muted-foreground">Không có dữ liệu</div>
           ) : (
             <>
-              {/* Header */}
+              {/* HEADER */}
               <CardHeader className="text-center">
-                <CardTitle className="text-2xl font-bold tracking-wide">ĐƠN THUỐC</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">Ngày kê: {issuedAtStr}</p>
+                <CardTitle className="text-2xl font-bold tracking-wide">
+                  ĐƠN THUỐC
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ngày kê: {issuedAtStr}
+                </p>
               </CardHeader>
 
               <CardContent className="space-y-6">
-                {/* Thông tin bệnh nhân & bác sĩ */}
+                {/* THÔNG TIN BN / BS */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <div className="font-semibold">Thông tin bệnh nhân</div>
@@ -116,7 +123,7 @@ export default function PrescriptionDetailPage() {
                   </div>
                 </section>
 
-                {/* Chẩn đoán */}
+                {/* CHẨN ĐOÁN */}
                 {(data.diagnosis?.code || data.diagnosis?.text) && (
                   <section>
                     <div className="font-semibold mb-2">Chẩn đoán</div>
@@ -137,9 +144,19 @@ export default function PrescriptionDetailPage() {
                   </section>
                 )}
 
+                {/* GHI CHÚ ĐƠN (NẾU CÓ) */}
+                {data.notes && data.notes.trim() !== "" && (
+                  <section>
+                    <div className="font-semibold mb-1">Ghi chú đơn thuốc</div>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {data.notes}
+                    </p>
+                  </section>
+                )}
+
                 <Separator />
 
-                {/* Thuốc điều trị */}
+                {/* BẢNG THUỐC ĐIỀU TRỊ */}
                 <section>
                   <div className="font-semibold mb-3">Thuốc điều trị</div>
                   <div className="overflow-x-auto">
@@ -151,16 +168,54 @@ export default function PrescriptionDetailPage() {
                           <Th>Nhà cung cấp</Th>
                           <Th>Cách dùng (Dosage)</Th>
                           <Th>Thời gian (Duration)</Th>
+                          <Th>Hướng dẫn</Th>
                         </tr>
                       </thead>
                       <tbody>
                         {data.items.map((it, idx) => (
                           <tr key={it.prescriptionDetailId} className="border-t">
                             <Td className="text-center w-12">{idx + 1}</Td>
-                            <Td className="font-medium">{it.medicineName}</Td>
-                            <Td>{it.providerName ?? "-"}</Td>
-                            <Td className="whitespace-pre-wrap">{it.dosage}</Td>
+
+                            <Td className="font-medium">
+                              {/* Tên thuốc */}
+                              <div>{it.medicineName}</div>
+
+                              {/* Nếu BE sau này trả thêm activeIngredient / strength / dosageForm thì hiển thị thêm */}
+                              {(it.activeIngredient ||
+                                it.strength ||
+                                it.dosageForm ||
+                                it.route) && (
+                                <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                  {it.activeIngredient && (
+                                    <div>Hoạt chất: {it.activeIngredient}</div>
+                                  )}
+                                  {(it.strength || it.dosageForm || it.route) && (
+                                    <div>
+                                      {it.strength && `${it.strength} · `}
+                                      {it.dosageForm ?? ""}{" "}
+                                      {it.route ? `(${it.route})` : ""}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </Td>
+
+                            <Td>
+                              {it.providerName ?? "-"}
+                              {it.providerContact && (
+                                <div className="text-xs text-muted-foreground">
+                                  {it.providerContact}
+                                </div>
+                              )}
+                            </Td>
+
+                            <Td className="whitespace-pre-wrap">
+                              {it.dosage}
+                            </Td>
                             <Td>{it.duration ?? "-"}</Td>
+                            <Td className="whitespace-pre-wrap">
+                              {it.instruction ?? "-"}
+                            </Td>
                           </tr>
                         ))}
                       </tbody>
@@ -168,11 +223,13 @@ export default function PrescriptionDetailPage() {
                   </div>
                 </section>
 
-                {/* Footer ký tên (đơn giản) */}
+                {/* CHỮ KÝ BÁC SĨ */}
                 <section className="grid grid-cols-2 mt-8 print:mt-6">
                   <div />
                   <div className="text-center">
-                    <div className="text-sm italic text-muted-foreground">Bác sĩ kê đơn</div>
+                    <div className="text-sm italic text-muted-foreground">
+                      Bác sĩ kê đơn
+                    </div>
                     <div className="h-16" />
                     <div className="font-semibold">{data.doctor.name}</div>
                   </div>
@@ -183,12 +240,21 @@ export default function PrescriptionDetailPage() {
         </Card>
       </div>
 
-      {/* Print styles */}
+      {/* PRINT STYLES */}
       <style jsx global>{`
         @media print {
-          @page { size: A4; margin: 10mm; }
-          body { background: white !important; }
-          header, nav, .print\\:hidden { display: none !important; }
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+          body {
+            background: white !important;
+          }
+          header,
+          nav,
+          .print\\:hidden {
+            display: none !important;
+          }
         }
       `}</style>
     </main>
@@ -207,6 +273,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function Th({ children }: { children: React.ReactNode }) {
   return <th className="border px-3 py-2 text-left">{children}</th>
 }
-function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+
+function Td({
+  children,
+  className,
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
   return <td className={`px-3 py-2 align-top ${className ?? ""}`}>{children}</td>
 }

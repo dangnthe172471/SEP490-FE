@@ -1,7 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,27 +18,12 @@ import { Loader2, X, Search } from "lucide-react"
 import type { RecordListItemDto } from "@/lib/types/doctor-record"
 import type { ReadMedicineDto } from "@/lib/types/medicine"
 import { medicineService } from "@/lib/services/medicine-service"
-
-const BASE_URL =
-  (process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168").replace(/\/+$/, "") + "/api"
-
-function getAccessTokenFromClient(): string | undefined {
-  if (typeof window === "undefined") return undefined
-  try {
-    const ls =
-      window.localStorage.getItem("auth_token") ??
-      window.localStorage.getItem("access_token") ??
-      undefined
-    if (ls) return ls
-    const fromCookie = (n: string) =>
-      document.cookie?.split("; ")?.find((c) => c.startsWith(`${n}=`))
-    const a = fromCookie("auth_token")
-    const b = fromCookie("access_token")
-    if (a) return decodeURIComponent(a.split("=")[1])
-    if (b) return decodeURIComponent(b.split("=")[1])
-  } catch {}
-  return undefined
-}
+import {
+  createPrescriptionDoctor,
+} from "@/lib/services/prescription-doctor-service"
+import type {
+  CreatePrescriptionRequest,
+} from "@/lib/types/prescription-doctor"
 
 interface PrescriptionItem {
   medicineId: number
@@ -40,6 +31,7 @@ interface PrescriptionItem {
   providerName?: string
   dosage: string
   duration: string
+  instruction?: string
 }
 
 interface PrescriptionModalProps {
@@ -49,14 +41,23 @@ interface PrescriptionModalProps {
   onSaved: () => void
 }
 
-export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: PrescriptionModalProps) {
+function normalizeStatus(raw?: string | null): "Providing" | "Stopped" {
+  return (raw || "").toLowerCase() === "providing" ? "Providing" : "Stopped"
+}
+
+export default function PrescriptionModal({
+  isOpen,
+  onClose,
+  record,
+  onSaved,
+}: PrescriptionModalProps) {
   const [medicines, setMedicines] = useState<ReadMedicineDto[]>([])
   const [medicineSearch, setMedicineSearch] = useState("")
   const [selectedMedicine, setSelectedMedicine] = useState<ReadMedicineDto | null>(null)
 
-  // 🔸 2 input riêng: Liều lượng & Thời gian dùng
   const [dosage, setDosage] = useState("")
   const [duration, setDuration] = useState("")
+  const [instruction, setInstruction] = useState("")
 
   const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -69,7 +70,13 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
     ;(async () => {
       setLoading(true)
       try {
-        const token = getAccessTokenFromClient()
+        const token =
+          typeof window !== "undefined"
+            ? (localStorage.getItem("auth_token") ??
+               localStorage.getItem("access_token") ??
+               undefined)
+            : undefined
+
         const data = await medicineService.getAll(token)
         setMedicines(data)
       } catch (e) {
@@ -85,7 +92,8 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
     if (!q) return true
     return (
       (m.medicineName ?? "").toLowerCase().includes(q) ||
-      (m.providerName ?? "").toLowerCase().includes(q)
+      (m.providerName ?? "").toLowerCase().includes(q) ||
+      (m.activeIngredient ?? "").toLowerCase().includes(q)
     )
   })
 
@@ -100,20 +108,24 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
       alert("Vui lòng chọn thuốc, nhập Liều lượng và Thời gian dùng")
       return
     }
+
     setPrescriptionItems((prev) => [
       ...prev,
       {
         medicineId: selectedMedicine.medicineId,
         medicineName: selectedMedicine.medicineName,
-        providerName: selectedMedicine.providerName,
+        providerName: selectedMedicine.providerName ?? undefined,
         dosage: dosage.trim(),
         duration: duration.trim(),
+        instruction: instruction.trim() || undefined,
       },
     ])
+
     setSelectedMedicine(null)
     setMedicineSearch("")
     setDosage("")
     setDuration("")
+    setInstruction("")
     setShowMedicineList(false)
   }
 
@@ -129,31 +141,19 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
 
     setSavingPrescription(true)
     try {
-      const token = getAccessTokenFromClient()
-      const payload = {
+      const payload: CreatePrescriptionRequest = {
         recordId: record.recordId,
+        issuedDate: undefined, // để backend tự dùng UtcNow nếu muốn
+        notes: notes.trim() || undefined,
         items: prescriptionItems.map((it) => ({
           medicineId: it.medicineId,
-          dosage: it.dosage,    // cột Dosage
-          duration: it.duration // cột Duration
+          dosage: it.dosage,
+          duration: it.duration,
+          instruction: it.instruction ?? null,
         })),
-        // issuedDate: new Date().toISOString(),
-        // notes,
       }
 
-      const res = await fetch(`${BASE_URL}/PrescriptionsDoctor`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "")
-        throw new Error(txt || `HTTP ${res.status}`)
-      }
+      await createPrescriptionDoctor(payload)
 
       alert("Kê đơn thành công")
       onClose()
@@ -168,30 +168,47 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="
+          w-[95vw]
+          sm:w-[70vw]
+          sm:max-w-[70vw]
+          lg:w-[66vw]
+          lg:max-w-[66vw]
+          max-h-[90vh]
+          overflow-hidden
+          flex flex-col
+        "
+      >
         <DialogHeader>
           <DialogTitle>Kê đơn thuốc</DialogTitle>
-          <div className="text-sm text-muted-foreground mt-2">
-            <p><strong>Bệnh nhân:</strong> {record.patientName}</p>
-            <p><strong>Chẩn đoán:</strong> {record.diagnosisRaw || "Không có"}</p>
+          <div className="mt-2 grid gap-3 md:grid-cols-2 text-sm text-muted-foreground">
+            <div>
+              <p><strong>Bệnh nhân:</strong> {record.patientName}</p>
+              <p><strong>Chẩn đoán:</strong> {record.diagnosisRaw || "Không có"}</p>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        {/* BODY SCROLL — KHÔNG CHO MODAL DÀI QUÁ */}
+        <div className="space-y-6 overflow-y-auto pr-2 max-h-[calc(90vh-150px)]">
           {/* Chọn thuốc */}
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground">Chọn thuốc</h3>
 
             <div className="space-y-3">
-              {/* Search thuốc */}
+              {/* Tìm thuốc */}
               <div>
-                <Label htmlFor="medicine-search" className="text-sm font-medium">Tìm kiếm thuốc</Label>
+                <Label htmlFor="medicine-search" className="text-sm font-medium">
+                  Tìm kiếm thuốc
+                </Label>
+
                 <div className="relative mt-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="medicine-search"
-                      placeholder="Nhập tên thuốc hoặc nhà cung cấp..."
+                      placeholder="Nhập tên thuốc, hoạt chất hoặc nhà cung cấp..."
                       value={medicineSearch}
                       onChange={(e) => {
                         setMedicineSearch(e.target.value)
@@ -218,60 +235,119 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
                               onClick={() => handleSelectMedicine(m)}
                               className="w-full px-4 py-3 text-left hover:bg-accent transition-colors border-b last:border-b-0"
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <p className="font-medium text-foreground text-sm">{m.medicineName}</p>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 text-sm">
+                                  <p className="font-medium">{m.medicineName}</p>
                                   <p className="text-xs text-muted-foreground">
-                                    {m.providerName ?? "Nhà cung cấp không xác định"}
+                                    Hoạt chất: {m.activeIngredient || "Không có dữ liệu"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {m.strength || "?"} · {m.dosageForm || "?"} {m.route ? `(${m.route})` : ""} · Đơn vị: {m.prescriptionUnit || "?"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Nhóm điều trị: {m.therapeuticClass || "Không xác định"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Nhà cung cấp: {m.providerName ?? "Không xác định"}
                                   </p>
                                 </div>
+                                <Badge variant="outline">
+                                  {normalizeStatus(m.status ?? undefined) === "Providing"
+                                    ? "Đang cung cấp"
+                                    : "Ngừng"}
+                                </Badge>
                               </div>
                             </button>
                           ))}
                         </div>
                       ) : (
-                        <div className="p-4 text-center text-muted-foreground text-sm">Không tìm thấy thuốc</div>
+                        <div className="p-4 text-center text-muted-foreground text-sm">
+                          Không tìm thấy thuốc
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Hiển thị provider đã chọn */}
+              {/* Thông tin chi tiết thuốc đã chọn */}
               {selectedMedicine && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Nhà cung cấp</p>
-                      <p className="font-medium text-foreground">
-                        {selectedMedicine.providerName ?? "Không xác định"}
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 space-y-1 text-sm">
+                      <p className="font-semibold">{selectedMedicine.medicineName}</p>
+                      <p className="text-muted-foreground">
+                        Hoạt chất: <strong>{selectedMedicine.activeIngredient || "Không có dữ liệu"}</strong>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Hàm lượng: <strong>{selectedMedicine.strength || "Không có dữ liệu"}</strong>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Dạng / Đường dùng:{" "}
+                        <strong>
+                          {selectedMedicine.dosageForm || "?"}
+                          {selectedMedicine.route ? ` (${selectedMedicine.route})` : ""}
+                        </strong>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Đơn vị kê đơn: <strong>{selectedMedicine.prescriptionUnit || "Không có dữ liệu"}</strong>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Nhóm điều trị: <strong>{selectedMedicine.therapeuticClass || "Không xác định"}</strong>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Nhà cung cấp: <strong>{selectedMedicine.providerName ?? "Không xác định"}</strong>
                       </p>
                     </div>
-                    <Badge variant="outline">Thuốc</Badge>
+
+                    <Badge variant="outline">
+                      {normalizeStatus(selectedMedicine.status ?? undefined) === "Providing"
+                        ? "Đang cung cấp"
+                        : "Ngừng"}
+                    </Badge>
                   </div>
                 </div>
               )}
 
-              {/* Inputs: Dosage + Duration */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Liều lượng / thời gian / hướng dẫn */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <Label htmlFor="dosage" className="text-sm font-medium">Liều lượng (Dosage)</Label>
+                  <Label htmlFor="dosage" className="text-sm font-medium">
+                    Liều lượng (Dosage)
+                  </Label>
                   <Input
                     id="dosage"
-                    placeholder="VD: 2 viên × 3 lần/ngày"
                     value={dosage}
+                    placeholder="VD: 2 viên × 3 lần/ngày"
                     onChange={(e) => setDosage(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddMedicine()}
                     className="mt-2"
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="duration" className="text-sm font-medium">Thời gian dùng (Duration)</Label>
+                  <Label htmlFor="duration" className="text-sm font-medium">
+                    Thời gian dùng (Duration)
+                  </Label>
                   <Input
                     id="duration"
-                    placeholder="VD: 5 ngày"
                     value={duration}
+                    placeholder="VD: 5 ngày"
                     onChange={(e) => setDuration(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddMedicine()}
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="instruction" className="text-sm font-medium">
+                    Hướng dẫn (Instruction)
+                  </Label>
+                  <Input
+                    id="instruction"
+                    value={instruction}
+                    placeholder="VD: Uống sau ăn, uống buổi tối..."
+                    onChange={(e) => setInstruction(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddMedicine()}
                     className="mt-2"
                   />
@@ -279,32 +355,49 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
               </div>
 
               <div className="flex justify-end">
-                <Button onClick={handleAddMedicine} disabled={!selectedMedicine || !dosage.trim() || !duration.trim()}>
+                <Button
+                  onClick={handleAddMedicine}
+                  disabled={!selectedMedicine || !dosage.trim() || !duration.trim()}
+                >
                   Thêm vào đơn
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Danh sách đã chọn */}
+          {/* Danh sách thuốc đã chọn */}
           {prescriptionItems.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-foreground">Thuốc đã chọn ({prescriptionItems.length})</h3>
+              <h3 className="font-semibold text-foreground">
+                Thuốc đã chọn ({prescriptionItems.length})
+              </h3>
+
               <div className="space-y-2">
                 {prescriptionItems.map((item, index) => (
                   <Card key={index}>
                     <CardContent className="pt-4">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
-                          <p className="font-medium text-foreground">{item.medicineName}</p>
+                          <p className="font-medium">{item.medicineName}</p>
                           <p className="text-sm text-muted-foreground">
                             Nhà cung cấp: {item.providerName ?? "Không xác định"}
                           </p>
-                          <div className="mt-1 text-sm text-muted-foreground">
-                            <p>Liều lượng: <strong>{item.dosage}</strong></p>
-                            <p>Thời gian dùng: <strong>{item.duration}</strong></p>
+
+                          <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
+                            <p>
+                              Liều lượng: <strong>{item.dosage}</strong>
+                            </p>
+                            <p>
+                              Thời gian dùng: <strong>{item.duration}</strong>
+                            </p>
+                            {item.instruction && (
+                              <p>
+                                Hướng dẫn: <strong>{item.instruction}</strong>
+                              </p>
+                            )}
                           </div>
                         </div>
+
                         <Button
                           variant="ghost"
                           size="sm"
@@ -321,12 +414,14 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
             </div>
           )}
 
-          {/* Ghi chú (tuỳ chọn) */}
+          {/* Ghi chú đơn thuốc */}
           <div>
-            <Label htmlFor="notes" className="text-sm font-medium">Ghi chú thêm (tùy chọn)</Label>
+            <Label htmlFor="notes" className="text-sm font-medium">
+              Ghi chú thêm (tùy chọn)
+            </Label>
             <Input
               id="notes"
-              placeholder="Nhập ghi chú..."
+              placeholder="Nhập ghi chú chung cho đơn thuốc..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="mt-2"
@@ -334,10 +429,22 @@ export default function PrescriptionModal({ isOpen, onClose, record, onSaved }: 
           </div>
         </div>
 
+        {/* FOOTER */}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Hủy</Button>
-          <Button onClick={handleSavePrescription} disabled={savingPrescription || prescriptionItems.length === 0}>
-            {savingPrescription ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu...</>) : "Lưu đơn thuốc"}
+          <Button variant="outline" onClick={onClose}>
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSavePrescription}
+            disabled={savingPrescription || prescriptionItems.length === 0}
+          >
+            {savingPrescription ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu...
+              </>
+            ) : (
+              "Lưu đơn thuốc"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

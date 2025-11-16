@@ -1,4 +1,11 @@
-import type { PrescriptionSummaryDto } from "@/lib/types/prescription-doctor";
+// src/lib/services/prescription-doctor-service.ts
+
+"use client";
+
+import type {
+  PrescriptionSummaryDto,
+  CreatePrescriptionRequest,
+} from "@/lib/types/prescription-doctor";
 
 const RAW_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168").trim();
 const API_BASE_URL = RAW_BASE.replace(/\/+$/, "").endsWith("/api")
@@ -26,9 +33,14 @@ function tokenFromBrowser(): string | undefined {
 
 async function readBodySafe(res: Response) {
   const t = await res.text().catch(() => "");
-  try { return JSON.parse(t); } catch { return t; }
+  try {
+    return JSON.parse(t);
+  } catch {
+    return t;
+  }
 }
 
+// ========== XEM ĐƠN THUỐC ==========
 export async function getPrescriptionById(
   id: number,
   token?: string
@@ -51,6 +63,35 @@ export async function getPrescriptionById(
       (data && typeof data === "object" && "message" in data
         ? (data as any).message
         : data) || `Failed to fetch prescription (${res.status})`;
+    throw new Error(String(msg));
+  }
+  return data as PrescriptionSummaryDto;
+}
+
+// ========== KÊ ĐƠN THUỐC (Doctor tạo mới) ==========
+export async function createPrescriptionDoctor(
+  payload: CreatePrescriptionRequest,
+  token?: string
+): Promise<PrescriptionSummaryDto> {
+  const url = `${API_BASE_URL}/PrescriptionsDoctor`;
+  const tk = token ?? tokenFromBrowser();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(tk ? { Authorization: `Bearer ${tk}` } : {}),
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readBodySafe(res);
+  if (!res.ok) {
+    const msg =
+      (data && typeof data === "object" && "message" in data
+        ? (data as any).message
+        : data) || `Failed to create prescription (${res.status})`;
     throw new Error(String(msg));
   }
   return data as PrescriptionSummaryDto;
