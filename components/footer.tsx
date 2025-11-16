@@ -7,16 +7,16 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12" suppressHydrationWarning>
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4" suppressHydrationWarning>
           {/* About */}
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <div className="flex  items-center justify-center rounded-lg">
+          <div suppressHydrationWarning>
+            <div className="mb-4 flex items-center gap-2" suppressHydrationWarning>
+              <div className="flex  items-center justify-center rounded-lg" suppressHydrationWarning>
                 <img
                   src="/images/logo.png"
                   alt="Logo"
                   className="h-25 w-25 object-contain"
                 />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col" suppressHydrationWarning>
                 <span className="text-lg font-bold leading-none text-primary">Diamond Health</span>
                 <span className="text-xs text-muted-foreground">Phòng khám đa khoa</span>
               </div>
@@ -27,7 +27,7 @@ export function Footer() {
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div suppressHydrationWarning>
             <h3 className="mb-4 text-sm font-bold">Liên kết nhanh</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -54,7 +54,7 @@ export function Footer() {
           </div>
 
           {/* Services */}
-          <div>
+          <div suppressHydrationWarning>
             <h3 className="mb-4 text-sm font-bold">Chuyên khoa</h3>
             <ul className="space-y-2 text-sm">
               <li className="text-muted-foreground">Nội tổng quát</li>
@@ -66,7 +66,7 @@ export function Footer() {
           </div>
 
           {/* Contact */}
-          <div>
+          <div suppressHydrationWarning>
             <h3 className="mb-4 text-sm font-bold">Liên hệ</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2">
@@ -83,7 +83,7 @@ export function Footer() {
               </li>
             </ul>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex gap-3" suppressHydrationWarning>
               <a
                 href="#"
                 className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
@@ -109,7 +109,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
+        <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground" suppressHydrationWarning>
           <p>© 2025 Diamond Health. Tất cả quyền được bảo lưu.</p>
         </div>
       </div>
