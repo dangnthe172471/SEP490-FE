@@ -101,8 +101,15 @@ export default function RegisterPage() {
       }
 
       const response = await authService.register(registerData)
-      toast.success("Đăng ký thành công! Vui lòng đăng nhập.")
-      router.push("/login")
+      
+      // Nếu có email, redirect đến trang xác thực email
+      if (formData.email) {
+        toast.success("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.")
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`)
+      } else {
+        toast.success("Đăng ký thành công! Vui lòng đăng nhập.")
+        router.push("/login")
+      }
     } catch (error: any) {
       if (error.message.includes("Phone already exists")) {
         setErrors({ phone: "Số điện thoại đã được sử dụng" })
