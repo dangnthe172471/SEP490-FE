@@ -30,7 +30,7 @@ import { showErrorAlert } from "@/lib/sweetalert-config"
 import { toast } from "sonner"
 import { Breadcrumb } from "@/components/breadcrumb"
 import { medicalHistoryService, MedicalRecord } from "@/lib/services/medical-history.service"
-
+import { getPaymentStatus } from "@/lib/services/payment-service";
 
 interface PatientProfile {
     userId: number
@@ -40,6 +40,43 @@ interface PatientProfile {
     gender?: string
     dob?: string
 }
+
+function PaymentStatusButton({ recordId }: { recordId: number }) {
+    const router = useRouter();
+    const [status, setStatus] = useState<"loading" | "paid" | "unpaid">("loading");
+
+    useEffect(() => {
+        async function fetchStatus() {
+            try {
+                const res = await getPaymentStatus(recordId);
+
+
+                setStatus(res.status === "Paid" ? "paid" : "unpaid");
+            } catch {
+                setStatus("unpaid");
+            }
+        }
+        fetchStatus();
+    }, [recordId]);
+
+    if (status === "loading") return (
+        <Badge className="bg-yellow-100 text-yellow-700">Đang kiểm tra...</Badge>
+    );
+
+    if (status === "paid") return (
+        <Badge className="bg-green-100 text-green-700">✓ Đã thanh toán</Badge>
+    );
+
+    return (
+        <Button
+            className="bg-primary text-white"
+            onClick={() => router.push(`/thanh-toan?medicalRecordId=${recordId}`)}
+        >
+            Thanh toán
+        </Button>
+    );
+}
+
 
 export default function MedicalHistoryPage() {
     const [currentUser, setCurrentUser] = useState<UserType | null>(null)
@@ -424,6 +461,7 @@ export default function MedicalHistoryPage() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {getStatusBadge(record.status)}
+                                            <PaymentStatusButton recordId={record.recordId} />
                                             <Button
                                                 variant="outline"
                                                 size="sm"

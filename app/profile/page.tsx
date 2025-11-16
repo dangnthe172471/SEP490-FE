@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getPaymentStatus } from "@/lib/services/payment-service";
 import {
     User,
     Mail,
@@ -62,6 +63,39 @@ interface Appointment {
     status: string
     notes?: string
 }
+function PaymentStatusButton({ recordId }: { recordId: number }) {
+    const router = useRouter();
+    const [status, setStatus] = useState<"loading" | "paid" | "unpaid">("loading");
+
+    useEffect(() => {
+        async function fetchStatus() {
+            try {
+                const res = await getPaymentStatus(recordId);
+                setStatus(res.status === "Paid" ? "paid" : "unpaid");
+            } catch {
+                setStatus("unpaid");
+            }
+        }
+        fetchStatus();
+    }, [recordId]);
+
+    if (status === "loading") {
+        return <Badge className="bg-yellow-100 text-yellow-700">Đang kiểm tra thanh toán...</Badge>;
+    }
+
+    if (status === "paid") {
+        return <Badge className="bg-green-100 text-green-700">✓ Đã thanh toán</Badge>;
+    }
+
+    return (
+        <Button
+            className="w-full bg-primary text-white"
+            onClick={() => router.push(`/payment?medicalRecordId=${recordId}`)}
+        >
+            Thanh toán
+        </Button>
+    );
+}
 
 
 export default function ProfilePage() {
@@ -76,6 +110,25 @@ export default function ProfilePage() {
     const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false)
     const [currentAvatar, setCurrentAvatar] = useState("/placeholder-user.jpg")
     const router = useRouter()
+    const [payableRecordId, setPayableRecordId] = useState<number | null>(null);
+    useEffect(() => {
+        async function checkRecords() {
+            for (const record of medicalRecords) {
+                const res = await getPaymentStatus(record.recordId);
+
+                if (res.status !== "Paid") {
+                    setPayableRecordId(record.recordId);
+                    return;
+                }
+            }
+
+            setPayableRecordId(null); // tất cả đã thanh toán
+        }
+
+        if (medicalRecords.length > 0) {
+            checkRecords();
+        }
+    }, [medicalRecords]);
 
     useEffect(() => {
         const user = getCurrentUser()
@@ -580,15 +633,34 @@ export default function ProfilePage() {
                                                     Hồ sơ khám bệnh và điều trị của bạn
                                                 </CardDescription>
                                             </div>
-                                            <Button
-                                                onClick={() => router.push('/medical-history')}
-                                                className="flex items-center gap-2"
-                                            >
-                                                <FileText className="h-4 w-4" />
-                                                Xem chi tiết
-                                            </Button>
+
+                                            <div className="flex items-center gap-3">
+                                                <Button
+                                                    onClick={() => router.push('/medical-history')}
+                                                    variant="outline"
+                                                    className="flex items-center gap-2 border-primary text-primary hover:bg-primary/10"
+                                                >
+                                                    <FileText className="h-4 w-4" />
+                                                    Xem chi tiết
+                                                </Button>
+
+                                                {payableRecordId ? (
+                                                    <Button
+                                                        onClick={() => router.push(`/thanh-toan?medicalRecordId=${payableRecordId}`)}
+                                                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                                                    >
+                                                         Thanh toán
+                                                    </Button>
+                                                ) : (
+                                                    <Badge className="bg-green-100 text-green-700 py-2 px-3">
+                                                        ✓ Tất cả đã thanh toán
+                                                    </Badge>
+                                                )}
+                                            </div>
+
                                         </div>
                                     </CardHeader>
+
                                     <CardContent>
                                         <div className="space-y-4">
                                             {medicalRecords.length === 0 ? (
@@ -598,41 +670,78 @@ export default function ProfilePage() {
                                                 </div>
                                             ) : (
                                                 medicalRecords.map((record) => (
-                                                    <div key={record.recordId} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+
+                                                    <div
+                                                        key={record.recordId}
+                                                        className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                                                    >
                                                         <div className="flex items-center justify-between mb-3">
                                                             <h3 className="font-medium">{record.doctorName}</h3>
-                                                            <span className="text-sm text-muted-foreground">{formatDate(record.appointmentDate)}</span>
+                                                            <span className="text-sm text-muted-foreground">
+                                                                {formatDate(record.appointmentDate)}
+                                                            </span>
                                                         </div>
+
                                                         <div className="space-y-3">
+                                                            {/* Chẩn đoán */}
                                                             <div>
-                                                                <label className="text-sm font-medium text-muted-foreground">Chẩn đoán</label>
+                                                                <label className="text-sm font-medium text-muted-foreground">
+                                                                    Chẩn đoán
+                                                                </label>
                                                                 <p className="mt-1">{record.diagnosis || "Chưa có thông tin"}</p>
                                                             </div>
+
+                                                            {/* Ghi chú bác sĩ */}
                                                             {record.doctorNotes && (
                                                                 <div>
-                                                                    <label className="text-sm font-medium text-muted-foreground">Ghi chú bác sĩ</label>
+                                                                    <label className="text-sm font-medium text-muted-foreground">
+                                                                        Ghi chú bác sĩ
+                                                                    </label>
                                                                     <p className="mt-1">{record.doctorNotes}</p>
                                                                 </div>
                                                             )}
-                                                            {record.prescriptions && record.prescriptions.length > 0 && (
-                                                                <div>
-                                                                    <label className="text-sm font-medium text-muted-foreground">Đơn thuốc</label>
-                                                                    <div className="mt-1 space-y-1">
-                                                                        {record.prescriptions.map((prescription) => (
-                                                                            <div key={prescription.prescriptionId} className="text-sm bg-blue-50 p-2 rounded border-l-4 border-blue-400">
-                                                                                <p className="font-medium">{prescription.doctorName}</p>
-                                                                                {prescription.prescriptionDetails.map((detail) => (
-                                                                                    <p key={detail.prescriptionDetailId} className="text-xs">
-                                                                                        {detail.medicineName} - {detail.dosage} ({detail.duration})
+
+                                                            {/* Đơn thuốc */}
+                                                            {record.prescriptions &&
+                                                                record.prescriptions.length > 0 && (
+                                                                    <div>
+                                                                        <label className="text-sm font-medium text-muted-foreground">
+                                                                            Đơn thuốc
+                                                                        </label>
+                                                                        <div className="mt-1 space-y-1">
+                                                                            {record.prescriptions.map((prescription) => (
+                                                                                <div
+                                                                                    key={prescription.prescriptionId}
+                                                                                    className="text-sm bg-blue-50 p-2 rounded border-l-4 border-blue-400"
+                                                                                >
+                                                                                    <p className="font-medium">
+                                                                                        {prescription.doctorName}
                                                                                     </p>
-                                                                                ))}
-                                                                            </div>
-                                                                        ))}
+                                                                                    {prescription.prescriptionDetails.map(
+                                                                                        (detail) => (
+                                                                                            <p
+                                                                                                key={
+                                                                                                    detail.prescriptionDetailId
+                                                                                                }
+                                                                                                className="text-xs"
+                                                                                            >
+                                                                                                {detail.medicineName} -{" "}
+                                                                                                {detail.dosage} (
+                                                                                                {detail.duration})
+                                                                                            </p>
+                                                                                        )
+                                                                                    )}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            )}
+                                                                )}
+
+                                                            {/* ⭐⭐ TRẠNG THÁI THANH TOÁN ⭐⭐
+                                                            <PaymentStatusButton recordId={record.recordId} /> */}
                                                         </div>
                                                     </div>
+
                                                 ))
                                             )}
                                         </div>
