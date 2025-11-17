@@ -1,7 +1,22 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
-import { TrendingUp, Users, PieChart as PieIcon, BarChart3 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { TrendingUp, Users } from 'lucide-react'
+import {
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Tooltip,
+    Legend,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    LineChart,
+    Line,
+} from 'recharts'
 import { DashboardService } from '@/lib/services/dashboard-service'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { getManagerNavigation } from '@/lib/navigation'
@@ -13,31 +28,39 @@ type Stats = {
     monthlyNewPatients: { month: string; count: number }[]
 }
 
+const GENDER_COLORS = ['#60a5fa', '#f472b6', '#a78bfa']
+const AGE_COLORS = ['#34d399', '#fbbf24', '#fb7185', '#a78bfa']
+
 export default function PatientStatsPage() {
     const [data, setData] = useState<Stats | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [from, setFrom] = useState('')
+    const [to, setTo] = useState('')
 
-    const [from, setFrom] = useState<string>("")
-    const [to, setTo] = useState<string>("")
+    const navigation = useMemo(() => getManagerNavigation(), [])
 
-    const fetchData = (pFrom?: string, pTo?: string) => {
+    const fetchData = useCallback(async (start?: string, end?: string) => {
         setError(null)
-        if (pFrom && pTo && new Date(pFrom) > new Date(pTo)) {
+        if (start && end && new Date(start) > new Date(end)) {
             setError("Ngày 'từ' phải nhỏ hơn hoặc bằng ngày 'đến'.")
             return
         }
+
         setLoading(true)
-        const svc = new DashboardService()
-        svc
-            .getPatientStatistics(pFrom, pTo)
-            .then(setData)
-            .catch((e) => setError(e.message ?? 'Error'))
-            .finally(() => setLoading(false))
-    }
+        try {
+            const svc = new DashboardService()
+            const stats = await svc.getPatientStatistics(start, end)
+            setData(stats)
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Error'
+            setError(message)
+        } finally {
+            setLoading(false)
+        }
+    }, [])
 
     useEffect(() => {
-        // default range: last 12 months
         const toDefault = new Date()
         const fromDefault = new Date(toDefault)
         fromDefault.setMonth(fromDefault.getMonth() - 11)
@@ -48,33 +71,53 @@ export default function PatientStatsPage() {
         setFrom(fromStr)
         setTo(toStr)
         fetchData(fromStr, toStr)
-    }, [])
+    }, [fetchData])
 
-    const genderRows = useMemo(() => {
+    const genderChartData = useMemo(() => {
         if (!data) return []
         return [
-            { label: 'Nam', value: data.byGender.male },
-            { label: 'Nữ', value: data.byGender.female },
-            { label: 'Khác', value: data.byGender.other },
+            { name: 'Nam', value: data.byGender.male },
+            { name: 'Nữ', value: data.byGender.female },
+            { name: 'Khác', value: data.byGender.other },
         ]
     }, [data])
 
-    const ageRows = useMemo(() => {
+    const ageChartData = useMemo(() => {
         if (!data) return []
         return [
-            { label: '0-17', value: data.byAgeGroups._0_17 },
-            { label: '18-35', value: data.byAgeGroups._18_35 },
-            { label: '36-55', value: data.byAgeGroups._36_55 },
-            { label: '56+', value: data.byAgeGroups._56_Plus },
+            { name: '0-17', value: data.byAgeGroups._0_17 },
+            { name: '18-35', value: data.byAgeGroups._18_35 },
+            { name: '36-55', value: data.byAgeGroups._36_55 },
+            { name: '56+', value: data.byAgeGroups._56_Plus },
         ]
     }, [data])
 
-    if (loading) return <DashboardLayout navigation={getManagerNavigation()}><div>Đang tải...</div></DashboardLayout>
-    if (error) return <DashboardLayout navigation={getManagerNavigation()}><div className="text-red-600">Lỗi: {error}</div></DashboardLayout>
-    if (!data) return <DashboardLayout navigation={getManagerNavigation()}><div>Không có dữ liệu</div></DashboardLayout>
+    if (loading) {
+        return (
+            <DashboardLayout navigation={navigation}>
+                <div>Đang tải...</div>
+            </DashboardLayout>
+        )
+    }
+
+    if (error) {
+        return (
+            <DashboardLayout navigation={navigation}>
+                <div className="text-red-600">Lỗi: {error}</div>
+            </DashboardLayout>
+        )
+    }
+
+    if (!data) {
+        return (
+            <DashboardLayout navigation={navigation}>
+                <div>Không có dữ liệu</div>
+            </DashboardLayout>
+        )
+    }
 
     return (
-        <DashboardLayout navigation={getManagerNavigation()}>
+        <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="min-w-56">
@@ -98,6 +141,7 @@ export default function PatientStatsPage() {
                         <button
                             onClick={() => fetchData(from || undefined, to || undefined)}
                             className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm"
+                            disabled={loading}
                         >
                             Áp dụng
                         </button>
@@ -106,42 +150,66 @@ export default function PatientStatsPage() {
 
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
                     <Card title="Tổng số bệnh nhân" value={data.totalPatients} icon={<Users className="h-5 w-5" />} color="bg-primary/10 text-primary" />
-
-                    <div className="rounded-xl border bg-card p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium">Giới tính</div>
-                            <div className="rounded-full p-2 bg-pink-100 text-pink-700"><PieIcon className="h-4 w-4" /></div>
-                        </div>
-                        <SimpleTable rows={genderRows} />
-                    </div>
-
-                    <div className="rounded-xl border bg-card p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium">Nhóm tuổi</div>
-                            <div className="rounded-full p-2 bg-amber-100 text-amber-700"><BarChart3 className="h-4 w-4" /></div>
-                        </div>
-                        <SimpleTable rows={ageRows} />
-                    </div>
                 </div>
 
-                <div className="rounded-xl border bg-card p-4">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="font-medium">Cuộc hẹn theo tháng</div>
-                        <div className="rounded-full p-2 bg-emerald-100 text-emerald-700"><TrendingUp className="h-4 w-4" /></div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <ChartCard title="Phân bố giới tính">
+                        <ResponsiveContainer width="100%" height={320}>
+                            <PieChart>
+                                <Pie
+                                    data={genderChartData}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    innerRadius={70}
+                                    outerRadius={110}
+                                    paddingAngle={2}
+                                >
+                                    {genderChartData.map((entry, index) => (
+                                        <Cell key={`gender-${entry.name}`} fill={GENDER_COLORS[index % GENDER_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </ChartCard>
+
+                    <ChartCard title="Phân bố nhóm tuổi">
+                        <ResponsiveContainer width="100%" height={320}>
+                            <BarChart data={ageChartData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis allowDecimals={false} />
+                                <Tooltip />
+                                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                                    {ageChartData.map((entry, index) => (
+                                        <Cell key={`age-${entry.name}`} fill={AGE_COLORS[index % AGE_COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </ChartCard>
+                </div>
+
+                <div className="rounded-xl border bg-card p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <div className="font-medium">Bệnh nhân mới theo tháng</div>
+                            <p className="text-sm text-muted-foreground">Theo dõi tăng trưởng bệnh nhân trong khoảng thời gian đã chọn</p>
+                        </div>
+                        <div className="rounded-full p-2 bg-emerald-100 text-emerald-700">
+                            <TrendingUp className="h-4 w-4" />
+                        </div>
                     </div>
-                    <ul className="divide-y">
-                        {data.monthlyNewPatients.map((m) => (
-                            <li key={m.month} className="py-2 text-sm">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-muted-foreground">{m.month}</span>
-                                    <span className="font-semibold">{m.count}</span>
-                                </div>
-                                <div className="h-2 w-full rounded bg-muted mt-1">
-                                    <div className="h-2 rounded bg-emerald-500" style={{ width: `${calcMonthPercent(data.monthlyNewPatients, m.count)}%` }} />
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+                    <ResponsiveContainer width="100%" height={360}>
+                        <LineChart data={data.monthlyNewPatients}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
         </DashboardLayout>
@@ -162,24 +230,15 @@ function Card({ title, value, icon, color }: { title: string; value: number; ico
     )
 }
 
-function SimpleTable({ rows }: { rows: { label: string; value: number }[] }) {
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <table className="w-full text-sm">
-            <tbody>
-                {rows.map((r) => (
-                    <tr key={r.label}>
-                        <td className="py-1 text-gray-700">{r.label}</td>
-                        <td className="py-1 text-right font-semibold">{r.value}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+        <div className="rounded-xl border bg-card p-6">
+            <div className="mb-4">
+                <div className="font-medium">{title}</div>
+                <p className="text-sm text-muted-foreground">Hiển thị dưới dạng biểu đồ để dễ so sánh</p>
+            </div>
+            {children}
+        </div>
     )
 }
-
-function calcMonthPercent(items: { month: string; count: number }[], count: number): number {
-    const max = Math.max(1, ...items.map(i => i.count))
-    return Math.round((count / max) * 100)
-}
-
 
