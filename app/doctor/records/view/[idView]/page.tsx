@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import type { TestTypeLite } from "@/lib/types/test-results";
+import {
+  getTestTypes,
+} from "@/lib/services/test-results-service";
 import {
   Calendar,
   FileText,
@@ -20,6 +24,8 @@ import {
   UserPlus
 } from "lucide-react"
 import { getDoctorNavigation } from "@/lib/navigation"
+import { TestResultDto } from "@/lib/services/medical-record-service"
+import { ReadInternalMedRecordDto, ReadPediatricRecordDto } from "@/lib/types/specialties"
 
 // --- Interfaces định nghĩa cấu trúc dữ liệu ---
 
@@ -48,11 +54,11 @@ interface Prescription {
   instructions: string
 }
 
-interface TestResult {
-  testName: string
-  resultValue: string
-  notes?: string
-}
+// interface TestResult {
+//   testName: string
+//   resultValue: string
+//   notes?: string
+// }
 
 interface Payment {
   amount: number
@@ -68,9 +74,10 @@ interface MedicalRecord {
   createdAt: string
   appointmentId: number
   appointment: Appointment // Đảm bảo trường này luôn có
-  internalMedRecord?: InternalMedRecord
+  internalMedRecord?: ReadInternalMedRecordDto | null
+  pediatricRecord?: ReadPediatricRecordDto | null
   prescriptions?: Prescription[] // Đảm bảo là mảng các Prescription
-  testResults?: TestResult[] // Đảm bảo là mảng các TestResult
+  testResults?: TestResultDto[] // Đảm bảo là mảng các TestResult
   payments?: Payment[] // Đảm bảo là mảng các Payment
 }
 
@@ -108,6 +115,8 @@ export default function MedicalRecordDetailPage() {
   const [loading, setLoading] = useState(true)
   const [patientCache, setPatientCache] = useState<Record<number, PatientDetail>>({})
   const [appointmentCache, setAppointmentCache] = useState<Record<number, AppointmentDetail>>({})
+  const [testTypes, setTestTypes] = useState<TestTypeLite[]>([]);
+  const [loadingTestTypes, setLoadingTestTypes] = useState(false);
   useEffect(() => {
     if (!idView) return
     const fetchRecord = async () => {
@@ -164,6 +173,24 @@ export default function MedicalRecordDetailPage() {
     }
     fetchRecord()
   }, [idView])
+
+   useEffect(() => {
+      let aborted = false;
+      (async () => {
+        try {
+          setLoadingTestTypes(true);
+          const types = await getTestTypes();
+          if (!aborted) setTestTypes(types);
+        } catch (err) {
+          console.error("Không thể tải danh sách xét nghiệm", err);
+        } finally {
+          if (!aborted) setLoadingTestTypes(false);
+        }
+      })();
+      return () => {
+        aborted = true;
+      };
+    }, []);
 
   if (loading) {
     return (
@@ -252,22 +279,68 @@ export default function MedicalRecordDetailPage() {
             </Card>
 
             {/* Internal Medicine Record */}
-            {med && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Chỉ số nội khoa</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                  {med.bloodPressure && (
-                    <Badge variant="outline" className="justify-center">
-                      <HeartPulse className="w-4 h-4 mr-1" /> Huyết áp: {med.bloodPressure} mmHg
-                    </Badge>
-                  )}
-                  {med.heartRate && <Badge variant="outline" className="justify-center">Nhịp tim: {med.heartRate} bpm</Badge>}
-                  {med.bloodSugar && <Badge variant="outline" className="justify-center">Đường huyết: {med.bloodSugar} mg/dL</Badge>}
-                  {med.notes && <p className="col-span-full text-muted-foreground pt-2">Ghi chú: {med.notes}</p>}
-                </CardContent>
-              </Card>
+            {record.internalMedRecord && (
+              <div className="bg-blue-50 rounded p-3 text-sm">
+                <div className="font-semibold mb-1">Khám nội khoa</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    Huyết áp:{" "}
+                    <span className="font-medium">
+                      {record.internalMedRecord.bloodPressure ?? "-"}
+                    </span>
+                  </div>
+                  <div>
+                    Nhịp tim:{" "}
+                    <span className="font-medium">
+                      {record.internalMedRecord.heartRate ?? "-"}
+                    </span>
+                  </div>
+                  <div>
+                    Đường huyết:{" "}
+                    <span className="font-medium">
+                      {record.internalMedRecord.bloodSugar ?? "-"}
+                    </span>
+                  </div>
+                  <div>
+                    Ghi chú:{" "}
+                    <span className="font-medium">
+                      {record.internalMedRecord.notes ?? "-"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {record.pediatricRecord && (
+              <div className="bg-blue-50 rounded p-3 text-sm">
+                <div className="font-semibold mb-1">Khám nhi khoa</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    Cân nặng:{" "}
+                    <span className="font-medium">
+                      {record.pediatricRecord.weightKg ?? "-"}
+                    </span>
+                  </div>
+                  <div>
+                    Chiều cao:{" "}
+                    <span className="font-medium">
+                      {record.pediatricRecord.heightCm ?? "-"}
+                    </span>
+                  </div>
+                  <div>
+                    Nhịp tim:{" "}
+                    <span className="font-medium">
+                      {record.pediatricRecord.heartRate ?? "-"}
+                    </span>
+                  </div>
+                  <div>
+                    Nhiệt độ:{" "}
+                    <span className="font-medium">
+                      {record.pediatricRecord.temperatureC ?? "-"}
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Prescriptions
@@ -291,26 +364,60 @@ export default function MedicalRecordDetailPage() {
               </Card>
             )} */}
 
-            {/* Test Results */}
-            {testResults.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <TestTube className="h-5 w-5 text-primary" />
-                    <CardTitle>Kết quả xét nghiệm ({testResults.length})</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {testResults.map((t: TestResult, idx: number) => (
-                    <div key={idx} className="border rounded-lg p-3">
-                      <p className="font-medium">{t.testName || "Không rõ xét nghiệm"}</p>
-                      <p className="text-sm text-muted-foreground">Kết quả: {t.resultValue || "—"}</p>
-                      {t.notes && <p className="text-sm text-muted-foreground">Ghi chú: {t.notes}</p>}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            <div>
+              <div className="font-semibold mb-2">
+                Kết quả xét nghiệm ({record.testResults?.length ?? 0})
+              </div>
+              {record.testResults && record.testResults.length > 0 ? (
+                <div className="border rounded divide-y">
+                  {record.testResults.map((t) => {
+                    const typeName =
+                      t.testName ??
+                      testTypes.find(
+                        (tt) => tt.testTypeId === t.testTypeId
+                      )?.testName ??
+                      `Loại #${t.testTypeId}`;
+                    const pending = t.resultValue
+                      ? t.resultValue.toLowerCase().includes("pending") ||
+                        t.resultValue.toLowerCase().includes("chờ")
+                      : true;
+                    return (
+                      <div
+                        key={t.testResultId}
+                        className="grid grid-cols-4 gap-2 p-2 text-sm"
+                      >
+                        <div className="col-span-2">
+                          Xét nghiệm:{" "}
+                          <span className="font-medium">{typeName}</span>
+                        </div>
+                        <div className="col-span-2">
+                          Trạng thái:{" "}
+                          <span className="font-medium">
+                            {pending
+                              ? "Chờ kết quả"
+                              : t.resultValue ?? "-"}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          {t.resultDate
+                            ? new Date(
+                                t.resultDate
+                              ).toLocaleDateString("vi-VN")
+                            : "-"}
+                        </div>
+                        <div className="col-span-2">
+                          {t.notes ?? ""}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Chưa có kết quả xét nghiệm
+                </p>
+              )}
+            </div>
 
             {/* Payments */}
             {payments.length > 0 && (

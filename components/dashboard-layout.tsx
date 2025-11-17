@@ -59,10 +59,10 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
     .slice(0, 2)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" suppressHydrationWarning>
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="flex h-16 items-center gap-4 px-6">
+      <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60" suppressHydrationWarning>
+        <div className="flex h-16 items-center gap-4 px-6" suppressHydrationWarning>
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Heart className="h-5 w-5 text-primary-foreground" fill="currentColor" />
@@ -114,10 +114,10 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex" suppressHydrationWarning>
         {/* Sidebar */}
-        <aside className="hidden md:flex w-64 flex-col border-r bg-card">
-          <nav className="flex-1 space-y-1 p-4">
+        <aside className="hidden md:flex w-64 flex-col border-r bg-card" suppressHydrationWarning>
+          <nav className="flex-1 space-y-1 p-4" suppressHydrationWarning>
             {navigation.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -142,8 +142,8 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="container mx-auto p-6">{children}</div>
+        <main className="flex-1 overflow-y-auto" suppressHydrationWarning>
+          <div className="container mx-auto p-6" suppressHydrationWarning>{children}</div>
         </main>
       </div>
     </div>
