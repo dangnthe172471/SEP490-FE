@@ -65,6 +65,8 @@ export default function PrescriptionModal({
   const [notes, setNotes] = useState("")
   const [showMedicineList, setShowMedicineList] = useState(false)
 
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+
   useEffect(() => {
     if (!isOpen) return
     ;(async () => {
@@ -78,7 +80,13 @@ export default function PrescriptionModal({
             : undefined
 
         const data = await medicineService.getAll(token)
-        setMedicines(data)
+
+        // Chỉ giữ lại thuốc đang cung cấp (Providing) để kê đơn
+        const onlyProviding = data.filter(
+          (m) => normalizeStatus(m.status ?? undefined) === "Providing"
+        )
+
+        setMedicines(onlyProviding)
       } catch (e) {
         console.error("Fetch medicines error:", e)
       } finally {
@@ -89,6 +97,12 @@ export default function PrescriptionModal({
 
   const filteredMedicines = medicines.filter((m) => {
     const q = medicineSearch.trim().toLowerCase()
+
+    const alreadySelected = prescriptionItems.some(
+      (it) => it.medicineId === m.medicineId
+    )
+    if (alreadySelected) return false
+
     if (!q) return true
     return (
       (m.medicineName ?? "").toLowerCase().includes(q) ||
@@ -131,6 +145,18 @@ export default function PrescriptionModal({
 
   const handleRemoveItem = (index: number) => {
     setPrescriptionItems((prev) => prev.filter((_, i) => i !== index))
+    if (expandedIndex === index) {
+      setExpandedIndex(null)
+    }
+  }
+
+  const updatePrescriptionItem = (
+    index: number,
+    partial: Partial<PrescriptionItem>
+  ) => {
+    setPrescriptionItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, ...partial } : item))
+    )
   }
 
   const handleSavePrescription = async () => {
@@ -143,7 +169,7 @@ export default function PrescriptionModal({
     try {
       const payload: CreatePrescriptionRequest = {
         recordId: record.recordId,
-        issuedDate: undefined, // để backend tự dùng UtcNow nếu muốn
+        issuedDate: undefined,
         notes: notes.trim() || undefined,
         items: prescriptionItems.map((it) => ({
           medicineId: it.medicineId,
@@ -158,9 +184,15 @@ export default function PrescriptionModal({
       alert("Kê đơn thành công")
       onClose()
       onSaved()
-    } catch (e) {
+    } catch (e: any) {
       console.error("Save prescription error:", e)
-      alert("Lỗi khi lưu đơn thuốc")
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e?.message === "string"
+          ? e.message
+          : "Lỗi khi lưu đơn thuốc"
+      alert(msg)
     } finally {
       setSavingPrescription(false)
     }
@@ -170,11 +202,11 @@ export default function PrescriptionModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className="
-          w-[95vw]
-          sm:w-[70vw]
-          sm:max-w-[70vw]
-          lg:w-[66vw]
-          lg:max-w-[66vw]
+          w-[98vw]
+          sm:w-[95vw]
+          lg:w-[95vw]
+          !max-w-[95vw]
+          h-[90vh]
           max-h-[90vh]
           overflow-hidden
           flex flex-col
@@ -190,8 +222,8 @@ export default function PrescriptionModal({
           </div>
         </DialogHeader>
 
-        {/* BODY SCROLL — KHÔNG CHO MODAL DÀI QUÁ */}
-        <div className="space-y-6 overflow-y-auto pr-2 max-h-[calc(90vh-150px)]">
+        {/* BODY SCROLL chiếm toàn bộ chiều cao còn lại */}
+        <div className="space-y-6 overflow-y-auto pr-2 flex-1">
           {/* Chọn thuốc */}
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground">Chọn thuốc</h3>
@@ -378,34 +410,101 @@ export default function PrescriptionModal({
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
-                          <p className="font-medium">{item.medicineName}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Nhà cung cấp: {item.providerName ?? "Không xác định"}
-                          </p>
-
-                          <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
-                            <p>
-                              Liều lượng: <strong>{item.dosage}</strong>
-                            </p>
-                            <p>
-                              Thời gian dùng: <strong>{item.duration}</strong>
-                            </p>
-                            {item.instruction && (
-                              <p>
-                                Hướng dẫn: <strong>{item.instruction}</strong>
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{item.medicineName}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Nhà cung cấp: {item.providerName ?? "Không xác định"}
                               </p>
-                            )}
-                          </div>
-                        </div>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem(index)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                              <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
+                                <p>
+                                  Liều lượng: <strong>{item.dosage}</strong>
+                                </p>
+                                <p>
+                                  Thời gian dùng: <strong>{item.duration}</strong>
+                                </p>
+                                {item.instruction && (
+                                  <p>
+                                    Hướng dẫn: <strong>{item.instruction}</strong>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setExpandedIndex(
+                                    expandedIndex === index ? null : index
+                                  )
+                                }
+                              >
+                                {expandedIndex === index ? "Thu gọn" : "Chỉnh sửa"}
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveItem(index)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {expandedIndex === index && (
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <Label className="text-xs font-medium">
+                                  Liều lượng (Dosage)
+                                </Label>
+                                <Input
+                                  value={item.dosage}
+                                  onChange={(e) =>
+                                    updatePrescriptionItem(index, {
+                                      dosage: e.target.value,
+                                    })
+                                  }
+                                  className="mt-1"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-xs font-medium">
+                                  Thời gian dùng (Duration)
+                                </Label>
+                                <Input
+                                  value={item.duration}
+                                  onChange={(e) =>
+                                    updatePrescriptionItem(index, {
+                                      duration: e.target.value,
+                                    })
+                                  }
+                                  className="mt-1"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-xs font-medium">
+                                  Hướng dẫn (Instruction)
+                                </Label>
+                                <Input
+                                  value={item.instruction ?? ""}
+                                  onChange={(e) =>
+                                    updatePrescriptionItem(index, {
+                                      instruction: e.target.value,
+                                    })
+                                  }
+                                  className="mt-1"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -413,20 +512,6 @@ export default function PrescriptionModal({
               </div>
             </div>
           )}
-
-          {/* Ghi chú đơn thuốc */}
-          <div>
-            <Label htmlFor="notes" className="text-sm font-medium">
-              Ghi chú thêm (tùy chọn)
-            </Label>
-            <Input
-              id="notes"
-              placeholder="Nhập ghi chú chung cho đơn thuốc..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="mt-2"
-            />
-          </div>
         </div>
 
         {/* FOOTER */}
