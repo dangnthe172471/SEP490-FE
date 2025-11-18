@@ -23,7 +23,9 @@ async function toJson<T>(res: Response): Promise<T> {
 
 const BASE_PATH = "/api/InternalMedRecords"
 
-export async function getInternalMed(recordId: number): Promise<ReadInternalMedRecordDto | null> {
+export async function getInternalMed(
+  recordId: number
+): Promise<ReadInternalMedRecordDto | null> {
   const res = await fetch(api(`${BASE_PATH}/${recordId}`), { cache: "no-store" })
   if (res.status === 404) return null
   return toJson<ReadInternalMedRecordDto>(res)
@@ -55,12 +57,17 @@ export async function updateInternalMed(
 }
 
 export async function deleteInternalMed(recordId: number): Promise<void> {
-  const res = await fetch(api(`${BASE_PATH}/${recordId}`), { method: "DELETE", cache: "no-store" })
+  const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
+    method: "DELETE",
+    cache: "no-store",
+  })
   await toJson<void>(res)
 }
 
 export async function getSpecialtyStatus(recordId: number): Promise<SpecialtyStatus> {
-  // maps InternalMedRecordsController [HttpGet("status/{recordId:int}")]
-  const res = await fetch(api(`${BASE_PATH}/status/${recordId}`), { cache: "no-store" })
+  const res = await fetch(api(`${BASE_PATH}/status/${recordId}`), {
+    cache: "no-store",
+  })
   return toJson<SpecialtyStatus>(res)
 }
+

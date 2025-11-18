@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"; // NEW
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation";
 import {
   MedicalRecordService,
@@ -25,9 +26,12 @@ import {
 } from "@/lib/services/test-results-service";
 import type { TestTypeLite } from "@/lib/types/test-results";
 
+// NEW: service Da liễu
+import { createDermatology } from "@/lib/services/dermatology-service";
+
 // NEW: sử dụng lại modal kê đơn đã dùng ở trang danh sách
-import PrescriptionModal from "@/components/doctor/prescription-modal"; // NEW
-import type { RecordListItemDto } from "@/lib/types/doctor-record"; // NEW
+import PrescriptionModal from "@/components/doctor/prescription-modal";
+import type { RecordListItemDto } from "@/lib/types/doctor-record";
 
 interface PatientDetail {
   fullName: string;
@@ -56,13 +60,18 @@ export default function MedicalRecordDetailPage() {
   const [patientInfo, setPatientInfo] = useState<PatientDetail | null>(null);
   const [creatingInternal, setCreatingInternal] = useState(false);
   const [creatingPediatric, setCreatingPediatric] = useState(false);
+  const [creatingDermatology, setCreatingDermatology] = useState(false);
   const [testTypes, setTestTypes] = useState<TestTypeLite[]>([]);
   const [loadingTestTypes, setLoadingTestTypes] = useState(false);
   const [requestingTestTypeId, setRequestingTestTypeId] =
     useState<number | null>(null);
 
   // NEW: trạng thái mở modal kê đơn
-  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false); // NEW
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+
+  // NEW: state form Da liễu
+  const [dermRequestedProcedure, setDermRequestedProcedure] = useState("");
+  const [dermBodyArea, setDermBodyArea] = useState("");
 
   const testsByTypeId = useMemo(() => {
     const map = new Map<number, MedicalRecordDto["testResults"][number]>();
@@ -81,11 +90,10 @@ export default function MedicalRecordDetailPage() {
     const dto: Partial<RecordListItemDto> = {
       recordId: record.recordId,
       patientName: patientInfo?.fullName ?? "",
-      // TODO: nếu RecordListItemDto yêu cầu thêm field khác thì map thêm ở đây
     };
 
     return dto as RecordListItemDto;
-  }, [record, patientInfo]); // NEW
+  }, [record, patientInfo]);
 
   useEffect(() => {
     if (!id) return;
@@ -280,6 +288,46 @@ export default function MedicalRecordDetailPage() {
     return created;
   };
 
+  // NEW: đảm bảo tạo hồ sơ Da liễu (nhận form)
+  const ensureDermatologyRecord = async (
+    requestedProcedure: string,
+    bodyArea?: string
+  ) => {
+    if (!record) throw new Error("Chưa có hồ sơ bệnh án");
+
+    const already =
+      Array.isArray(record.dermatologyRecords) &&
+      record.dermatologyRecords.length > 0;
+
+    if (already) {
+      toast({
+        title: "Hồ sơ Da liễu đã tồn tại",
+        description: "Hồ sơ Da liễu đã được tạo trước đó.",
+      });
+      return record.dermatologyRecords![0];
+    }
+
+    const created = await createDermatology({
+      recordId: record.recordId,
+      requestedProcedure,
+      bodyArea,
+    });
+
+    setRecord((prev) =>
+      prev
+        ? {
+            ...prev,
+            dermatologyRecords: [
+              ...(prev.dermatologyRecords ?? []),
+              created,
+            ],
+          }
+        : prev
+    );
+    toast({ title: "Thêm thành công", description: "Đã tạo hồ sơ Da liễu." });
+    return created;
+  };
+
   const handleCreateInternalMed = async () => {
     if (!record || creatingInternal) return;
 
@@ -311,6 +359,39 @@ export default function MedicalRecordDetailPage() {
       });
     } finally {
       setCreatingPediatric(false);
+    }
+  };
+
+  // NEW: handler gửi yêu cầu khám Da liễu (có nhập form)
+  const handleCreateDermatology = async () => {
+    if (!record || creatingDermatology) return;
+
+    if (!dermRequestedProcedure.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Thiếu thông tin",
+        description: "Vui lòng nhập Thủ thuật / dịch vụ da liễu yêu cầu.",
+      });
+      return;
+    }
+
+    try {
+      setCreatingDermatology(true);
+      await ensureDermatologyRecord(
+        dermRequestedProcedure.trim(),
+        dermBodyArea.trim() || undefined
+      );
+      // reset form sau khi tạo
+      setDermRequestedProcedure("");
+      setDermBodyArea("");
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi khi tạo",
+        description: e?.message ?? "Không thể tạo hồ sơ Da liễu.",
+      });
+    } finally {
+      setCreatingDermatology(false);
     }
   };
 
@@ -367,10 +448,15 @@ export default function MedicalRecordDetailPage() {
 
   // NEW: xác định đã có đơn thuốc chưa + id đơn để xem
   const hasPrescriptions =
-    !!record.prescriptions && record.prescriptions.length > 0; // NEW
+    !!record.prescriptions && record.prescriptions.length > 0;
   const firstPrescriptionId = hasPrescriptions
     ? record.prescriptions[0].prescriptionId
-    : null; // NEW
+    : null;
+
+  // NEW: kiểm tra đã có Da liễu hay chưa (dùng cho UI)
+  const hasDermatology =
+    Array.isArray(record.dermatologyRecords) &&
+    record.dermatologyRecords.length > 0;
 
   return (
     <DashboardLayout navigation={navigation}>
@@ -456,33 +542,82 @@ export default function MedicalRecordDetailPage() {
                       created: !!record?.pediatricRecord,
                       onClick: handleCreatePediatric,
                     },
+                    {
+                      id: "dermatology",
+                      label: "Khám da liễu",
+                      creating: creatingDermatology,
+                      created: hasDermatology,
+                      onClick: handleCreateDermatology,
+                    },
                   ].map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3"
+                      className="flex flex-col gap-3 rounded-lg border border-gray-200 px-4 py-3"
                     >
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-gray-800">
-                          {item.label}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-800">
+                            {item.label}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.created
+                              ? "Đã gửi yêu cầu khám"
+                              : "Chưa gửi yêu cầu khám"}
+                          </p>
+                        </div>
+
+                        <Button
+                          variant={item.created ? "secondary" : "outline"}
+                          disabled={
+                            item.created ||
+                            item.creating ||
+                            (item.id === "dermatology" &&
+                              !hasDermatology &&
+                              !dermRequestedProcedure.trim())
+                          }
+                          onClick={item.onClick}
+                        >
                           {item.created
-                            ? "Đã gửi yêu cầu khám"
-                            : "Chưa gửi yêu cầu khám"}
-                        </p>
+                            ? "Đã gửi"
+                            : item.creating
+                            ? "Đang gửi..."
+                            : "Gửi điều dưỡng"}
+                        </Button>
                       </div>
 
-                      <Button
-                        variant={item.created ? "secondary" : "outline"}
-                        disabled={item.created || item.creating}
-                        onClick={item.onClick}
-                      >
-                        {item.created
-                          ? "Đã gửi"
-                          : item.creating
-                          ? "Đang gửi..."
-                          : "Gửi điều dưỡng"}
-                      </Button>
+                      {/* Form nhập riêng cho Da liễu khi chưa tạo */}
+                      {item.id === "dermatology" && !hasDermatology && (
+                        <div className="space-y-2 text-sm">
+                          <div className="space-y-1">
+                            <label className="block text-xs text-slate-700">
+                              Thủ thuật / dịch vụ da liễu yêu cầu
+                            </label>
+                            <Input
+                              placeholder="Ví dụ: Lazer điều trị sẹo, peel da..."
+                              value={dermRequestedProcedure}
+                              onChange={(e) =>
+                                setDermRequestedProcedure(e.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-xs text-slate-700">
+                              Vùng da / vị trí trên cơ thể
+                            </label>
+                            <Input
+                              placeholder="Ví dụ: Mặt, lưng, tay..."
+                              value={dermBodyArea}
+                              onChange={(e) =>
+                                setDermBodyArea(e.target.value)
+                              }
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Điều dưỡng sẽ dựa vào thông tin này để chuẩn bị và
+                            thực hiện thủ thuật.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -680,8 +815,7 @@ export default function MedicalRecordDetailPage() {
               </div>
             )}
 
-            {/* UPDATED: nếu chưa có đơn -> nút "Kê đơn thuốc" (xanh);
-                nếu đã có đơn -> nút "Xem đơn thuốc" (xanh) */}
+            {/* Đơn thuốc */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="font-semibold">
@@ -691,7 +825,6 @@ export default function MedicalRecordDetailPage() {
                 {hasPrescriptions ? (
                   <Button
                     size="sm"
-                    // màu primary (xanh)
                     onClick={() => {
                       if (!firstPrescriptionId) return;
                       router.push(
@@ -702,11 +835,7 @@ export default function MedicalRecordDetailPage() {
                     Xem đơn thuốc
                   </Button>
                 ) : (
-                  <Button
-                    size="sm"
-                    // màu primary (xanh)
-                    onClick={handleOpenPrescription}
-                  >
+                  <Button size="sm" onClick={handleOpenPrescription}>
                     Kê đơn thuốc
                   </Button>
                 )}
@@ -761,6 +890,7 @@ export default function MedicalRecordDetailPage() {
               )}
             </div>
 
+            {/* Kết quả xét nghiệm */}
             <div>
               <div className="font-semibold mb-2">
                 Kết quả xét nghiệm ({record.testResults?.length ?? 0})
@@ -790,9 +920,7 @@ export default function MedicalRecordDetailPage() {
                         <div className="col-span-2">
                           Trạng thái:{" "}
                           <span className="font-medium">
-                            {pending
-                              ? "Chờ kết quả"
-                              : t.resultValue ?? "-"}
+                            {pending ? "Chờ kết quả" : t.resultValue ?? "-"}
                           </span>
                         </div>
                         <div className="col-span-2">
@@ -802,9 +930,7 @@ export default function MedicalRecordDetailPage() {
                               ).toLocaleDateString("vi-VN")
                             : "-"}
                         </div>
-                        <div className="col-span-2">
-                          {t.notes ?? ""}
-                        </div>
+                        <div className="col-span-2">{t.notes ?? ""}</div>
                       </div>
                     );
                   })}
@@ -816,6 +942,7 @@ export default function MedicalRecordDetailPage() {
               )}
             </div>
 
+            {/* Thanh toán */}
             <div>
               <div className="font-semibold mb-2">
                 Thanh toán ({record.payments?.length ?? 0})
