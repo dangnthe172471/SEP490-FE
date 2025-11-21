@@ -10,13 +10,14 @@ export interface AIChatMessage {
 
 export class AIChatHistoryService {
     private static readonly ROOM_NAME = 'AIChat'
+    private static readonly CONVERSATION_PREFIX = 'MR'
 
-    private static getConversationId(patientId: number): string {
-        return `C${patientId}`
+    private static getConversationId(recordId: number): string {
+        return `${this.CONVERSATION_PREFIX}${recordId}`
     }
 
-    private static getConversationPath(patientId: number): string {
-        return `${this.ROOM_NAME}/${this.getConversationId(patientId)}/messages`
+    private static getConversationPath(recordId: number): string {
+        return `${this.ROOM_NAME}/${this.getConversationId(recordId)}/messages`
     }
 
     private static parseTimestamp(timestamp: any): Date {
@@ -56,16 +57,16 @@ export class AIChatHistoryService {
     }
 
     /**
-     * Lưu tin nhắn mới vào lịch sử chat
+     * Lưu tin nhắn mới vào lịch sử chat theo từng hồ sơ bệnh án
      */
-    static async saveMessage(patientId: number, message: Omit<AIChatMessage, 'id' | 'timestamp'>): Promise<void> {
+    static async saveMessage(recordId: number, message: Omit<AIChatMessage, 'id' | 'timestamp'>): Promise<void> {
         if (!db) {
             console.error('Firebase Database is not initialized')
             throw new Error('Firebase Database is not initialized')
         }
 
         try {
-            const messagesRef = ref(db, this.getConversationPath(patientId))
+            const messagesRef = ref(db, this.getConversationPath(recordId))
             const newMessageRef = push(messagesRef)
 
             await set(newMessageRef, {
@@ -82,16 +83,16 @@ export class AIChatHistoryService {
     }
 
     /**
-     * Lấy toàn bộ lịch sử chat của một bệnh nhân
+     * Lấy toàn bộ lịch sử chat của một hồ sơ bệnh án
      */
-    static async getChatHistory(patientId: number): Promise<AIChatMessage[]> {
+    static async getChatHistory(recordId: number): Promise<AIChatMessage[]> {
         if (!db) {
             console.warn('Firebase Database is not initialized')
             return []
         }
 
         try {
-            const messagesRef = ref(db, this.getConversationPath(patientId))
+            const messagesRef = ref(db, this.getConversationPath(recordId))
             const snapshot = await get(messagesRef)
 
             if (!snapshot.exists()) {
@@ -110,7 +111,7 @@ export class AIChatHistoryService {
      * Lắng nghe thay đổi trong lịch sử chat (real-time)
      */
     static listenToChatHistory(
-        patientId: number,
+        recordId: number,
         callback: (messages: AIChatMessage[]) => void
     ): () => void {
         if (!db) {
@@ -118,7 +119,7 @@ export class AIChatHistoryService {
             return () => { }
         }
 
-        const messagesRef = ref(db, this.getConversationPath(patientId))
+        const messagesRef = ref(db, this.getConversationPath(recordId))
 
         const unsubscribe = onValue(
             messagesRef,
