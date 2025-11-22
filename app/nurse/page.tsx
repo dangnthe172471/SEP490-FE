@@ -1,24 +1,35 @@
 "use client"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Activity, Users, ClipboardList, Stethoscope, AlertCircle, Clock } from "lucide-react"
+import {
+  Activity,
+  Users,
+  ClipboardList,
+  Stethoscope,
+  AlertCircle,
+  Clock,
+} from "lucide-react"
 import { mockAppointments } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
 import { getNurseNavigation } from "@/lib/navigation/nurse-navigation"
 
 export default function NurseDashboard() {
-  // Get nurse navigation from centralized config
   const navigation = getNurseNavigation()
-
   const router = useRouter()
 
-  // Get active patients (in-progress appointments)
-  const activePatients = mockAppointments.filter((apt) => apt.status === "in-progress")
+  const activePatients = mockAppointments.filter(
+    (apt) => apt.status === "in-progress"
+  )
 
-  // Statistics
   const stats = [
     {
       title: "Bệnh nhân đang điều trị",
@@ -46,7 +57,6 @@ export default function NurseDashboard() {
     },
   ]
 
-  // Mock tasks
   const urgentTasks = [
     {
       id: "T001",
@@ -79,7 +89,9 @@ export default function NurseDashboard() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Điều phối Y tá</h1>
-          <p className="text-muted-foreground">Quản lý chăm sóc và theo dõi bệnh nhân</p>
+          <p className="text-muted-foreground">
+            Quản lý chăm sóc và theo dõi bệnh nhân
+          </p>
         </div>
 
         {/* Statistics */}
@@ -89,7 +101,9 @@ export default function NurseDashboard() {
             return (
               <Card key={stat.title}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    {stat.title}
+                  </CardTitle>
                   <Icon className={`h-4 w-4 ${stat.color}`} />
                 </CardHeader>
                 <CardContent>
@@ -110,20 +124,32 @@ export default function NurseDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {urgentTasks.map((task) => (
-                  <div key={task.id} className="flex items-start justify-between border-b pb-4 last:border-0">
+                  <div
+                    key={task.id}
+                    className="flex items-start justify-between border-b pb-4 last:border-0"
+                  >
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{task.time}</span>
-                        <Badge variant={task.priority === "high" ? "destructive" : "secondary"}>
+                        <Badge
+                          variant={
+                            task.priority === "high" ? "destructive" : "secondary"
+                          }
+                        >
                           {task.priority === "high" ? "Khẩn" : "Trung bình"}
                         </Badge>
                       </div>
                       <p className="text-sm font-medium">{task.patientName}</p>
-                      <p className="text-sm text-muted-foreground">{task.task}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {task.task}
+                      </p>
                       <Badge variant="outline">{task.patientId}</Badge>
                     </div>
-                    <Button size="sm" onClick={() => router.push(`/nurse/tasks/${task.id}`)}>
+                    <Button
+                      size="sm"
+                      onClick={() => router.push(`/nurse/tasks/${task.id}`)}
+                    >
                       Xử lý
                     </Button>
                   </div>
@@ -136,27 +162,42 @@ export default function NurseDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Bệnh nhân đang điều trị</CardTitle>
-              <CardDescription>Danh sách bệnh nhân cần chăm sóc</CardDescription>
+              <CardDescription>
+                Danh sách bệnh nhân cần chăm sóc
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {activePatients.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Không có bệnh nhân nào</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Không có bệnh nhân nào
+                  </p>
                 ) : (
                   activePatients.slice(0, 4).map((appointment) => (
-                    <div key={appointment.id} className="flex items-start justify-between border-b pb-4 last:border-0">
+                    <div
+                      key={appointment.id}
+                      className="flex items-start justify-between border-b pb-4 last:border-0"
+                    >
                       <div className="space-y-1">
-                        <p className="text-sm font-medium">{appointment.patientName}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.doctorName}</p>
+                        <p className="text-sm font-medium">
+                          {appointment.patientName}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.doctorName}
+                        </p>
                         <div className="flex gap-2">
                           <Badge variant="outline">{appointment.id}</Badge>
-                          <Badge variant="secondary">{appointment.department}</Badge>
+                          <Badge variant="secondary">
+                            {appointment.department}
+                          </Badge>
                         </div>
                       </div>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => router.push(`/nurse/patients/${appointment.id}`)}
+                        onClick={() =>
+                          router.push(`/nurse/patients/${appointment.id}`)
+                        }
                       >
                         Xem
                       </Button>
@@ -176,7 +217,10 @@ export default function NurseDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              <Button className="h-auto py-4 flex-col gap-2" onClick={() => router.push("/nurse/tasks")}>
+              <Button
+                className="h-auto py-4 flex-col gap-2"
+                onClick={() => router.push("/nurse/tasks")}
+              >
                 <ClipboardList className="h-5 w-5" />
                 <span className="text-sm">Xem nhiệm vụ</span>
               </Button>

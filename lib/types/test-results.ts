@@ -13,7 +13,7 @@ export type RequiredState = "All" | "Missing" | "Complete"
 export type TestWorklistItemDto = {
   recordId: number
   appointmentId: number
-  appointmentDate: string // ISO
+  appointmentDate: string
   patientId: number
   patientName: string
   hasAllRequiredResults: boolean
@@ -35,4 +35,5 @@ export type ReadTestResultDto = {
 export type TestTypeLite = {
   testTypeId: number
   testName: string
+  price?: number | null
 }
