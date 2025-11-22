@@ -57,15 +57,19 @@ export default function ScheduleListView() {
         fetchSchedules()
     }, [weekStart, weekEnd])
 
-    //  Group theo bác sĩ / nhân viên
     const groupedSchedules = useMemo(() => {
-        const map = new Map<string, DoctorActiveScheduleRangeDto[]>()
+        const map = new Map<string, DoctorActiveScheduleRangeDto[]>();
+
         for (const s of schedules) {
-            if (!map.has(s.doctorName)) map.set(s.doctorName, [])
-            map.get(s.doctorName)!.push(s)
+            // Tạo key duy nhất gồm tên + chuyên ngành
+            const key = `${s.doctorName} — ${s.specialty}`;
+
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(s);
         }
-        return map
-    }, [schedules])
+
+        return map;
+    }, [schedules]);
 
     //  Lấy shift theo ngày cho từng nhân viên
     const getShiftsByDate = (doctorName: string, date: Date) => {
@@ -81,6 +85,16 @@ export default function ScheduleListView() {
         setCurrentDate(newDate)
     }
 
+    // Search
+    const removeVietnameseTones = (str: string) => {
+        return str
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/đ/g, "d")
+            .replace(/Đ/g, "D")
+    }
+
+
     const handleNextWeek = () => {
         const newDate = new Date(currentDate)
         newDate.setDate(newDate.getDate() + 7)
@@ -90,9 +104,12 @@ export default function ScheduleListView() {
     const handleToday = () => setCurrentDate(new Date())
 
 
-    const filteredNames = Array.from(groupedSchedules.keys()).filter(name =>
-        name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    const filteredNames = Array.from(groupedSchedules.keys()).filter(name => {
+        const nameNoTone = removeVietnameseTones(name).toLowerCase();
+        const searchNoTone = removeVietnameseTones(searchQuery).toLowerCase();
+        return nameNoTone.includes(searchNoTone);
+    });
+
 
     return (
 
@@ -107,65 +124,58 @@ export default function ScheduleListView() {
             {/* Week Navigation */}
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-4 gap-6 items-center">
+
+                    
                         <div>
-                            <CardTitle>
-                                Hiển thị lịch làm việc
-                            </CardTitle>
-
+                            <CardTitle>Hiển thị lịch làm việc</CardTitle>
                             <CardDescription className="mt-2">
-                                từ {" "}{weekStart.toLocaleDateString("vi-VN")} đến{" "}
-                                {weekEnd.toLocaleDateString("vi-VN")}
+                                từ {weekStart.toLocaleDateString("vi-VN")} đến {weekEnd.toLocaleDateString("vi-VN")}
                             </CardDescription>
                         </div>
-                        <div className="flex flex-col items-end">
-                            <CardTitle>Tìm kiếm theo ngày</CardTitle>
-                            <CardDescription className="mt-2">
-                                <input
-                                    type="date"
-                                    className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                                    value={currentDate.toISOString().split("T")[0]}
-                                    onChange={(e) => {
-                                        const selected = new Date(e.target.value)
-                                        setCurrentDate(selected)
-                                    }}
+
+                        <div className="flex flex-col">
+                            <CardTitle className="text-sm">Tìm kiếm theo ngày</CardTitle>
+                            <input
+                                type="date"
+                                className="border border-gray-300 rounded-md w-50 px-3 py-1 mt-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                                value={currentDate.toISOString().split("T")[0]}
+                                onChange={(e) => setCurrentDate(new Date(e.target.value))}
+                            />
+                        </div>
+
+                       
+                        <div className="flex flex-col">
+                            <CardTitle className="text-sm">Tìm kiếm nhân viên</CardTitle>
+                            <div className="relative mt-2 w-50">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    placeholder="Nhập tên nhân viên..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-9"
                                 />
-                            </CardDescription>
+                            </div>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex justify-end gap-2">
                             <Button variant="outline" size="sm" onClick={handlePrevWeek}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
+
                             <Button variant="outline" size="sm" onClick={handleToday}>
                                 Hôm nay
                             </Button>
+
                             <Button variant="outline" size="sm" onClick={handleNextWeek}>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
+
                     </div>
                 </CardHeader>
             </Card>
 
-            {/* Search */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tìm kiếm nhân viên</CardTitle>
-                    <CardDescription>Tìm theo tên nhân viên</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Nhập tên nhân viên..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9"
-                        />
-                    </div>
-                </CardContent>
-            </Card>
 
             {/* Schedule Table */}
             <Card className="overflow-hidden">
@@ -201,49 +211,54 @@ export default function ScheduleListView() {
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredNames.map((name) => (
-                                            <tr key={name} className="border-b hover:bg-muted/30 transition-colors">
-                                                <td className="border-r px-4 py-3">
-                                                    <p className="font-medium text-sm">{name}</p>
-                                                    <Badge variant="outline">Bác sĩ</Badge>
-                                                </td>
-                                                {weekDates.map((date) => {
-                                                    const shifts = getShiftsByDate(name, date)
-                                                    const formatTime = (time: string) => {
-                                                        if (!time) return ""
-                                                        const [h, m] = time.split(":")
-                                                        return `${h}:${m}`
-                                                    }
+                                                filteredNames.map((fullKey) => {
+                                                    const [doctorName, specialty] = fullKey.split(" — ");
 
                                                     return (
-                                                        <td key={date.toISOString()} className="border-r px-4 py-3 text-center min-w-32">
-                                                            {shifts.length === 0 ? (
-                                                                <span className="text-xs text-muted-foreground">-</span>
-                                                            ) : (
-                                                                <div className="space-y-1">
-                                                                    {shifts.map((s, i) => (
-                                                                        <div
-                                                                            key={i}
-                                                                            className={`rounded px-2 py-1 text-xs font-medium 
-                                                                                ${s.status === "Exchange"
-                                                                                    ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                                                                                    : "bg-primary/10 text-primary border border-primary/20"
-                                                                                }`}
-                                                                        >
-                                                                            <div>{s.shiftType}</div>
-                                                                            <div className="text-xs opacity-75">
-                                                                                {formatTime(s.startTime)} - {formatTime(s.endTime)}
-                                                                            </div>
+                                                        <tr key={fullKey} className="border-b hover:bg-muted/30 transition-colors">
+                                                            <td className="border-r px-4 py-3">
+                                                                <p className="font-medium text-sm">{doctorName}</p>
+                                                                <Badge variant="outline"> {specialty}</Badge>
+                                                            </td>
 
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    )
-                                                })}
-                                            </tr>
-                                        ))
+                                                            {weekDates.map((date) => {
+                                                                const shifts = getShiftsByDate(fullKey, date);
+
+                                                                const formatTime = (time: string) => {
+                                                                    if (!time) return "";
+                                                                    const [h, m] = time.split(":");
+                                                                    return `${h}:${m}`;
+                                                                };
+
+                                                                return (
+                                                                    <td key={date.toISOString()} className="border-r px-4 py-3 text-center min-w-32">
+                                                                        {shifts.length === 0 ? (
+                                                                            <span className="text-xs text-muted-foreground">-</span>
+                                                                        ) : (
+                                                                            <div className="space-y-1">
+                                                                                {shifts.map((s, i) => (
+                                                                                    <div
+                                                                                        key={i}
+                                                                                        className={`rounded px-2 py-1 text-xs font-medium ${s.status === "Exchange"
+                                                                                                ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                                                                                                : "bg-primary/10 text-primary border border-primary/20"
+                                                                                            }`}
+                                                                                    >
+                                                                                        <div>{s.shiftType}</div>
+                                                                                        <div className="text-xs opacity-75">
+                                                                                            {formatTime(s.startTime)} - {formatTime(s.endTime)}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    );
+                                                })
+
                                     )}
                                 </tbody>
                             </table>

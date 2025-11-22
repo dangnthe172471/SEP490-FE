@@ -194,6 +194,18 @@ class ManagerService extends BaseService {
         )
         return res ?? []
     }
+    async getDoctorsWithoutSchedule(startDate: string, endDate: string): Promise<DoctorDto[]> {
+        const res = await this.request<DoctorDto[]>(
+            `/api/ManageSchedule/doctors-without-schedule?startDate=${startDate}&endDate=${endDate}`
+        )
+
+        if (res === null) {
+            toast.error("Không thể tải danh sách bác sĩ chưa có lịch.")
+            return []
+        }
+
+        return res
+    }
 
 
 }

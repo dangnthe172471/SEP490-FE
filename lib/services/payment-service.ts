@@ -2,7 +2,8 @@ import {
     CreatePaymentRequest,
     PaymentLinkResponse,
     PaymentDetailsResponse,
-    CreatePaymentResponse
+    CreatePaymentResponse,
+    PaymentChartDto
 } from "@/lib/types/payment";
 
 
@@ -52,6 +53,15 @@ export async function getPaymentStatus(recordId: number) {
     return res.json();
 }
 
+export async function getPaymentsChartData(start: string, end: string): Promise<PaymentChartDto[]> {
+    const res = await fetch(`${API_BASE_URL}/api/Payments/payments-chart?start=${start}&end=${end}`, {
+        method: "GET",
+        cache: "no-store",
+    })
 
+    if (!res.ok) throw new Error("Không lấy được dữ liệu chart")
+
+    return res.json()
+}
 
 

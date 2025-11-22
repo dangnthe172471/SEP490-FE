@@ -3,36 +3,55 @@
 import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { managerService } from "@/lib/services/manager-service"
-import type { DoctorDto, ShiftResponseDto } from "@/lib/types/manager-type"
+import type { WorkScheduleGroupDto, DoctorDto, ShiftResponseDto } from "@/lib/types/manager-type"
 import { Button } from "@/components/ui/button"
-import { List, Grid3x3, Plus } from "lucide-react"
+import { List, Grid3x3, Plus, Clock } from "lucide-react"
 import ScheduleCreateDialog from "./components/ScheduleCreateDialog"
 import ScheduleWeeklyView from "./components/ScheduleWeeklyView"
 import ScheduleMonthView from "./components/ScheduleMonthView"
 import ScheduleSummary from "./components/ScheduleSummary"
-import ScheduleListView from "./components/ScheduleListView"
 import SchedulePeriodListView from "./components/SchedulePeriodListView"
-
-import { BarChart3, Calendar, Clock, FileText, TrendingUp } from "lucide-react"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 import PageGuard from "@/components/PageGuard"
 
 export default function StaffSchedulePage() {
-    // Get manager navigation from centralized config
     const navigation = getManagerNavigation()
 
     const [schedules, setSchedules] = useState<any[]>([])
     const [shifts, setShifts] = useState<ShiftResponseDto[]>([])
     const [doctors, setDoctors] = useState<DoctorDto[]>([])
     const [viewMode, setViewMode] = useState<"list" | "month" | "period">("list")
-
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [scheduleGroups, setScheduleGroups] = useState<WorkScheduleGroupDto[]>([])
+    const [isMounted, setIsMounted] = useState(false)
 
+    // Chỉ render sau khi mounted để tránh SSR mismatch
     useEffect(() => {
+        setIsMounted(true)
+
+        // Load dữ liệu async
         managerService.getAllShifts().then(setShifts)
         managerService.searchDoctors("").then(setDoctors)
+        fetchSchedules()
     }, [])
+
+    const fetchSchedules = async () => {
+        const data = await managerService.listGroupSchedule(1, 5)
+        setScheduleGroups(data.items)
+    }
+
+    if (!isMounted) {
+        // Hiển thị spinner SSR-safe
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p>Đang tải...</p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <PageGuard allowedRoles={["management", "admin"]}>
@@ -41,7 +60,9 @@ export default function StaffSchedulePage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Lịch làm việc nhân viên</h1>
-                            <p className="text-muted-foreground">Quản lý lịch làm việc của toàn bộ nhân viên phòng khám</p>
+                            <p className="text-muted-foreground">
+                                Quản lý lịch làm việc của toàn bộ nhân viên phòng khám
+                            </p>
                         </div>
                         <Button onClick={() => setIsCreateDialogOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" /> Tạo lịch mới
@@ -64,7 +85,6 @@ export default function StaffSchedulePage() {
                         >
                             <Grid3x3 className="h-4 w-4 mr-2" /> Tổng quan
                         </Button>
-                        
                         <Button
                             variant={viewMode === "period" ? "default" : "outline"}
                             size="sm"
@@ -74,17 +94,16 @@ export default function StaffSchedulePage() {
                         </Button>
                     </div>
 
+                    {/* Views */}
                     {viewMode === "list" ? (
-                        <ScheduleWeeklyView
-                        />
+                        <ScheduleWeeklyView />
                     ) : viewMode === "month" ? (
                         <ScheduleMonthView schedules={schedules} />
                     ) : (
                         <SchedulePeriodListView />
                     )}
 
-
-                    <ScheduleSummary schedules={schedules} doctors={doctors} />
+                    <ScheduleSummary />
                     <ScheduleCreateDialog
                         open={isCreateDialogOpen}
                         onOpenChange={setIsCreateDialogOpen}
@@ -93,7 +112,7 @@ export default function StaffSchedulePage() {
                         loading={loading}
                         setLoading={setLoading}
                         onCreated={() => {
-                            window.location.reload()
+                            fetchSchedules()
                         }}
                     />
                 </div>
