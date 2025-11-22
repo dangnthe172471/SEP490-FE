@@ -21,7 +21,9 @@ async function toJson<T>(res: Response): Promise<T> {
 
 const BASE_PATH = "/api/PediatricRecords"
 
-export async function getPediatric(recordId: number): Promise<ReadPediatricRecordDto | null> {
+export async function getPediatric(
+  recordId: number
+): Promise<ReadPediatricRecordDto | null> {
   const res = await fetch(api(`${BASE_PATH}/${recordId}`), { cache: "no-store" })
   if (res.status === 404) return null
   return toJson<ReadPediatricRecordDto>(res)
@@ -53,6 +55,9 @@ export async function updatePediatric(
 }
 
 export async function deletePediatric(recordId: number): Promise<void> {
-  const res = await fetch(api(`${BASE_PATH}/${recordId}`), { method: "DELETE", cache: "no-store" })
+  const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
+    method: "DELETE",
+    cache: "no-store",
+  })
   await toJson<void>(res)
 }

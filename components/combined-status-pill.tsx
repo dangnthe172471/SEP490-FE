@@ -7,54 +7,79 @@ export type CombinedStatusSnapshot = {
   internalComplete: boolean
   hasPediatric: boolean
   pediatricComplete: boolean
+  hasDermatology: boolean
+  dermatologyComplete: boolean
   testsRequested: number
   testsComplete: boolean
 }
 
-export function CombinedStatusPill({
-  status,
-}: {
-  status?: CombinedStatusSnapshot | null
-}) {
-  if (!status) return <Badge variant="outline">Đang kiểm tra…</Badge>
+interface CombinedStatusPillProps {
+  status?: CombinedStatusSnapshot
+}
 
-  const internalVariant = status.internalComplete ? "secondary" : "outline"
-  const internalLabel = status.hasInternal
-    ? status.internalComplete ? "Nội" : "Nội thiếu"
-    : "Nội"
+/**
+ * Hiển thị các “pill” trạng thái: Nội / Nhi / Da liễu / XN chờ
+ */
+export function CombinedStatusPill({ status }: CombinedStatusPillProps) {
+  if (!status) return null
 
-  const pediatricVariant = status.pediatricComplete ? "secondary" : "outline"
-  const pediatricLabel = status.hasPediatric
-    ? status.pediatricComplete ? "Nhi" : "Nhi thiếu"
-    : "Nhi"
+  const {
+    hasInternal,
+    internalComplete,
+    hasPediatric,
+    pediatricComplete,
+    hasDermatology,
+    dermatologyComplete,
+    testsRequested,
+    testsComplete,
+  } = status
 
-  let testsVariant: "secondary" | "outline" = "outline"
-  let testsLabel = "XN chưa yêu cầu"
-  if (status.testsRequested > 0) {
-    testsVariant = status.testsComplete ? "secondary" : "outline"
-    testsLabel = status.testsComplete ? "XN đủ" : "XN chờ"
+  const showInternal = hasInternal
+  const showPediatric = hasPediatric
+  const showDerm = hasDermatology
+  const showTests = testsRequested > 0
+
+  if (!showInternal && !showPediatric && !showDerm && !showTests) {
+    return null
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
-      <Badge
-        variant={internalVariant}
-        className={!status.internalComplete ? "opacity-70" : undefined}
-      >
-        {internalLabel}
-      </Badge>
-      <Badge
-        variant={pediatricVariant}
-        className={!status.pediatricComplete ? "opacity-70" : undefined}
-      >
-        {pediatricLabel}
-      </Badge>
-      <Badge
-        variant={testsVariant}
-        className={status.testsRequested > 0 && !status.testsComplete ? "opacity-70" : undefined}
-      >
-        {testsLabel}
-      </Badge>
+    <div className="flex flex-wrap items-center gap-1">
+      {showInternal && (
+        <Badge
+          className="text-xs"
+          variant={internalComplete ? "default" : "outline"}
+        >
+          Nội
+        </Badge>
+      )}
+
+      {showPediatric && (
+        <Badge
+          className="text-xs"
+          variant={pediatricComplete ? "default" : "outline"}
+        >
+          Nhi
+        </Badge>
+      )}
+
+      {showDerm && (
+        <Badge
+          className="text-xs"
+          variant={dermatologyComplete ? "default" : "outline"}
+        >
+          Da liễu
+        </Badge>
+      )}
+
+      {showTests && (
+        <Badge
+          className="text-xs"
+          variant={testsComplete ? "secondary" : "outline"}
+        >
+          {testsComplete ? "XN đủ" : "XN chờ"}
+        </Badge>
+      )}
     </div>
   )
 }

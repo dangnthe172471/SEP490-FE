@@ -129,7 +129,7 @@ export function AIChatInterface() {
         try {
             const [patientInfoResult, chatHistoryResult] = await Promise.allSettled([
                 patientService.getPatientById(record.patientId),
-                AIChatHistoryService.getChatHistory(record.patientId),
+                AIChatHistoryService.getChatHistory(record.recordId),
             ])
 
             const patientInfo = patientInfoResult.status === 'fulfilled' ? patientInfoResult.value : undefined
@@ -176,11 +176,11 @@ export function AIChatInterface() {
 
         try {
             await Promise.all([
-                AIChatHistoryService.saveMessage(selectedRecord.patientId, {
+                AIChatHistoryService.saveMessage(selectedRecord.recordId, {
                     role: "user",
                     content: userContent,
                 }),
-                AIChatHistoryService.saveMessage(selectedRecord.patientId, {
+                AIChatHistoryService.saveMessage(selectedRecord.recordId, {
                     role: "assistant",
                     content: assistantContent,
                 }),
@@ -298,7 +298,7 @@ Hãy trình bày rõ ràng, ngắn gọn, có cấu trúc.`
             // Lưu vào Firebase nếu có selectedRecord
             if (selectedRecord) {
                 try {
-                    await AIChatHistoryService.saveMessage(selectedRecord.patientId, {
+                    await AIChatHistoryService.saveMessage(selectedRecord.recordId, {
                         role: "assistant",
                         content: summaryMessage.content,
                     })
@@ -323,48 +323,65 @@ Hãy trình bày rõ ràng, ngắn gọn, có cấu trúc.`
     }
 
     const formatMarkdown = (text: string): string => {
-        let formatted = text
+        const formatted = text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>')
 
         const lines = formatted.split('\n')
-        const result: string[] = []
+        const sections: string[] = []
+        let currentParagraph: string[] = []
         let inList = false
 
-        for (const line of lines) {
-            // Handle headings (## Heading)
-            const headingMatch = line.match(/^##\s+(.+)$/)
-            if (headingMatch) {
-                if (inList) {
-                    result.push('</ul>')
-                    inList = false
-                }
-                result.push(`<h3 class="font-bold text-base mt-4 mb-2">${headingMatch[1]}</h3>`)
-                continue
-            }
-
-            // Handle list items
-            const listMatch = line.match(/^\s*[-*]\s+(.+)$/)
-            if (listMatch) {
-                if (!inList) {
-                    result.push('<ul class="list-disc list-inside space-y-1 my-2 ml-4">')
-                    inList = true
-                }
-                result.push(`<li>${listMatch[1]}</li>`)
-            } else {
-                if (inList) {
-                    result.push('</ul>')
-                    inList = false
-                }
-                if (line.trim()) {
-                    result.push(line)
-                }
+        const flushParagraph = () => {
+            if (currentParagraph.length) {
+                sections.push(`<p class="text-sm leading-relaxed">${currentParagraph.join('<br>')}</p>`)
+                currentParagraph = []
             }
         }
 
-        if (inList) result.push('</ul>')
+        const closeList = () => {
+            if (inList) {
+                sections.push('</ul>')
+                inList = false
+            }
+        }
 
-        return `<div class="mb-2">${result.join('\n').replace(/\n\n+/g, '</p><p class="mb-2">').replace(/\n/g, '<br>')}</div>`
+        for (const rawLine of lines) {
+            const line = rawLine.trim()
+
+            if (!line) {
+                closeList()
+                flushParagraph()
+                continue
+            }
+
+            const headingMatch = line.match(/^##\s+(.+)$/)
+            if (headingMatch) {
+                closeList()
+                flushParagraph()
+                sections.push(`<h3 class="font-semibold text-sm text-primary mt-2">${headingMatch[1]}</h3>`)
+                continue
+            }
+
+            const listMatch = line.match(/^[-*]\s+(.+)$/)
+            if (listMatch) {
+                flushParagraph()
+                if (!inList) {
+                    sections.push('<ul class="list-disc list-inside space-y-1 text-sm pl-4">')
+                    inList = true
+                }
+                sections.push(`<li>${listMatch[1]}</li>`)
+                continue
+            }
+
+            closeList()
+            currentParagraph.push(line)
+        }
+
+        closeList()
+        flushParagraph()
+
+        return `<div class="space-y-2">${sections.join('')}</div>`
     }
 
     return (

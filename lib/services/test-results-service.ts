@@ -1,4 +1,3 @@
-// lib/services/test-results-service.ts
 import type {
   PagedResult,
   TestWorklistItemDto,
@@ -17,7 +16,9 @@ export type GetWorklistParams = {
   pageSize?: number
 }
 
-export async function getTestWorklist(params: GetWorklistParams): Promise<PagedResult<TestWorklistItemDto>> {
+export async function getTestWorklist(
+  params: GetWorklistParams,
+): Promise<PagedResult<TestWorklistItemDto>> {
   const url = new URL("/api/TestResults/worklist", API_BASE)
   if (params.date) url.searchParams.set("date", params.date)
   if (params.patientName) url.searchParams.set("patientName", params.patientName)
@@ -25,19 +26,28 @@ export async function getTestWorklist(params: GetWorklistParams): Promise<PagedR
   url.searchParams.set("pageNumber", String(params.pageNumber ?? 1))
   url.searchParams.set("pageSize", String(params.pageSize ?? 20))
 
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" })
+  const res = await fetch(url.toString(), {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  })
   if (!res.ok) throw new Error(`Worklist failed (${res.status})`)
   return res.json()
 }
 
 export async function getTestTypes(): Promise<TestTypeLite[]> {
-  const res = await fetch(`${API_BASE}/api/TestResults/types`, { cache: "no-store" })
+  const res = await fetch(`${API_BASE}/api/TestResults/types`, {
+    cache: "no-store",
+  })
   if (!res.ok) throw new Error(`Load types failed (${res.status})`)
   return res.json()
 }
 
-export async function getTestResultsByRecord(recordId: number): Promise<ReadTestResultDto[]> {
-  const res = await fetch(`${API_BASE}/api/TestResults/record/${recordId}`, { cache: "no-store" })
+export async function getTestResultsByRecord(
+  recordId: number,
+): Promise<ReadTestResultDto[]> {
+  const res = await fetch(`${API_BASE}/api/TestResults/record/${recordId}`, {
+    cache: "no-store",
+  })
   if (!res.ok) throw new Error(`Load record results failed (${res.status})`)
   return res.json()
 }
@@ -52,7 +62,9 @@ export type CreateTestResultDto = {
   notes?: string | null
 }
 
-export async function createTestResult(body: CreateTestResultDto): Promise<ReadTestResultDto> {
+export async function createTestResult(
+  body: CreateTestResultDto,
+): Promise<ReadTestResultDto> {
   const res = await fetch(`${API_BASE}/api/TestResults`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -70,7 +82,10 @@ export type UpdateTestResultDto = {
   notes?: string | null
 }
 
-export async function updateTestResult(id: number, body: UpdateTestResultDto): Promise<ReadTestResultDto> {
+export async function updateTestResult(
+  id: number,
+  body: UpdateTestResultDto,
+): Promise<ReadTestResultDto> {
   const res = await fetch(`${API_BASE}/api/TestResults/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -81,7 +96,9 @@ export async function updateTestResult(id: number, body: UpdateTestResultDto): P
 }
 
 export async function deleteTestResult(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/TestResults/${id}`, { method: "DELETE" })
+  const res = await fetch(`${API_BASE}/api/TestResults/${id}`, {
+    method: "DELETE",
+  })
   if (!res.ok) throw new Error(`Delete result failed (${res.status})`)
 }
 

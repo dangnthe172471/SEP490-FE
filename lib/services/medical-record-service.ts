@@ -1,4 +1,4 @@
-import type { ReadInternalMedRecordDto, ReadPediatricRecordDto } from "@/lib/types/specialties"
+import type { ReadInternalMedRecordDto, ReadPediatricRecordDto, ReadDermatologyRecordDto } from "@/lib/types/specialties"
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7168'
 const API_BASE_URL = `${API_ORIGIN}/api/MedicalRecord`
@@ -58,7 +58,7 @@ export interface MedicalRecordDto {
   createdAt?: string | null
   appointment?: AppointmentLiteDto | null
   internalMedRecord?: ReadInternalMedRecordDto | null
-  obstetricRecord?: unknown | null
+  dermatologyRecords?: ReadDermatologyRecordDto[] | null
   pediatricRecord?: ReadPediatricRecordDto | null
   payments: PaymentDto[]
   prescriptions: PrescriptionDto[]
