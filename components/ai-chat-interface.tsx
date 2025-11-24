@@ -387,8 +387,8 @@ Hãy trình bày rõ ràng, ngắn gọn, có cấu trúc.`
     return (
         <div className="flex h-[calc(100vh-250px)] min-h-[600px] border rounded-lg overflow-hidden bg-background">
             {/* Sidebar - Patient Records */}
-            <div className="w-80 border-r bg-muted/30 flex flex-col shrink-0">
-                <div className="p-4 border-b bg-muted/50">
+            <div className="w-80 border-r bg-muted/30 flex flex-col shrink-0 h-full">
+                <div className="p-4 border-b bg-muted/50 shrink-0">
                     <div className="flex items-center gap-2 mb-3">
                         <FileText className="h-5 w-5 text-primary" />
                         <h3 className="font-semibold text-sm">Hồ sơ bệnh án</h3>
@@ -403,7 +403,7 @@ Hãy trình bày rõ ràng, ngắn gọn, có cấu trúc.`
                         />
                     </div>
                 </div>
-                <ScrollArea className="flex-1">
+                <ScrollArea className="flex-1 min-h-0">
                     <div className="p-2 space-y-2">
                         {recordsLoading ? (
                             <div className="flex items-center justify-center py-8">

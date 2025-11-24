@@ -348,10 +348,32 @@ export default function DoctorShiftSwapPage() {
             setLoading(true)
 
             const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
+            const targetDoctorId = parseInt(formData.targetDoctorId)
+
+            // Kiểm tra ca của bác sĩ 1 phải thuộc về bác sĩ 1
+            if (!selectedMyShift || selectedMyShift.doctorId !== doctorId) {
+                toast.error("Ca làm việc bạn chọn không thuộc về bạn. Vui lòng chọn lại.")
+                setLoading(false)
+                return
+            }
+
+            // Kiểm tra ca của bác sĩ 2 phải thuộc về bác sĩ 2
+            if (!selectedTargetShift || selectedTargetShift.doctorId !== targetDoctorId) {
+                toast.error("Ca làm việc bạn chọn không thuộc về bác sĩ đích. Vui lòng chọn lại.")
+                setLoading(false)
+                return
+            }
+
+            // Kiểm tra hai ca phải khác nhau (không thể đổi ca giống nhau)
+            if (selectedMyShift.shiftId === selectedTargetShift.shiftId) {
+                toast.error("Không thể đổi ca giống nhau. Vui lòng chọn ca khác để đổi.")
+                setLoading(false)
+                return
+            }
 
             const request: CreateShiftSwapRequest = {
                 doctor1Id: doctorId,
-                doctor2Id: parseInt(formData.targetDoctorId),
+                doctor2Id: targetDoctorId,
                 doctor1ShiftRefId: parseInt(formData.myShiftId),
                 doctor2ShiftRefId: parseInt(formData.targetShiftId),
                 ...(swapType === "temporary" && formData.exchangeDate ? { exchangeDate: formData.exchangeDate } : {}),
@@ -368,7 +390,6 @@ export default function DoctorShiftSwapPage() {
                 }
             }
 
-            const targetDoctorId = parseInt(formData.targetDoctorId)
             const existingRequests = myRequests.filter(req => {
                 const isSameDoctors = (req.doctor1Id === doctorId && req.doctor2Id === targetDoctorId) ||
                     (req.doctor1Id === targetDoctorId && req.doctor2Id === doctorId)
@@ -408,7 +429,7 @@ export default function DoctorShiftSwapPage() {
                 "Không thể tạo yêu cầu đổi ca"
 
             const finalMessage = errorMessage.includes("Invalid shift swap request")
-                ? "Yêu cầu đổi ca không hợp lệ. Có thể đã có yêu cầu đổi ca giữa 2 bác sĩ này trong ngày này, hoặc ca làm việc không tồn tại."
+                ? "Yêu cầu đổi ca không hợp lệ. Có thể: hai ca giống nhau, ca làm việc không thuộc về đúng bác sĩ, đã có yêu cầu đổi ca giữa 2 bác sĩ này trong ngày này, hoặc ca làm việc không tồn tại."
                 : errorMessage
 
             await showErrorAlert("Lỗi tạo yêu cầu", finalMessage)
