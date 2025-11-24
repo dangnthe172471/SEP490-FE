@@ -7,7 +7,8 @@ import {
     Users,
     FileText,
     MessageCircle,
-    UserPlus
+    UserPlus,
+    Bell
 } from "lucide-react"
 import type { NavigationItem } from "./types"
 
@@ -19,6 +20,7 @@ export const RECEPTION_NAVIGATION: NavigationItem[] = [
     { name: "Trạng thái phòng khám", href: "/reception/clinic-status", icon: Activity },
     { name: "Bệnh nhân", href: "/reception/patients", icon: Users },
     { name: "Hồ sơ bệnh án", href: "/reception/records", icon: FileText },
+    { name: "Yêu cầu tái khám", href: "/reception/reappointment-requests", icon: Bell },
     { name: "Chat hỗ trợ", href: "/reception/chat", icon: MessageCircle },
     { name: "Đăng ký mới", href: "/reception/register", icon: UserPlus },
 ]

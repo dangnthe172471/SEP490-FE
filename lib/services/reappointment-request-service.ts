@@ -16,7 +16,7 @@ class ReappointmentRequestService extends BaseApiService {
     data: CreateReappointmentRequestDto
   ): Promise<{ notificationId: number; message: string }> {
     return this.request<{ notificationId: number; message: string }>(
-      '/ReappointmentRequest',
+      '/DoctorReappointmentRequests',
       {
         method: 'POST',
         body: JSON.stringify(data),
@@ -26,19 +26,19 @@ class ReappointmentRequestService extends BaseApiService {
 
   // Doctor: Lấy danh sách yêu cầu đã tạo
   async getMyReappointmentRequests(): Promise<ReappointmentRequestDto[]> {
-    return this.request<ReappointmentRequestDto[]>('/ReappointmentRequest/my-requests');
+    return this.request<ReappointmentRequestDto[]>('/DoctorReappointmentRequests/my-requests');
   }
 
   // Receptionist: Lấy danh sách yêu cầu tái khám đang chờ
   async getPendingReappointmentRequests(): Promise<ReappointmentRequestDto[]> {
-    return this.request<ReappointmentRequestDto[]>('/ReappointmentRequest/pending');
+    return this.request<ReappointmentRequestDto[]>('/ReceptionistReappointmentRequests/pending');
   }
 
   // Receptionist: Lấy chi tiết yêu cầu tái khám
   async getReappointmentRequestById(
     notificationId: number
   ): Promise<ReappointmentRequestDto> {
-    return this.request<ReappointmentRequestDto>(`/ReappointmentRequest/${notificationId}`);
+    return this.request<ReappointmentRequestDto>(`/ReceptionistReappointmentRequests/${notificationId}`);
   }
 
   // Receptionist: Xử lý yêu cầu - tạo appointment mới
@@ -46,7 +46,7 @@ class ReappointmentRequestService extends BaseApiService {
     data: CompleteReappointmentRequestDto
   ): Promise<{ appointmentId: number; message: string }> {
     return this.request<{ appointmentId: number; message: string }>(
-      '/ReappointmentRequest/complete',
+      '/ReceptionistReappointmentRequests/complete',
       {
         method: 'POST',
         body: JSON.stringify(data),
