@@ -66,7 +66,7 @@ export default function CreateUserPage() {
     phone: "",
     password: "",
     confirmPassword: "",
-    role: 4, // Default to Patient
+    role: 4, // Default to Doctor
     gender: "",
     dob: "",
     allergies: "",
@@ -107,6 +107,25 @@ export default function CreateUserPage() {
     } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ""))) {
       newErrors.phone = "Số điện thoại phải có 10-11 chữ số"
     }
+
+    if (!formData.dob) {
+      newErrors.dob = "Ngày sinh là bắt buộc";
+    } else {
+      const dob = new Date(formData.dob);
+      const today = new Date();
+
+      // Xóa giờ phút giây để so sánh đúng ngày
+      dob.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+
+      if (dob > today) {
+        newErrors.dob = "Ngày sinh không được vượt quá ngày hôm nay";
+      }
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = "Giới tính là bắt buộc"
+    } 
 
     if (!formData.password) {
       newErrors.password = "Mật khẩu là bắt buộc"
@@ -326,6 +345,7 @@ export default function CreateUserPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.gender && <p className="text-sm text-red-500">{errors.gender}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -336,6 +356,7 @@ export default function CreateUserPage() {
                       value={formData.dob}
                       onChange={(e) => handleInputChange("dob", e.target.value)}
                     />
+                    {errors.dob && <p className="text-sm text-red-500">{errors.dob}</p>}
                   </div>
                 </CardContent>
               </Card>

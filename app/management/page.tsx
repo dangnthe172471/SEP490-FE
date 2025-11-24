@@ -16,7 +16,7 @@ import {
   FileText,
   CalendarIcon,
   Clock,
-  TestTube,
+  TestTube, // Sử dụng icon TestTube cho Test Types
   Building2,
   AlertCircle,
   Loader2,
@@ -43,9 +43,10 @@ import { RevenueChartSection } from "./charts/RevenueChart"
 import { useEffect, useMemo, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { appointmentService } from "@/lib/services/appointment-service"
+import { testTypeService } from "@/lib/services/test-type-service" // ⭐ IMPORT TEST TYPE SERVICE
 import type { AppointmentTimeSeriesPoint, AppointmentHeatmapPoint } from "@/lib/types/appointment"
 
-// Mock data for charts
+// Mock data for charts (giữ nguyên)
 const revenueData = [
   { month: "T1", revenue: 45000000, expenses: 32000000 },
   { month: "T2", revenue: 52000000, expenses: 35000000 },
@@ -83,11 +84,37 @@ const topDoctors = [
   { name: "BS. Hoàng Văn E", patients: 98, revenue: 58800000, rating: 4.5 },
 ]
 
+// Hàm tiện ích (giữ nguyên)
+const formatDateParam = (date: Date) => date.toISOString().split("T")[0]
+const computeRange = (days: number) => {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(end.getDate() - (days - 1))
+  return { from: formatDateParam(start), to: formatDateParam(end) }
+}
+const formatPeriodLabel = (period: string, groupBy: "day" | "month") => {
+  if (groupBy === "day") {
+    const date = new Date(`${period}T00:00:00`)
+    if (Number.isNaN(date.getTime())) return period
+    return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
+  }
+  const [year, month] = period.split("-")
+  if (!year || !month) return period
+  return `${month}/${year}`
+}
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+  }).format(value)
+}
+
+
 export default function ManagementDashboard() {
-  // Get manager navigation from centralized config
   const navigation = getManagerNavigation()
 
-  // Appointments analytics states
+  // --- Appointments analytics states (giữ nguyên) ---
   const [tsData, setTsData] = useState<AppointmentTimeSeriesPoint[]>([])
   const [hmData, setHmData] = useState<AppointmentHeatmapPoint[]>([])
   const [statusStats, setStatusStats] = useState<{ name: string; value: number; color: string }[]>([])
@@ -96,31 +123,22 @@ export default function ManagementDashboard() {
   const [appointmentsLoading, setAppointmentsLoading] = useState(false)
   const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
 
+  // ⭐ BỔ SUNG: Test Type analytics states
+  const [ttTsData, setTtTsData] = useState<Array<{ period: string; count: number }>>([])
+  const [ttTotalCount, setTtTotalCount] = useState(0)
+  const [ttLoading, setTtLoading] = useState(false)
+  const [ttError, setTtError] = useState<string | null>(null)
+  const [ttRange, setTtRange] = useState(30)
+  const [ttGroupBy, setTtGroupBy] = useState<"day" | "month">("day")
+
+
   const rangeOptions = [
     { label: "7 ngày", value: 7 },
     { label: "30 ngày", value: 30 },
     { label: "90 ngày", value: 90 },
   ]
 
-  const formatDateParam = (date: Date) => date.toISOString().split("T")[0]
-  const computeRange = (days: number) => {
-    const end = new Date()
-    const start = new Date()
-    start.setDate(end.getDate() - (days - 1))
-    return { from: formatDateParam(start), to: formatDateParam(end) }
-  }
-
-  const formatPeriodLabel = (period: string, groupBy: "day" | "month") => {
-    if (groupBy === "day") {
-      const date = new Date(`${period}T00:00:00`)
-      if (Number.isNaN(date.getTime())) return period
-      return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
-    }
-    const [year, month] = period.split("-")
-    if (!year || !month) return period
-    return `${month}/${year}`
-  }
-
+  // --- useEffect cho Appointments (giữ nguyên) ---
   useEffect(() => {
     const load = async () => {
       try {
@@ -130,13 +148,12 @@ export default function ManagementDashboard() {
         const { from, to } = computeRange(range)
         console.log("📊 Loading appointments analytics:", { from, to, groupBy, range })
 
-        // Load từng API riêng biệt để xác định API nào bị lỗi
         let series: AppointmentTimeSeriesPoint[] = []
         let heatmap: AppointmentHeatmapPoint[] = []
         let stats: any = null
         const errors: string[] = []
 
-        // Load statistics first (đơn giản nhất)
+        // Load statistics first
         try {
           stats = await appointmentService.getAppointmentStatistics()
           console.log("✅ Statistics loaded:", stats)
@@ -181,9 +198,9 @@ export default function ManagementDashboard() {
 
         // Hiển thị lỗi nếu có
         if (errors.length > 0) {
-          const errorMessage = `Một số dữ liệu không tải được:\n${errors.join('\n')}`
+          const errorMessage = `Một số dữ liệu lịch hẹn không tải được:\n${errors.join('\n')}`
           setAppointmentsError(errorMessage)
-          console.warn("⚠️ Some data failed to load:", errors)
+          console.warn("⚠️ Some appointment data failed to load:", errors)
         }
 
       } catch (e: any) {
@@ -200,6 +217,62 @@ export default function ManagementDashboard() {
     load()
   }, [range, groupBy])
 
+  // ⭐ BỔ SUNG: useEffect cho Test Types
+  useEffect(() => {
+    const loadTestTypeData = async () => {
+      try {
+        setTtLoading(true)
+        setTtError(null)
+
+        const { from, to } = computeRange(ttRange)
+        console.log("📊 Loading test type analytics:", { from, to, groupBy: ttGroupBy, range: ttRange })
+
+        let series: Array<{ period: string; count: number }> = []
+        let totalStats: any = null
+        const errors: string[] = []
+
+        // Load total count
+        try {
+          totalStats = await testTypeService.getTestTypeStatistics()
+          console.log("✅ Test Type Statistics loaded:", totalStats)
+        } catch (e: any) {
+          console.error("❌ Failed to load Test Type statistics:", e)
+          errors.push(`Test Type Statistics: ${e?.message || 'Unknown error'}`)
+        }
+
+        // Load time series
+        try {
+          series = await testTypeService.getTestTypeUsageTimeSeries({ from, to, groupBy: ttGroupBy })
+          console.log("✅ Test Type Time series loaded:", series?.length ?? 0, "items")
+        } catch (e: any) {
+          console.error("❌ Failed to load Test Type time series:", e)
+          errors.push(`Test Type Time series: ${e?.message || 'Unknown error'}`)
+        }
+
+        setTtTsData(series || [])
+        setTtTotalCount(totalStats?.totalTestTypes ?? 0)
+
+        if (errors.length > 0) {
+          const errorMessage = `Một số dữ liệu loại xét nghiệm không tải được:\n${errors.join('\n')}`
+          setTtError(errorMessage)
+          console.warn("⚠️ Some test type data failed to load:", errors)
+        }
+
+      } catch (e: any) {
+        console.error("❌ Test Type analytics load failed:", e)
+        const errorMessage = e?.message || "Không thể tải dữ liệu loại xét nghiệm"
+        setTtError(errorMessage)
+        setTtTsData([])
+        setTtTotalCount(0)
+      } finally {
+        setTtLoading(false)
+      }
+    }
+    loadTestTypeData()
+  }, [ttRange, ttGroupBy])
+
+
+  // --- useMemo cho Appointments (giữ nguyên) ---
   const lineChartData = useMemo(() => tsData.map(point => ({
     label: formatPeriodLabel(point.period, groupBy),
     count: point.count,
@@ -214,6 +287,15 @@ export default function ManagementDashboard() {
   const maxHeatmapCount = useMemo(() => hmData.reduce((max, point) => Math.max(max, point.count), 0), [hmData])
   const rangeLabel = rangeOptions.find(o => o.value === range)?.label ?? `${range} ngày`
 
+  // ⭐ BỔ SUNG: useMemo cho Test Types
+  const ttLineChartData = useMemo(() => ttTsData.map(point => ({
+    label: formatPeriodLabel(point.period, ttGroupBy),
+    count: point.count,
+  })), [ttTsData, ttGroupBy])
+  const ttRangeLabel = rangeOptions.find(o => o.value === ttRange)?.label ?? `${ttRange} ngày`
+
+
+  // --- Stats Card (cập nhật Lịch hẹn và thêm Loại Xét nghiệm) ---
   const stats = [
     {
       title: "Doanh thu tháng này",
@@ -233,29 +315,21 @@ export default function ManagementDashboard() {
     },
     {
       title: "Lịch hẹn",
-      value: "245",
+      value: "245", // Có thể thay bằng stats.totalAppointments nếu có từ API
       change: "+8.3%",
       trend: "up",
       icon: Calendar,
       color: "text-chart-3",
     },
     {
-      title: "Tỷ lệ hoàn thành",
-      value: "92%",
-      change: "+2.1%",
-      trend: "up",
-      icon: Activity,
-      color: "text-chart-4",
+      title: "Loại xét nghiệm", // ⭐ BỔ SUNG METRIC NÀY
+      value: ttTotalCount > 0 ? ttTotalCount.toString() : "...",
+      change: "", // Không có so sánh
+      trend: "none",
+      icon: TestTube,
+      color: "text-chart-5",
     },
   ]
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      minimumFractionDigits: 0,
-    }).format(value)
-  }
 
   return (
     <PageGuard allowedRoles={["management", "admin"]}>
@@ -278,15 +352,17 @@ export default function ManagementDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{stat.value}</div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {stat.trend === "up" ? (
-                        <ArrowUp className="h-3 w-3 text-chart-2" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 text-destructive" />
-                      )}
-                      <span className={stat.trend === "up" ? "text-chart-2" : "text-destructive"}>{stat.change}</span>
-                      <span>so với tháng trước</span>
-                    </div>
+                    {stat.change && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {stat.trend === "up" ? (
+                          <ArrowUp className="h-3 w-3 text-chart-2" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 text-destructive" />
+                        )}
+                        <span className={stat.trend === "up" ? "text-chart-2" : "text-destructive"}>{stat.change}</span>
+                        <span>so với tháng trước</span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )
@@ -299,12 +375,13 @@ export default function ManagementDashboard() {
               <TabsTrigger value="patients">Bệnh nhân</TabsTrigger>
               <TabsTrigger value="departments">Khoa phòng</TabsTrigger>
               <TabsTrigger value="appointments">Lịch hẹn</TabsTrigger>
+              <TabsTrigger value="test-types">Loại xét nghiệm</TabsTrigger> {/* ⭐ BỔ SUNG TAB */}
             </TabsList>
 
-            {/* Revenue Chart */}
+            {/* Revenue Chart (giữ nguyên) */}
             <RevenueChartSection />
 
-            {/* Patients Chart */}
+            {/* Patients Chart (giữ nguyên) */}
             <TabsContent value="patients" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -332,7 +409,7 @@ export default function ManagementDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Departments Chart */}
+            {/* Departments Chart (giữ nguyên) */}
             <TabsContent value="departments" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -363,7 +440,7 @@ export default function ManagementDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Appointments Chart */}
+            {/* Appointments Chart (giữ nguyên) */}
             <TabsContent value="appointments" className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={String(range)} onValueChange={(v) => setRange(parseInt(v, 10))}>
@@ -538,9 +615,103 @@ export default function ManagementDashboard() {
                 </Card>
               )}
             </TabsContent>
+
+            {/* ⭐ BỔ SUNG: Test Types Chart */}
+            <TabsContent value="test-types" className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={String(ttRange)} onValueChange={(v) => setTtRange(parseInt(v, 10))}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Khoảng thời gian" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rangeOptions.map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={ttGroupBy} onValueChange={(v: any) => setTtGroupBy(v)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Nhóm theo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Theo ngày</SelectItem>
+                    <SelectItem value="month">Theo tháng</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Error Message */}
+              {ttError && (
+                <Card className="border-red-200 bg-red-50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3 text-red-800">
+                      <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-medium mb-2">Lỗi khi tải dữ liệu loại xét nghiệm</p>
+                        <div className="text-sm text-red-600 whitespace-pre-line mb-2">
+                          {ttError}
+                        </div>
+                        <div className="text-xs text-red-500 mt-2 space-y-1">
+                          <p><strong>Vui lòng kiểm tra:</strong></p>
+                          <ul className="list-disc list-inside space-y-0.5 ml-2">
+                            <li>Bạn đã đăng nhập với role "Clinic Manager"</li>
+                            <li>Kết nối với backend đang hoạt động</li>
+                            <li>Console (F12) để xem chi tiết lỗi</li>
+                            <li>Backend logs để xem lỗi server</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Loading State */}
+              {ttLoading && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                      <span className="text-muted-foreground">Đang tải dữ liệu loại xét nghiệm...</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!ttLoading && !ttError && (
+                <div className="grid gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Xu hướng sử dụng Loại Xét nghiệm</CardTitle>
+                      <CardDescription>Số lượng xét nghiệm được thực hiện theo {ttGroupBy === "day" ? "ngày" : "tháng"} trong {ttRangeLabel}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {ttLineChartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={320}>
+                          <LineChart data={ttLineChartData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="label" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="count" name="Số xét nghiệm" stroke="hsl(var(--chart-4))" strokeWidth={3} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                          {ttTsData.length === 0
+                            ? "Không có dữ liệu loại xét nghiệm trong khoảng thời gian này."
+                            : "Đang xử lý dữ liệu..."}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
 
-          {/* Top Doctors */}
+          {/* Top Doctors (giữ nguyên) */}
           <Card>
             <CardHeader>
               <CardTitle>Bác sĩ xuất sắc</CardTitle>

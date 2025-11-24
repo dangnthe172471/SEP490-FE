@@ -16,7 +16,10 @@ export function DoctorAppointments({ className }: DoctorAppointmentsProps) {
     const [appointments, setAppointments] = useState<AppointmentDto[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-
+  
+    const navigation = () => {
+        window.location.href = "/doctor/appointments";
+    };
     useEffect(() => {
         const fetchAppointments = async () => {
             try {
@@ -184,7 +187,7 @@ export function DoctorAppointments({ className }: DoctorAppointmentsProps) {
                                 {/* Actions */}
                                 <div className="flex items-center gap-2">
                                     {getStatusBadge(appointment.status)}
-                                    <Button size="sm" variant="outline" className="flex items-center gap-1">
+                                    <Button size="sm" variant="outline" className="flex items-center gap-1" onClick={navigation}>
                                         <Eye className="h-3 w-3" />
                                         Xem
                                     </Button>
@@ -196,4 +199,6 @@ export function DoctorAppointments({ className }: DoctorAppointmentsProps) {
             </CardContent>
         </Card>
     )
+    
 }
+
