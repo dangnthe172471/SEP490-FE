@@ -10,7 +10,8 @@ import {
     TestTube,
     Building2,
     Package,
-    Bell
+    Bell,
+    Stethoscope
 } from "lucide-react"
 import type { NavigationItem } from "./types"
 
@@ -27,6 +28,7 @@ export const MANAGER_NAVIGATION: NavigationItem[] = [
     { name: "Loại xét nghiệm", href: "/management/test-types", icon: TestTube },
     { name: "Phòng khám", href: "/management/rooms", icon: Building2 },
     { name: "Thuốc", href: "/management/medicines", icon: Package },
+    { name: "Dịch vụ", href: "/management/services", icon: Stethoscope },
     { name: "Gửi thông báo", href: "/management/notifications", icon: Bell },
 ]
 
