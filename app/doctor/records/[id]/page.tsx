@@ -46,8 +46,12 @@ import {
   CommandEmpty,
   CommandItem,
 } from "@/components/ui/command";
-import { ChevronsUpDown, Check } from "lucide-react";
+import { ChevronsUpDown, Check, Clock, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { reappointmentRequestService } from "@/lib/services/reappointment-request-service";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 
 interface PatientDetail {
   fullName: string;
@@ -90,6 +94,12 @@ export default function MedicalRecordDetailPage() {
 
   // DANH SÁCH KẾT QUẢ XÉT NGHIỆM THỰC TẾ (lấy từ API riêng)
   const [testResults, setTestResults] = useState<ReadTestResultDto[]>([]);
+
+  // Reappointment request state
+  const [reappointmentDate, setReappointmentDate] = useState<string>("");
+  const [reappointmentTime, setReappointmentTime] = useState<string>("");
+  const [reappointmentNotes, setReappointmentNotes] = useState<string>("");
+  const [sendingReappointment, setSendingReappointment] = useState(false);
 
   // combobox xét nghiệm
   const [selectedTestTypeId, setSelectedTestTypeId] = useState<number | null>(
@@ -1003,6 +1013,118 @@ export default function MedicalRecordDetailPage() {
                   Chưa có đơn thuốc
                 </p>
               )}
+            </div>
+
+            {/* Lên lịch tái khám */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="h-5 w-5 text-primary" />
+                <div className="font-semibold">Lên lịch tái khám</div>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4 space-y-3 border border-blue-100">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Gửi yêu cầu tái khám cho lễ tân để đặt lịch hẹn cho bệnh nhân
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="reappointment-date" className="text-xs">
+                      Ngày tái khám mong muốn
+                    </Label>
+                    <Input
+                      id="reappointment-date"
+                      type="date"
+                      value={reappointmentDate}
+                      onChange={(e) => setReappointmentDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="reappointment-time" className="text-xs">
+                      Giờ tái khám mong muốn
+                    </Label>
+                    <Input
+                      id="reappointment-time"
+                      type="time"
+                      value={reappointmentTime}
+                      onChange={(e) => setReappointmentTime(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="reappointment-notes" className="text-xs">
+                    Ghi chú (tùy chọn)
+                  </Label>
+                  <Textarea
+                    id="reappointment-notes"
+                    placeholder="Nhập ghi chú về lý do tái khám hoặc hướng dẫn cho lễ tân..."
+                    value={reappointmentNotes}
+                    onChange={(e) => setReappointmentNotes(e.target.value)}
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
+                <Button
+                  onClick={async () => {
+                    if (!reappointmentDate) {
+                      toast({
+                        title: "Lỗi",
+                        description: "Vui lòng chọn ngày tái khám mong muốn.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    if (!record?.appointment?.appointmentId && !record?.appointmentId) {
+                      toast({
+                        title: "Lỗi",
+                        description: "Không tìm thấy thông tin lịch hẹn.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    try {
+                      setSendingReappointment(true);
+                      
+                      const preferredDateTime = reappointmentTime
+                        ? `${reappointmentDate}T${reappointmentTime}:00`
+                        : `${reappointmentDate}T00:00:00`;
+
+                      await reappointmentRequestService.createReappointmentRequest({
+                        appointmentId: record.appointment?.appointmentId ?? record.appointmentId,
+                        preferredDate: preferredDateTime,
+                        notes: reappointmentNotes || null,
+                      });
+
+                      toast({
+                        title: "Thành công",
+                        description: "Đã gửi yêu cầu tái khám cho lễ tân.",
+                      });
+
+                      // Reset form
+                      setReappointmentDate("");
+                      setReappointmentTime("");
+                      setReappointmentNotes("");
+                    } catch (error: any) {
+                      toast({
+                        title: "Lỗi",
+                        description: error?.message || "Không thể gửi yêu cầu tái khám.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setSendingReappointment(false);
+                    }
+                  }}
+                  disabled={sendingReappointment || !reappointmentDate}
+                  size="sm"
+                  className="w-full"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sendingReappointment ? "Đang gửi..." : "Gửi yêu cầu tái khám"}
+                </Button>
+              </div>
             </div>
 
             {/* Kết quả xét nghiệm */}

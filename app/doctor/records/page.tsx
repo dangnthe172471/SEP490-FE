@@ -71,7 +71,7 @@ export default function DoctorRecordsPage() {
 
   useEffect(() => {
     const user = getCurrentUser()
-    
+
     if (!user?.id) {
       console.error("User chưa đăng nhập hoặc không có ID");
       return;

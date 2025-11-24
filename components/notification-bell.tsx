@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell } from "lucide-react"
+import { Bell, Clock, Calendar, User, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -96,6 +96,8 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
                 return "bg-purple-100 text-purple-700"
             case "policy":
                 return "bg-amber-100 text-amber-700"
+            case "reappointmentrequest":
+                return "bg-green-100 text-green-700"
             default:
                 return "bg-gray-100 text-gray-700"
         }
@@ -109,9 +111,40 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
                 return "Cuộc họp"
             case "policy":
                 return "Chính sách"
+            case "reappointmentrequest":
+                return "Yêu cầu tái khám"
             default:
                 return "Thông báo"
         }
+    }
+
+    const parseReappointmentContent = (content: string) => {
+        try {
+            const data = JSON.parse(content)
+            return {
+                patientName: data.PatientName || data.patientName || "Bệnh nhân",
+                preferredDate: data.PreferredDate || data.preferredDate,
+                notes: data.Notes || data.notes,
+            }
+        } catch {
+            return null
+        }
+    }
+
+    const formatReappointmentMessage = (content: string) => {
+        const parsed = parseReappointmentContent(content)
+        if (!parsed) return content
+
+        const parts: string[] = []
+        if (parsed.preferredDate) {
+            const date = new Date(parsed.preferredDate)
+            parts.push(`Ngày mong muốn: ${date.toLocaleDateString("vi-VN")} ${date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`)
+        }
+        if (parsed.notes) {
+            parts.push(`Ghi chú: ${parsed.notes}`)
+        }
+
+        return parts.length > 0 ? parts.join(" • ") : "Yêu cầu tái khám"
     }
 
     const recentNotifications = notifications.slice(0, 5)
@@ -189,10 +222,50 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
                                         <p className="font-medium text-sm leading-tight">
                                             {n.title}
                                         </p>
-                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                            {n.message}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">
+                                        {n.type.toLowerCase() === "reappointmentrequest" ? (
+                                            <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                                                {(() => {
+                                                    const parsed = parseReappointmentContent(n.message)
+                                                    if (!parsed) {
+                                                        return <p className="line-clamp-2">{n.message}</p>
+                                                    }
+                                                    return (
+                                                        <div className="space-y-1.5">
+                                                            {parsed.preferredDate && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Calendar className="h-3 w-3 text-blue-600" />
+                                                                    <span>
+                                                                        Ngày mong muốn:{" "}
+                                                                        <span className="font-medium text-slate-700">
+                                                                            {new Date(parsed.preferredDate).toLocaleDateString("vi-VN", {
+                                                                                day: "2-digit",
+                                                                                month: "2-digit",
+                                                                                year: "numeric",
+                                                                                hour: "2-digit",
+                                                                                minute: "2-digit",
+                                                                            })}
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {parsed.notes && (
+                                                                <div className="flex items-start gap-1.5">
+                                                                    <FileText className="h-3 w-3 text-blue-600 mt-0.5" />
+                                                                    <span className="line-clamp-2">
+                                                                        <span className="font-medium">Ghi chú:</span> {parsed.notes}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })()}
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                                {n.message}
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground mt-1.5">
                                             {formatTime(n.timestamp)}
                                         </p>
                                     </div>
