@@ -100,6 +100,18 @@ export default function MedicalRecordDetailPage() {
   const [reappointmentTime, setReappointmentTime] = useState<string>("");
   const [reappointmentNotes, setReappointmentNotes] = useState<string>("");
   const [sendingReappointment, setSendingReappointment] = useState(false);
+  const VIETNAM_TIME_SLOTS = useMemo(() => {
+    const slots: { value: string; label: string }[] = [];
+    for (let hour = 7; hour <= 21; hour++) {
+      for (const minute of [0, 30]) {
+        const value = `${hour.toString().padStart(2, "0")}:${
+          minute === 0 ? "00" : "30"
+        }`;
+        slots.push({ value, label: value });
+      }
+    }
+    return slots;
+  }, []);
 
   // combobox xét nghiệm
   const [selectedTestTypeId, setSelectedTestTypeId] = useState<number | null>(
@@ -1041,15 +1053,24 @@ export default function MedicalRecordDetailPage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="reappointment-time" className="text-xs">
-                      Giờ tái khám mong muốn
+                      Giờ tái khám mong muốn{" "}
+                      <span className="text-[10px] text-muted-foreground">
+                        (Giờ Việt Nam GMT+7)
+                      </span>
                     </Label>
-                    <Input
+                    <select
                       id="reappointment-time"
-                      type="time"
                       value={reappointmentTime}
                       onChange={(e) => setReappointmentTime(e.target.value)}
-                      className="h-9 text-sm"
-                    />
+                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="">-- Chọn giờ --</option>
+                      {VIETNAM_TIME_SLOTS.map((slot) => (
+                        <option key={slot.value} value={slot.value}>
+                          {slot.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="space-y-1">

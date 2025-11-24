@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { CalendarDays, Clock, Mail, Phone, Stethoscope, User } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -14,17 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-
-function formatDate(value?: string | null) {
-    if (!value) return "Chưa xác định"
-    const date = new Date(value)
-    return date.toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    })
-}
-
 function formatDateTime(value?: string | null) {
     if (!value) return "Chưa xác định"
     const date = new Date(value)
@@ -44,6 +33,14 @@ export default function ReappointmentRequestsPage() {
     const [requests, setRequests] = useState<ReappointmentRequestDto[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [totalCount, setTotalCount] = useState(0)
+
+    const [pageNumber, setPageNumber] = useState(1)
+    const [pageSize, setPageSize] = useState(5)
+    const [searchInput, setSearchInput] = useState("")
+    const [searchTerm, setSearchTerm] = useState("")
+    const [sortBy, setSortBy] = useState<"createdDate" | "preferredDate" | "patientName">("createdDate")
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
     const [selectedId, setSelectedId] = useState<number | null>(null)
     const [appointmentDate, setAppointmentDate] = useState<string>("")
@@ -61,22 +58,29 @@ export default function ReappointmentRequestsPage() {
         setReason("")
     }
 
-    const fetchRequests = async () => {
+    const loadRequests = useCallback(async () => {
         try {
             setLoading(true)
             setError(null)
-            const data = await reappointmentRequestService.getPendingReappointmentRequests()
-            setRequests(data)
+            const response = await reappointmentRequestService.getPendingReappointmentRequests({
+                pageNumber,
+                pageSize,
+                searchTerm: searchTerm || undefined,
+                sortBy,
+                sortDirection,
+            })
+            setRequests(response.items)
+            setTotalCount(response.totalCount)
         } catch (err: any) {
             setError(err?.message ?? "Không thể tải danh sách yêu cầu tái khám.")
         } finally {
             setLoading(false)
         }
-    }
+    }, [pageNumber, pageSize, searchTerm, sortBy, sortDirection])
 
     useEffect(() => {
-        fetchRequests()
-    }, [])
+        loadRequests()
+    }, [loadRequests])
 
     const handleSelect = (req: ReappointmentRequestDto) => {
         setSelectedId(req.notificationId)
@@ -108,7 +112,7 @@ export default function ReappointmentRequestsPage() {
             })
 
             resetForm()
-            fetchRequests()
+            loadRequests()
         } catch (err: any) {
             toast({
                 title: "Không thể tạo lịch tái khám",
@@ -120,19 +124,82 @@ export default function ReappointmentRequestsPage() {
         }
     }
 
+    const handleSearchSubmit = () => {
+        setPageNumber(1)
+        setSearchTerm(searchInput.trim())
+    }
+
+    const handlePageChange = (nextPage: number) => {
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+        if (nextPage < 1 || nextPage > totalPages) return
+        setPageNumber(nextPage)
+        setSelectedId(null)
+    }
+
+    const handlePageSizeChange = (value: number) => {
+        setPageSize(value)
+        setPageNumber(1)
+    }
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+    const showingFrom = totalCount === 0 ? 0 : (pageNumber - 1) * pageSize + 1
+    const showingTo = totalCount === 0 ? 0 : showingFrom + requests.length - 1
+
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Yêu cầu tái khám</h1>
                         <p className="text-muted-foreground">
                             Danh sách yêu cầu bác sĩ gửi cho lễ tân để đặt lịch tái khám cho bệnh nhân.
                         </p>
                     </div>
-                    <Button variant="outline" onClick={fetchRequests} disabled={loading}>
-                        Làm mới
-                    </Button>
+                    <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
+                        <div className="flex w-full gap-2 md:w-80">
+                            <Input
+                                value={searchInput}
+                                placeholder="Tìm theo bệnh nhân, bác sĩ, ghi chú..."
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        handleSearchSubmit()
+                                    }
+                                }}
+                            />
+                            <Button onClick={handleSearchSubmit} disabled={loading}>
+                                Tìm
+                            </Button>
+                        </div>
+                        <div className="flex gap-2">
+                            <select
+                                value={sortBy}
+                                onChange={(e) => {
+                                    setSortBy(e.target.value as typeof sortBy)
+                                    setPageNumber(1)
+                                }}
+                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="createdDate">Gửi gần đây</option>
+                                <option value="preferredDate">Ngày mong muốn</option>
+                                <option value="patientName">Tên bệnh nhân</option>
+                            </select>
+                            <select
+                                value={sortDirection}
+                                onChange={(e) => {
+                                    setSortDirection(e.target.value as typeof sortDirection)
+                                    setPageNumber(1)
+                                }}
+                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="desc">Giảm dần</option>
+                                <option value="asc">Tăng dần</option>
+                            </select>
+                            <Button variant="outline" onClick={loadRequests} disabled={loading}>
+                                Làm mới
+                            </Button>
+                        </div>
+                    </div>
                 </div>
 
                 {loading ? (
@@ -251,6 +318,37 @@ export default function ReappointmentRequestsPage() {
                                 </CardContent>
                             </Card>
                         ))}
+
+                        <div className="flex flex-col gap-4 rounded-lg border bg-card/30 p-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+                            <div>
+                                Hiển thị {showingFrom}-{showingTo} trên tổng {totalCount} yêu cầu
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span>Số dòng</span>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                                >
+                                    {[5, 10, 20].map((size) => (
+                                        <option key={size} value={size}>
+                                            {size}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => handlePageChange(pageNumber - 1)} disabled={pageNumber === 1}>
+                                    Trước
+                                </Button>
+                                <span>
+                                    Trang {pageNumber} / {totalPages}
+                                </span>
+                                <Button variant="outline" size="sm" onClick={() => handlePageChange(pageNumber + 1)} disabled={pageNumber === totalPages || totalCount === 0}>
+                                    Sau
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

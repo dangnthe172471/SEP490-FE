@@ -10,22 +10,33 @@ export interface CompleteReappointmentRequestDto {
   reasonForVisit: string;
 }
 
-export interface ReappointmentRequestDto {
+export interface ReappointmentRequestData {
+  appointmentId: number;
+  patientId: number;
+  doctorId: number;
+  preferredDate?: string | null;
+  notes?: string | null;
+  isCompleted?: boolean;
+}
+
+export interface ReappointmentRequestDto extends ReappointmentRequestData {
   notificationId: number;
   title: string;
   content: string;
   type: string;
   createdDate: string;
   isRead: boolean;
-  appointmentId: number;
-  patientId: number;
   patientName: string;
   patientPhone: string;
   patientEmail?: string | null;
-  doctorId: number;
   doctorName: string;
   doctorSpecialty: string;
-  preferredDate?: string | null;
-  notes?: string | null;
 }
 
+export interface PagedResponse<T> {
+  items: T[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+}
