@@ -44,6 +44,15 @@ class BaseService {
             const res = await fetch(url, config)
 
             if (!res.ok) {
+                if (res.status === 401) {
+
+                    if (typeof window !== "undefined") {
+                        toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!")
+                        // localStorage.removeItem("auth_token")
+                        window.location.href = "/login"
+                    }
+                    return null
+                }
                 if (!silent) {
                     console.warn(`[ManagerService] HTTP ${res.status}: ${url}`)
                     toast.warning(`API lỗi ${res.status}: ${res.statusText}`)

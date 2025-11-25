@@ -16,24 +16,35 @@ export default function PageGuard({ allowedRoles, children }: PageGuardProps) {
     const router = useRouter()
 
     useEffect(() => {
-        const user = getCurrentUser()
+        const checkUser = () => {
+            try {
+                const user = getCurrentUser()
 
-        if (!isLoggedIn() || !user) {
-            toast.error("Vui lòng đăng nhập để tiếp tục!")
-            // setTimeout(() => router.push("/"), 500)
-            router.push('/')
-            return
+                if (!isLoggedIn() || !user) {
+                    toast.error("Vui lòng đăng nhập để tiếp tục!")
+                    router.replace("/login")
+                    return
+                }
+
+                if (!allowedRoles.includes(user.role)) {
+                    toast.error("Bạn không có quyền truy cập trang này!")
+                    router.replace("/login")
+                    return
+                }
+
+                setCurrentUser(user)
+            } catch (err: any) {
+
+                if (err.response?.status === 401) {
+                    toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!")
+                    router.replace("/login")
+                }
+            } finally {
+                setIsLoading(false)
+            }
         }
 
-        if (!allowedRoles.includes(user.role)) {
-            toast.error(" Bạn không có quyền truy cập trang này!")
-            // setTimeout(() => router.push("/"), 500)
-            router.push('/')
-            return
-        }
-
-        setCurrentUser(user)
-        setIsLoading(false)
+        checkUser()
     }, [router, allowedRoles])
 
     if (isLoading) {

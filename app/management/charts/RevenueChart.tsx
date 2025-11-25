@@ -176,8 +176,9 @@ export function RevenueChartSection() {
                 if (!monthMap[month]) monthMap[month] = { month, revenue: 0, expenses: 0, profit: 0 };
 
                 // Tạo dữ liệu expenses giả lập để chart đẹp
-                const revenuePart = p.amount * (0.5 + Math.random() * 0.5); // 50–100% revenue
-                const expensesPart = p.amount - revenuePart;
+                const revenuePart = p.amount;
+                const expensesPart = p.amount * (0.5 + Math.random() * 0.5);
+
 
                 monthMap[month].revenue += revenuePart;
                 monthMap[month].expenses += expensesPart;

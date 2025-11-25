@@ -44,16 +44,8 @@ import { useEffect, useMemo, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { appointmentService } from "@/lib/services/appointment-service"
 import type { AppointmentTimeSeriesPoint, AppointmentHeatmapPoint } from "@/lib/types/appointment"
+import { getPaymentsChartData } from "@/lib/services/payment-service";
 
-// Mock data for charts
-const revenueData = [
-  { month: "T1", revenue: 45000000, expenses: 32000000 },
-  { month: "T2", revenue: 52000000, expenses: 35000000 },
-  { month: "T3", revenue: 48000000, expenses: 33000000 },
-  { month: "T4", revenue: 61000000, expenses: 38000000 },
-  { month: "T5", revenue: 55000000, expenses: 36000000 },
-  { month: "T6", revenue: 67000000, expenses: 40000000 },
-]
 
 const patientData = [
   { month: "T1", patients: 450 },
@@ -214,12 +206,53 @@ export default function ManagementDashboard() {
   const maxHeatmapCount = useMemo(() => hmData.reduce((max, point) => Math.max(max, point.count), 0), [hmData])
   const rangeLabel = rangeOptions.find(o => o.value === range)?.label ?? `${range} ngày`
 
+  const [monthlyRevenue, setMonthlyRevenue] = useState<number>(0);
+  const [monthlyChange, setMonthlyChange] = useState<number>(0);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+
+      // Month Now 
+      const startNow = `${year}-${String(month).padStart(2, "0")}-01`;
+      const endNow = `${year}-${String(month).padStart(2, "0")}-${new Date(year, month, 0).getDate()}`;
+
+      const paymentsNow = await getPaymentsChartData(startNow, endNow);
+      const totalNow = paymentsNow.reduce((s, p) => s + p.amount, 0);
+
+      // Previous Month 
+      const prevMonth = month === 1 ? 12 : month - 1;
+      const prevYear = month === 1 ? year - 1 : year;
+
+      const startPrev = `${prevYear}-${String(prevMonth).padStart(2, "0")}-01`;
+      const endPrev = `${prevYear}-${String(prevMonth).padStart(2, "0")}-${new Date(prevYear, prevMonth, 0).getDate()}`;
+
+      const paymentsPrev = await getPaymentsChartData(startPrev, endPrev);
+      const totalPrev = paymentsPrev.reduce((s, p) => s + p.amount, 0);
+
+    
+      let changePercent = 0;
+      if (totalPrev > 0) changePercent = ((totalNow - totalPrev) / totalPrev) * 100;
+
+      setMonthlyRevenue(totalNow);
+      setMonthlyChange(changePercent);
+    };
+
+    loadData();
+  }, []);
+
+
   const stats = [
     {
       title: "Doanh thu tháng này",
-      value: "67.000.000 ₫",
-      change: "+12.5%",
-      trend: "up",
+      value: new Intl.NumberFormat("vi-VN").format(monthlyRevenue) + " ₫",
+      change:
+        monthlyChange >= 0
+          ? `+${monthlyChange.toFixed(1)}%`
+          : `${monthlyChange.toFixed(1)}%`,
+      trend: monthlyChange >= 0 ? "up" : "down",
       icon: DollarSign,
       color: "text-chart-2",
     },
