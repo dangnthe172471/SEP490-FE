@@ -44,6 +44,15 @@ class BaseService {
             const res = await fetch(url, config)
 
             if (!res.ok) {
+                if (res.status === 401) {
+
+                    if (typeof window !== "undefined") {
+                        toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!")
+                        // localStorage.removeItem("auth_token")
+                        window.location.href = "/login"
+                    }
+                    return null
+                }
                 if (!silent) {
                     console.warn(`[ManagerService] HTTP ${res.status}: ${url}`)
                     toast.warning(`API lỗi ${res.status}: ${res.statusText}`)
@@ -193,6 +202,18 @@ class ManagerService extends BaseService {
             `/api/ManageSchedule/get-all-doctor-schedule?startDate=${startDate}&endDate=${endDate}`
         )
         return res ?? []
+    }
+    async getDoctorsWithoutSchedule(startDate: string, endDate: string): Promise<DoctorDto[]> {
+        const res = await this.request<DoctorDto[]>(
+            `/api/ManageSchedule/doctors-without-schedule?startDate=${startDate}&endDate=${endDate}`
+        )
+
+        if (res === null) {
+            toast.error("Không thể tải danh sách bác sĩ chưa có lịch.")
+            return []
+        }
+
+        return res
     }
 
 

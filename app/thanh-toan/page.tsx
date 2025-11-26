@@ -5,9 +5,7 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Clock, User, Stethoscope, DollarSign, QrCode, Check, Smartphone, CreditCard, Banknote, Calendar } from 'lucide-react'
+import {DollarSign } from 'lucide-react'
 import { } from "@/lib/services/payment-service";
 import { useSearchParams } from "next/navigation";
 import { createPayment, getPaymentStatus, getPaymentDetails } from "@/lib/services/payment-service";
@@ -15,20 +13,11 @@ import { PaymentDetailsResponse, PaymentDetailsItem } from "@/lib/types/payment"
 
 
 export default function PaymentPage() {
-    const [showQRModal, setShowQRModal] = useState(false)
-    const [paymentMethod, setPaymentMethod] = useState<'qr' | 'card' | 'transfer'>('qr')
-    const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+
     const [loading, setLoading] = useState(false);
     const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsResponse | null>(null);
 
     const [loadingDetails, setLoadingDetails] = useState(true);
-
-
-
-
-
-
-
     const searchParams = useSearchParams();
     const medicalRecordId = searchParams.get("medicalRecordId");
     const [isPaid, setIsPaid] = useState<boolean | null>(null);

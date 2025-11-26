@@ -13,6 +13,8 @@ export default function SchedulePeriodListView() {
     const [expanded, setExpanded] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
 
+    const [searchDate, setSearchDate] = useState<string>("")
+
 
     //  Phân trang
     const [pageNumber, setPageNumber] = useState(1)
@@ -52,6 +54,15 @@ export default function SchedulePeriodListView() {
         if (!d) return "—"
         return new Date(d).toLocaleDateString("vi-VN")
     }
+    const filteredSchedules = searchDate
+        ? schedules.filter((item) => {
+            const from = new Date(item.effectiveFrom.split("T")[0])
+            const to = new Date(item.effectiveTo.split("T")[0])
+            const target = new Date(searchDate)
+
+            return target >= from && target <= to
+        })
+        : schedules
 
     return (
         <div className="space-y-4">
@@ -60,6 +71,24 @@ export default function SchedulePeriodListView() {
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-primary" /> Lịch làm việc theo khoảng thời gian
                 </h2>
+                <div className="flex flex-col items-end">
+                    <CardTitle>Tìm kiếm theo ngày</CardTitle>
+                    <CardDescription className="mt-2">
+                        <input
+                            type="date"
+                            className="border rounded-md px-3 py-1 text-sm"
+                            value={searchDate}
+                            onChange={(e) => setSearchDate(e.target.value)}
+                        />
+
+                        {searchDate && (
+                            <Button variant="ghost" size="sm" onClick={() => setSearchDate("")}>
+                                Xoá lọc
+                            </Button>
+                        )}
+
+                    </CardDescription>
+                </div>
                 <Button variant="outline" onClick={() => fetchSchedules(pageNumber)}>
                     Làm mới
                 </Button>
@@ -72,7 +101,7 @@ export default function SchedulePeriodListView() {
                 <p className="text-center text-muted-foreground py-10">Không có dữ liệu lịch làm việc.</p>
             ) : (
                 <>
-                    {schedules.map((item, i) => {
+                    {filteredSchedules.map((item, i) => {
                         const title = `${formatVN(item.effectiveFrom)} → ${formatVN(item.effectiveTo)}`
                         const totalShifts = item.shifts?.length ?? 0
                         const totalDoctors = item.shifts?.reduce(

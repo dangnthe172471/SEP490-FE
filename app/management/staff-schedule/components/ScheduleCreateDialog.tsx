@@ -38,7 +38,7 @@ export default function ScheduleCreateDialog({
     const [doctorLimitStatus, setDoctorLimitStatus] = useState<Record<string, boolean>>({})
 
     // Chọn lịch theo tuần hoặc theo tháng
-    const [mode, setMode] = useState<"week" | "month">("week")
+    const [mode, setMode] = useState<"week" | "month" | "year">("week")
     // Chọn tháng, năm, và tuần
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
@@ -59,79 +59,124 @@ export default function ScheduleCreateDialog({
             to: end.toISOString().split("T")[0],
         }
     }
-    const getWeekRange = (year: number, month: number, week: number) => {
 
-        const firstDayOfMonth = new Date(year, month - 1, 1)
+    const formatDateLocal = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    };
 
-        // Tìm thứ Hai đầu tiên trong (hoặc trước) tháng
-        const day = firstDayOfMonth.getDay()
-        const diffToMonday = day === 0 ? -6 : 1 - day
-        const firstMonday = new Date(firstDayOfMonth)
-        firstMonday.setDate(firstDayOfMonth.getDate() + diffToMonday)
+    const generateWeeksInMonth = (year: number, month: number) => {
+        const weeks = [];
+        const firstDay = new Date(year, month - 1, 1);
+        let day = firstDay.getDay();
+        let firstMonday = new Date(year, month - 1, 1);
 
+        if (day === 0) firstMonday.setDate(2);
+        else if (day > 1) firstMonday.setDate(1 + (8 - day));
 
-        const startOfWeek = new Date(firstMonday)
-        startOfWeek.setDate(firstMonday.getDate() + (week - 1) * 7)
+        let start = new Date(firstMonday);
 
-        // Ngày kết thúc tuần (Chủ nhật)
-        const endOfWeek = new Date(startOfWeek)
-        endOfWeek.setDate(startOfWeek.getDate() + 6)
+        while (start.getMonth() === month - 1) {
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
 
-        return {
-            from: startOfWeek.toISOString().split("T")[0],
-            to: endOfWeek.toISOString().split("T")[0],
+            weeks.push({
+                from: formatDateLocal(start),
+                to: formatDateLocal(end),
+            });
+
+            start.setDate(start.getDate() + 7);
         }
-    }
+
+        return weeks;
+    };
+
+    const weeks = generateWeeksInMonth(selectedYear, selectedMonth);
+    // useEffect(() => {
+    //     let range = null;
+
+    //     if (mode === "week") {
+    //         const w = weeks[selectedWeek - 1];
+    //         if (w) range = { from: w.from, to: w.to };
+    //     } else {
+    //         const r = getMonthRange(selectedYear, selectedMonth);
+    //         range = { from: r.from, to: r.to };
+    //     }
+
+    //     if (!range) {
+    //         setDateError("");
+    //         return;
+    //     }
+
+    //     const today = formatDateLocal(new Date());
+
+    //     if (range.from <= today && today <= range.to) {
+    //         setDateError("Khoảng thời gian này đang diễn ra, không thể tạo lịch.");
+    //         return;
+    //     }
+
+    //     if (range.to < today) {
+    //         setDateError("Khoảng thời gian này đã qua, không thể tạo lịch.");
+    //         return;
+    //     }
+
+    //     setDateError("");
+    //     setSelectedDateFrom(range.from);
+    //     setSelectedDateTo(range.to);
+    // }, [mode, selectedWeek, selectedMonth, selectedYear, weeks]);
 
 
-    const getWeekCountInMonth = (year: number, month: number) => {
-        const firstDay = new Date(year, month - 1, 1)
-        const lastDay = new Date(year, month, 0)
-        const used = firstDay.getDay() + lastDay.getDate() // tổng offset + số ngày
-        return Math.ceil(used / 7)
-    }
-    const [totalWeeks, setTotalWeeks] = useState<number>(getWeekCountInMonth(selectedYear, selectedMonth))
-
+    //     if (mode === "week") {
+    //         const w = weeks[selectedWeek - 1];
+    //         if (w) {
+    //             setSelectedDateFrom(w.from);
+    //             setSelectedDateTo(w.to);
+    //         }
+    //     } else {
+    //         const r = getMonthRange(selectedYear, selectedMonth);
+    //         setSelectedDateFrom(r.from);
+    //         setSelectedDateTo(r.to);
+    //     }
+    // }, [mode, selectedWeek, selectedMonth, selectedYear, weeks]);
     useEffect(() => {
-        // Cập nhật số tuần của tháng
-        const weekCount = getWeekCountInMonth(selectedYear, selectedMonth)
-        setTotalWeeks(weekCount)
+        let range = null;
 
-        let range: { from: string; to: string } | null = null
-        if (mode === "month") {
-            range = getMonthRange(selectedYear, selectedMonth)
-        } else {
-            range = getWeekRange(selectedYear, selectedMonth, selectedWeek)
+        if (mode === "week") {
+            const w = weeks[selectedWeek - 1];
+            if (w) range = { from: w.from, to: w.to };
+        }
+        else if (mode === "month") {
+            const r = getMonthRange(selectedYear, selectedMonth);
+            range = { from: r.from, to: r.to };
+        }
+        else if (mode === "year") {
+            range = {
+                from: `${selectedYear}-01-01`,
+                to: `${selectedYear}-12-31`
+            };
         }
 
-        const today = new Date().toISOString().split("T")[0]
+        if (!range) return;
 
-        if (!range) {
-            setDateError("") // reset cảnh báo khi range null
-            setSelectedDateFrom("")
-            setSelectedDateTo("")
-            return
-        }
-
+        const today = formatDateLocal(new Date());
 
         if (range.from <= today && today <= range.to) {
-            setDateError("Khoảng thời gian này đang diễn ra, không thể tạo lịch.")
-            setSelectedDateFrom("")
-            setSelectedDateTo("")
-        } else if (range.to < today) {
-            setDateError("Khoảng thời gian này đã qua, không thể tạo lịch.")
-            setSelectedDateFrom("")
-            setSelectedDateTo("")
-        } else {
-            setDateError("")
-            setSelectedDateFrom(range.from)
-            setSelectedDateTo(range.to)
+            setDateError("Khoảng thời gian này đang diễn ra, không thể tạo lịch.");
+            return;
         }
-    }, [mode, selectedMonth, selectedYear, selectedWeek])
 
+        if (range.to < today) {
+            setDateError("Khoảng thời gian này đã qua, không thể tạo lịch.");
+            return;
+        }
 
+        setDateError("");
+        setSelectedDateFrom(range.from);
+        setSelectedDateTo(range.to);
+    }, [mode, selectedWeek, selectedMonth, selectedYear, weeks]);
 
-    // Check giới hạn khi chọn ngày
     useEffect(() => {
         const fetchDoctorLimits = async () => {
             if (!selectedDateFrom) return
@@ -185,7 +230,14 @@ export default function ScheduleCreateDialog({
             alert("Vui lòng chọn ngày bắt đầu!")
             return
         }
+        const hasAnyDoctor = Object.values(doctorsByShift).some(
+            (doctorList) => doctorList.length > 0
+        )
 
+        if (!hasAnyDoctor) {
+            alert("Vui lòng phân công bác sĩ cho ít nhất một ca!")
+            return
+        }
         let finalDateTo = selectedDateTo
         if (!selectedDateTo) {
             const from = new Date(selectedDateFrom)
@@ -242,26 +294,32 @@ export default function ScheduleCreateDialog({
                         <input type="radio" checked={mode === "month"} onChange={() => setMode("month")} />
                         <span>Theo tháng</span>
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" checked={mode === "year"} onChange={() => setMode("year")} />
+                        <span>Theo năm</span>
+                    </label>
+
                 </div>
 
                 {/*  Chọn tháng và năm */}
                 <div className="grid grid-cols-2 gap-3 mt-3">
+                    {mode !== "year" && (
+                        <div>
+                            <label className="text-sm font-medium">Tháng</label>
+                            <select
+                                className="w-full border rounded-md h-9 px-2"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                            >
+                                {Array.from({ length: 12 }, (_, i) => (
+                                    <option key={i + 1} value={i + 1}>
+                                        Tháng {i + 1}
+                                    </option>
+                                ))}
+                            </select>
 
-                    <div>
-                        <label className="text-sm font-medium">Tháng</label>
-                        <select
-                            className="w-full border rounded-md h-9 px-2"
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                        >
-                            {Array.from({ length: 12 }, (_, i) => (
-                                <option key={i + 1} value={i + 1}>
-                                    Tháng {i + 1}
-                                </option>
-                            ))}
-                        </select>
-
-                    </div>
+                        </div>
+                    )}
                     <div>
                         <label className="text-sm font-medium">Năm</label>
                         <select
@@ -291,16 +349,13 @@ export default function ScheduleCreateDialog({
                             value={selectedWeek}
                             onChange={(e) => setSelectedWeek(Number(e.target.value))}
                         >
-                            {Array.from({ length: totalWeeks }, (_, i) => {
-                                const week = i + 1
-                                const range = getWeekRange(selectedYear, selectedMonth, week)
-                                if (!range) return null
-                                return (
-                                    <option key={week} value={week}>
-                                        Tuần {week} {"\u00A0"}   {"\u00A0"}  ({range.from.slice(8, 10)}/{range.from.slice(5, 7)} – {range.to.slice(8, 10)}/{range.to.slice(5, 7)})
-                                    </option>
-                                )
-                            })}
+                            {weeks.map((w, index) => (
+                                <option key={index} value={index + 1}>
+                                    Tuần {index + 1} ({w.from.slice(8, 10)}/{w.from.slice(5, 7)} – {w.to.slice(8, 10)}/{w.to.slice(5, 7)})
+                                </option>
+                            ))}
+
+
                         </select>
 
                     </div>
