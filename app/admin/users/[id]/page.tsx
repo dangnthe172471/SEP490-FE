@@ -27,7 +27,7 @@ import {
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { adminService } from "@/lib/services/admin-service"
-import { UserDto, UpdateUserRequest } from "@/lib/types/api"
+import { ApiError, UserDto, UpdateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { DateFormatter } from "@/components/date-formatter"
@@ -47,6 +47,7 @@ export default function UserDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<UpdateUserRequest>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [isTogglingStatus, setIsTogglingStatus] = useState(false)
   const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -110,54 +111,108 @@ export default function UserDetailPage() {
     fetchUserDetails()
   }, [userId])
 
+  const handleEditChange = (field: keyof UpdateUserRequest, value: string) => {
+    setEditData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+
+    if (fieldErrors[field as string]) {
+      setFieldErrors(prev => ({
+        ...prev,
+        [field as string]: ""
+      }))
+    }
+  }
+
+  const validateEditForm = () => {
+    const errors: Record<string, string> = {}
+
+    const fullName = (editData.fullName || "").trim()
+    if (!fullName) {
+      errors.fullName = "Họ và tên là bắt buộc"
+    }
+
+    const email = (editData.email || "").trim()
+    if (!email) {
+      errors.email = "Email là bắt buộc"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Email không hợp lệ"
+    }
+
+    const normalizedPhone = (editData.phone || "").replace(/\D/g, "")
+    if (!normalizedPhone) {
+      errors.phone = "Số điện thoại là bắt buộc"
+    } else if (!/^[0-9]{10,11}$/.test(normalizedPhone)) {
+      errors.phone = "Số điện thoại phải có 10-11 chữ số"
+    }
+
+    if (!editData.gender) {
+      errors.gender = "Giới tính là bắt buộc"
+    }
+
+    if (!editData.dob) {
+      errors.dob = "Ngày sinh là bắt buộc"
+    } else {
+      const dob = new Date(editData.dob)
+      const today = new Date()
+      dob.setHours(0, 0, 0, 0)
+      today.setHours(0, 0, 0, 0)
+      if (dob > today) {
+        errors.dob = "Ngày sinh không được vượt quá ngày hôm nay"
+      }
+    }
+
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   // Handle save changes
   const handleSave = async () => {
     if (!user || !userId) return
 
+    if (!validateEditForm()) {
+      toast.error("Vui lòng kiểm tra lại thông tin")
+      return
+    }
+
     try {
       setLoading(true)
 
-      // Validate email if provided
-      if (editData.email && editData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editData.email.trim())) {
-        toast.error("Email không hợp lệ")
-        setLoading(false)
-        return
+      const updateData: Record<string, any> = {}
+
+      const normalizedFullName = (editData.fullName || "").trim()
+      if (editData.fullName !== undefined && normalizedFullName !== (user.fullName || "")) {
+        updateData.fullName = normalizedFullName
       }
 
-      // Validate phone if provided
-      if (editData.phone && editData.phone.trim() && !/^[0-9]{10,11}$/.test(editData.phone.replace(/\s/g, ""))) {
-        toast.error("Số điện thoại phải có 10-11 chữ số")
-        setLoading(false)
-        return
+      const normalizedEmail = (editData.email || "").trim()
+      if (editData.email !== undefined && normalizedEmail !== (user.email || "")) {
+        updateData.email = normalizedEmail
       }
 
-      // Clean and prepare data for update
-      const updateData: any = {}
+      const normalizedPhone = (editData.phone || "").replace(/\D/g, "")
+      const userPhoneNormalized = (user.phone || "").replace(/\D/g, "")
+      if (editData.phone !== undefined && normalizedPhone !== userPhoneNormalized) {
+        updateData.phone = normalizedPhone
+      }
 
-      // Only include fields that are different from original
-      if (editData.fullName !== undefined && editData.fullName !== user.fullName) {
-        updateData.fullName = (editData.fullName || "").trim()
-      }
-      if (editData.email !== undefined && editData.email !== user.email) {
-        updateData.email = (editData.email || "").trim()
-      }
-      if (editData.phone !== undefined && editData.phone !== user.phone) {
-        updateData.phone = (editData.phone || "").trim()
-      }
-      if (editData.gender !== undefined && editData.gender !== user.gender) {
+      if (editData.gender !== undefined && (editData.gender || "") !== (user.gender || "")) {
         updateData.gender = (editData.gender || "").trim()
       }
-      if (editData.dob !== undefined && editData.dob !== formatDateForInput(user.dob)) {
-        updateData.dob = editData.dob || ""
+
+      const originalDob = formatDateForInput(user.dob)
+      if (editData.dob !== undefined && (editData.dob || "") !== (originalDob || "")) {
+        updateData.dob = editData.dob
       }
-      if (editData.allergies !== undefined && editData.allergies !== user.allergies) {
+
+      if (editData.allergies !== undefined && (editData.allergies || "") !== (user.allergies || "")) {
         updateData.allergies = (editData.allergies || "").trim()
       }
-      if (editData.medicalHistory !== undefined && editData.medicalHistory !== user.medicalHistory) {
+      if (editData.medicalHistory !== undefined && (editData.medicalHistory || "") !== (user.medicalHistory || "")) {
         updateData.medicalHistory = (editData.medicalHistory || "").trim()
       }
 
-      // Check if there are any changes
       if (Object.keys(updateData).length === 0) {
         toast.info("Không có thay đổi nào để cập nhật")
         setIsEditing(false)
@@ -167,9 +222,26 @@ export default function UserDetailPage() {
       const updatedUser = await adminService.updateUser(parseInt(userId), updateData)
       setUser(updatedUser)
       setIsEditing(false)
+      setFieldErrors({})
       toast.success("Cập nhật thông tin thành công")
     } catch (err: any) {
-      console.error("Error updating user:", err)
+      console.warn("Error updating user:", err)
+
+      if (
+        err instanceof ApiError &&
+        err.status === 400 &&
+        typeof err.message === "string" &&
+        err.message.toLowerCase().includes("số điện thoại")
+      ) {
+        const duplicateMsg = err.message || "Số điện thoại đã được sử dụng"
+        setFieldErrors(prev => ({
+          ...prev,
+          phone: duplicateMsg
+        }))
+        toast.error(duplicateMsg)
+        return
+      }
+
       const errorMessage = err.message || "Không thể cập nhật thông tin người dùng"
       toast.error(errorMessage)
     } finally {
@@ -366,6 +438,7 @@ export default function UserDetailPage() {
                     variant="outline"
                     onClick={() => {
                       setIsEditing(false)
+                      setFieldErrors({})
                       setEditData({
                         fullName: user?.fullName,
                         email: user?.email,
@@ -383,7 +456,10 @@ export default function UserDetailPage() {
                 </>
               ) : (
                 <>
-                  <Button onClick={() => setIsEditing(true)}>
+                  <Button onClick={() => {
+                    setIsEditing(true)
+                    setFieldErrors({})
+                  }}>
                     <Edit3 className="mr-2 h-4 w-4" />
                     Chỉnh sửa
                   </Button>
@@ -447,12 +523,13 @@ export default function UserDetailPage() {
                     <input
                       type="text"
                       value={editData.fullName || ""}
-                      onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      onChange={(e) => handleEditChange("fullName", e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md ${fieldErrors.fullName ? "border-red-500" : ""}`}
                     />
                   ) : (
                     <p className="text-sm">{user.fullName || "Chưa cập nhật"}</p>
                   )}
+                  {isEditing && fieldErrors.fullName && <p className="text-sm text-red-500">{fieldErrors.fullName}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Email</label>
@@ -460,12 +537,13 @@ export default function UserDetailPage() {
                     <input
                       type="email"
                       value={editData.email || ""}
-                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      onChange={(e) => handleEditChange("email", e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md ${fieldErrors.email ? "border-red-500" : ""}`}
                     />
                   ) : (
                     <p className="text-sm">{user.email || "Chưa cập nhật"}</p>
                   )}
+                  {isEditing && fieldErrors.email && <p className="text-sm text-red-500">{fieldErrors.email}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Số điện thoại</label>
@@ -473,12 +551,13 @@ export default function UserDetailPage() {
                     <input
                       type="tel"
                       value={editData.phone || ""}
-                      onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      onChange={(e) => handleEditChange("phone", e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md ${fieldErrors.phone ? "border-red-500" : ""}`}
                     />
                   ) : (
                     <p className="text-sm">{user.phone || "Chưa cập nhật"}</p>
                   )}
+                  {isEditing && fieldErrors.phone && <p className="text-sm text-red-500">{fieldErrors.phone}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -523,8 +602,8 @@ export default function UserDetailPage() {
                   {isEditing ? (
                     <select
                       value={editData.gender || ""}
-                      onChange={(e) => setEditData({ ...editData, gender: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      onChange={(e) => handleEditChange("gender", e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md ${fieldErrors.gender ? "border-red-500" : ""}`}
                     >
                       <option value="">Chọn giới tính</option>
                       <option value="Nam">Nam</option>
@@ -534,6 +613,7 @@ export default function UserDetailPage() {
                   ) : (
                     <p className="text-sm">{user.gender || "Chưa cập nhật"}</p>
                   )}
+                  {isEditing && fieldErrors.gender && <p className="text-sm text-red-500">{fieldErrors.gender}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -553,12 +633,13 @@ export default function UserDetailPage() {
                     <input
                       type="date"
                       value={editData.dob || ""}
-                      onChange={(e) => setEditData({ ...editData, dob: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      onChange={(e) => handleEditChange("dob", e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md ${fieldErrors.dob ? "border-red-500" : ""}`}
                     />
                   ) : (
                     <p className="text-sm">{formatDate(user.dob)}</p>
                   )}
+                  {isEditing && fieldErrors.dob && <p className="text-sm text-red-500">{fieldErrors.dob}</p>}
                 </div>
                 {/* <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Dị ứng</label>

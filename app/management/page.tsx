@@ -16,7 +16,7 @@ import {
   FileText,
   CalendarIcon,
   Clock,
-  TestTube,
+  TestTube, // Sử dụng icon TestTube cho Test Types
   Building2,
   AlertCircle,
   Loader2,
@@ -43,9 +43,13 @@ import { RevenueChartSection } from "./charts/RevenueChart"
 import { useEffect, useMemo, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { appointmentService } from "@/lib/services/appointment-service"
+import { managementAnalyticsService } from "@/lib/services/management-analytics.service"
 import type { AppointmentTimeSeriesPoint, AppointmentHeatmapPoint } from "@/lib/types/appointment"
 import { getPaymentsChartData } from "@/lib/services/payment-service";
 
+import type { TestDiagnosticStats } from "@/lib/types/management"
+
+// Mock data for charts (giữ nguyên)
 
 const patientData = [
   { month: "T1", patients: 450 },
@@ -75,11 +79,37 @@ const topDoctors = [
   { name: "BS. Hoàng Văn E", patients: 98, revenue: 58800000, rating: 4.5 },
 ]
 
+// Hàm tiện ích (giữ nguyên)
+const formatDateParam = (date: Date) => date.toISOString().split("T")[0]
+const computeRange = (days: number) => {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(end.getDate() - (days - 1))
+  return { from: formatDateParam(start), to: formatDateParam(end) }
+}
+const formatPeriodLabel = (period: string, groupBy: "day" | "month") => {
+  if (groupBy === "day") {
+    const date = new Date(`${period}T00:00:00`)
+    if (Number.isNaN(date.getTime())) return period
+    return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
+  }
+  const [year, month] = period.split("-")
+  if (!year || !month) return period
+  return `${month}/${year}`
+}
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+  }).format(value)
+}
+
+
 export default function ManagementDashboard() {
-  // Get manager navigation from centralized config
   const navigation = getManagerNavigation()
 
-  // Appointments analytics states
+  // --- Appointments analytics states (giữ nguyên) ---
   const [tsData, setTsData] = useState<AppointmentTimeSeriesPoint[]>([])
   const [hmData, setHmData] = useState<AppointmentHeatmapPoint[]>([])
   const [statusStats, setStatusStats] = useState<{ name: string; value: number; color: string }[]>([])
@@ -88,31 +118,21 @@ export default function ManagementDashboard() {
   const [appointmentsLoading, setAppointmentsLoading] = useState(false)
   const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
 
+  // ⭐ BỔ SUNG: Test & Diagnostic analytics states
+  const [diagnosticStats, setDiagnosticStats] = useState<TestDiagnosticStats | null>(null)
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false)
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null)
+  const [diagnosticRange, setDiagnosticRange] = useState(30)
+  const [diagnosticGroupBy, setDiagnosticGroupBy] = useState<"day" | "month">("day")
+
+
   const rangeOptions = [
     { label: "7 ngày", value: 7 },
     { label: "30 ngày", value: 30 },
     { label: "90 ngày", value: 90 },
   ]
 
-  const formatDateParam = (date: Date) => date.toISOString().split("T")[0]
-  const computeRange = (days: number) => {
-    const end = new Date()
-    const start = new Date()
-    start.setDate(end.getDate() - (days - 1))
-    return { from: formatDateParam(start), to: formatDateParam(end) }
-  }
-
-  const formatPeriodLabel = (period: string, groupBy: "day" | "month") => {
-    if (groupBy === "day") {
-      const date = new Date(`${period}T00:00:00`)
-      if (Number.isNaN(date.getTime())) return period
-      return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
-    }
-    const [year, month] = period.split("-")
-    if (!year || !month) return period
-    return `${month}/${year}`
-  }
-
+  // --- useEffect cho Appointments (giữ nguyên) ---
   useEffect(() => {
     const load = async () => {
       try {
@@ -122,13 +142,12 @@ export default function ManagementDashboard() {
         const { from, to } = computeRange(range)
         console.log("📊 Loading appointments analytics:", { from, to, groupBy, range })
 
-        // Load từng API riêng biệt để xác định API nào bị lỗi
         let series: AppointmentTimeSeriesPoint[] = []
         let heatmap: AppointmentHeatmapPoint[] = []
         let stats: any = null
         const errors: string[] = []
 
-        // Load statistics first (đơn giản nhất)
+        // Load statistics first
         try {
           stats = await appointmentService.getAppointmentStatistics()
           console.log("✅ Statistics loaded:", stats)
@@ -173,9 +192,9 @@ export default function ManagementDashboard() {
 
         // Hiển thị lỗi nếu có
         if (errors.length > 0) {
-          const errorMessage = `Một số dữ liệu không tải được:\n${errors.join('\n')}`
+          const errorMessage = `Một số dữ liệu lịch hẹn không tải được:\n${errors.join('\n')}`
           setAppointmentsError(errorMessage)
-          console.warn("⚠️ Some data failed to load:", errors)
+          console.warn("⚠️ Some appointment data failed to load:", errors)
         }
 
       } catch (e: any) {
@@ -192,6 +211,37 @@ export default function ManagementDashboard() {
     load()
   }, [range, groupBy])
 
+  // ⭐ BỔ SUNG: useEffect cho Test & Diagnostic
+  useEffect(() => {
+    const loadDiagnosticStats = async () => {
+      try {
+        setDiagnosticLoading(true)
+        setDiagnosticError(null)
+
+        const { from, to } = computeRange(diagnosticRange)
+        console.log("📊 Loading diagnostic analytics:", { from, to, groupBy: diagnosticGroupBy, diagnosticRange })
+
+        const stats = await managementAnalyticsService.getTestDiagnosticStats({
+          from,
+          to,
+          groupBy: diagnosticGroupBy,
+        })
+
+        setDiagnosticStats(stats)
+      } catch (e: any) {
+        console.error("❌ Diagnostic analytics load failed:", e)
+        setDiagnosticStats(null)
+        setDiagnosticError(e?.message || "Không thể tải dữ liệu xét nghiệm & chẩn đoán")
+      } finally {
+        setDiagnosticLoading(false)
+      }
+    }
+
+    loadDiagnosticStats()
+  }, [diagnosticRange, diagnosticGroupBy])
+
+
+  // --- useMemo cho Appointments (giữ nguyên) ---
   const lineChartData = useMemo(() => tsData.map(point => ({
     label: formatPeriodLabel(point.period, groupBy),
     count: point.count,
@@ -232,7 +282,7 @@ export default function ManagementDashboard() {
       const paymentsPrev = await getPaymentsChartData(startPrev, endPrev);
       const totalPrev = paymentsPrev.reduce((s, p) => s + p.amount, 0);
 
-    
+
       let changePercent = 0;
       if (totalPrev > 0) changePercent = ((totalNow - totalPrev) / totalPrev) * 100;
 
@@ -244,6 +294,29 @@ export default function ManagementDashboard() {
   }, []);
 
 
+  // ⭐ BỔ SUNG: useMemo cho Test & Diagnostic
+  const diagnosticTrendData = useMemo(() => {
+    return (diagnosticStats?.trends ?? []).map(point => ({
+      label: formatPeriodLabel(point.period, diagnosticGroupBy),
+      visitCount: point.visitCount,
+      testCount: point.testCount,
+    }))
+  }, [diagnosticStats, diagnosticGroupBy])
+
+  const visitBarData = useMemo(() => (diagnosticStats?.visitTypeCounts ?? []).map(item => ({
+    name: item.label,
+    count: item.count,
+  })), [diagnosticStats])
+
+  const testBarData = useMemo(() => (diagnosticStats?.testTypeCounts ?? []).map(item => ({
+    name: item.label,
+    count: item.count,
+  })), [diagnosticStats])
+
+  const diagnosticRangeLabel = rangeOptions.find(o => o.value === diagnosticRange)?.label ?? `${diagnosticRange} ngày`
+
+
+  // --- Stats Card (cập nhật Lịch hẹn và thêm Loại Xét nghiệm) ---
   const stats = [
     {
       title: "Doanh thu tháng này",
@@ -266,29 +339,21 @@ export default function ManagementDashboard() {
     },
     {
       title: "Lịch hẹn",
-      value: "245",
+      value: "245", // Có thể thay bằng stats.totalAppointments nếu có từ API
       change: "+8.3%",
       trend: "up",
       icon: Calendar,
       color: "text-chart-3",
     },
     {
-      title: "Tỷ lệ hoàn thành",
-      value: "92%",
-      change: "+2.1%",
-      trend: "up",
-      icon: Activity,
-      color: "text-chart-4",
+      title: "Loại xét nghiệm", // ⭐ BỔ SUNG METRIC NÀY
+      value: diagnosticStats ? diagnosticStats.totalTests.toString() : "...",
+      change: "", // Không có so sánh
+      trend: "none",
+      icon: TestTube,
+      color: "text-chart-5",
     },
   ]
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      minimumFractionDigits: 0,
-    }).format(value)
-  }
 
   return (
     <PageGuard allowedRoles={["management", "admin"]}>
@@ -311,15 +376,17 @@ export default function ManagementDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{stat.value}</div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {stat.trend === "up" ? (
-                        <ArrowUp className="h-3 w-3 text-chart-2" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 text-destructive" />
-                      )}
-                      <span className={stat.trend === "up" ? "text-chart-2" : "text-destructive"}>{stat.change}</span>
-                      <span>so với tháng trước</span>
-                    </div>
+                    {stat.change && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {stat.trend === "up" ? (
+                          <ArrowUp className="h-3 w-3 text-chart-2" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 text-destructive" />
+                        )}
+                        <span className={stat.trend === "up" ? "text-chart-2" : "text-destructive"}>{stat.change}</span>
+                        <span>so với tháng trước</span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )
@@ -332,12 +399,13 @@ export default function ManagementDashboard() {
               <TabsTrigger value="patients">Bệnh nhân</TabsTrigger>
               <TabsTrigger value="departments">Khoa phòng</TabsTrigger>
               <TabsTrigger value="appointments">Lịch hẹn</TabsTrigger>
+              <TabsTrigger value="diagnostics">Xét nghiệm & Chẩn đoán</TabsTrigger>
             </TabsList>
 
-            {/* Revenue Chart */}
+            {/* Revenue Chart (giữ nguyên) */}
             <RevenueChartSection />
 
-            {/* Patients Chart */}
+            {/* Patients Chart (giữ nguyên) */}
             <TabsContent value="patients" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -365,7 +433,7 @@ export default function ManagementDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Departments Chart */}
+            {/* Departments Chart (giữ nguyên) */}
             <TabsContent value="departments" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -396,7 +464,7 @@ export default function ManagementDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Appointments Chart */}
+            {/* Appointments Chart (giữ nguyên) */}
             <TabsContent value="appointments" className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={String(range)} onValueChange={(v) => setRange(parseInt(v, 10))}>
@@ -571,9 +639,179 @@ export default function ManagementDashboard() {
                 </Card>
               )}
             </TabsContent>
+
+            {/* ⭐ Phân tích xét nghiệm & chẩn đoán */}
+            <TabsContent value="diagnostics" className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={String(diagnosticRange)} onValueChange={(v) => setDiagnosticRange(parseInt(v, 10))}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Khoảng thời gian" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rangeOptions.map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={diagnosticGroupBy} onValueChange={(v: any) => setDiagnosticGroupBy(v)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Nhóm theo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Theo ngày</SelectItem>
+                    <SelectItem value="month">Theo tháng</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {diagnosticError && (
+                <Card className="border-red-200 bg-red-50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3 text-red-800">
+                      <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-medium mb-2">Không thể tải dữ liệu xét nghiệm & chẩn đoán</p>
+                        <div className="text-sm text-red-600 whitespace-pre-line mb-2">{diagnosticError}</div>
+                        <p className="text-xs text-red-500">Vui lòng kiểm tra kết nối đến backend và quyền truy cập.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {diagnosticLoading && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-center py-8 text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                      Đang tải dữ liệu thống kê...
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!diagnosticLoading && !diagnosticError && diagnosticStats && (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Loại khám theo chuyên khoa</CardTitle>
+                        <CardDescription>Số lượt dịch vụ khám (ngoại trừ xét nghiệm) trong {diagnosticRangeLabel}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {visitBarData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={320}>
+                            <BarChart data={visitBarData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis allowDecimals={false} />
+                              <Tooltip />
+                              <Bar dataKey="count" name="Số lượt khám" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                            Chưa có dữ liệu dịch vụ khám trong khoảng này.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Số lượt xét nghiệm theo loại</CardTitle>
+                        <CardDescription>Phân bổ số xét nghiệm đã thực hiện</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {testBarData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={320}>
+                            <BarChart data={testBarData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis allowDecimals={false} />
+                              <Tooltip />
+                              <Bar dataKey="count" name="Số xét nghiệm" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                            Chưa có dữ liệu xét nghiệm trong khoảng này.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Xu hướng khám & xét nghiệm</CardTitle>
+                      <CardDescription>Số lượt khám và xét nghiệm theo {diagnosticGroupBy === "day" ? "ngày" : "tháng"}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {diagnosticTrendData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={340}>
+                          <LineChart data={diagnosticTrendData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="label" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="visitCount" name="Lượt khám" stroke="hsl(var(--chart-1))" strokeWidth={3} />
+                            <Line type="monotone" dataKey="testCount" name="Lượt xét nghiệm" stroke="hsl(var(--chart-4))" strokeWidth={3} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                          Không có dữ liệu xu hướng trong khoảng thời gian này.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Top dịch vụ khám</CardTitle>
+                        <CardDescription>Dựa trên số lượt thực hiện</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {diagnosticStats.topVisitServices.length > 0 ? (
+                          diagnosticStats.topVisitServices.map((item) => (
+                            <div key={item.label} className="flex items-center justify-between">
+                              <span className="font-medium">{item.label}</span>
+                              <span className="text-sm text-muted-foreground">{item.count} lượt</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Chưa có dữ liệu.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Top xét nghiệm</CardTitle>
+                        <CardDescription>Số lượt thực hiện nhiều nhất</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {diagnosticStats.topTestServices.length > 0 ? (
+                          diagnosticStats.topTestServices.map((item) => (
+                            <div key={item.label} className="flex items-center justify-between">
+                              <span className="font-medium">{item.label}</span>
+                              <span className="text-sm text-muted-foreground">{item.count} lượt</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Chưa có dữ liệu.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
 
-          {/* Top Doctors */}
+          {/* Top Doctors (giữ nguyên) */}
           <Card>
             <CardHeader>
               <CardTitle>Bác sĩ xuất sắc</CardTitle>

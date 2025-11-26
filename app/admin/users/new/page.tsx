@@ -19,7 +19,7 @@ import {
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { adminService } from "@/lib/services/admin-service"
-import { CreateUserRequest } from "@/lib/types/api"
+import { ApiError, CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
@@ -66,7 +66,7 @@ export default function CreateUserPage() {
     phone: "",
     password: "",
     confirmPassword: "",
-    role: 4, // Default to Patient
+    role: 4, // Default to Doctor
     gender: "",
     dob: "",
     allergies: "",
@@ -102,11 +102,32 @@ export default function CreateUserPage() {
       newErrors.email = "Email không hợp lệ"
     }
 
-    if (!formData.phone.trim()) {
+    const normalizedPhone = formData.phone.replace(/\D/g, "")
+
+    if (!normalizedPhone) {
       newErrors.phone = "Số điện thoại là bắt buộc"
-    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ""))) {
+    } else if (!/^[0-9]{10,11}$/.test(normalizedPhone)) {
       newErrors.phone = "Số điện thoại phải có 10-11 chữ số"
     }
+
+    if (!formData.dob) {
+      newErrors.dob = "Ngày sinh là bắt buộc";
+    } else {
+      const dob = new Date(formData.dob);
+      const today = new Date();
+
+      // Xóa giờ phút giây để so sánh đúng ngày
+      dob.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+
+      if (dob > today) {
+        newErrors.dob = "Ngày sinh không được vượt quá ngày hôm nay";
+      }
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = "Giới tính là bắt buộc"
+    } 
 
     if (!formData.password) {
       newErrors.password = "Mật khẩu là bắt buộc"
@@ -141,8 +162,10 @@ export default function CreateUserPage() {
 
     try {
       // Prepare create data, only include non-empty fields
+      const normalizedPhone = formData.phone.replace(/\D/g, "")
+
       const createData: CreateUserRequest = {
-        phone: formData.phone.trim(),
+        phone: normalizedPhone,
         password: formData.password,
         fullName: formData.fullName.trim(),
         roleId: formData.role
@@ -169,7 +192,24 @@ export default function CreateUserPage() {
       toast.success("Tạo người dùng thành công!")
       router.push("/admin/users")
     } catch (err: any) {
-      console.error("Error creating user:", err)
+      console.warn("Error creating user:", err)
+
+      const isDuplicatePhone =
+        err instanceof ApiError &&
+        err.status === 400 &&
+        typeof err.message === "string" &&
+        err.message.toLowerCase().includes("số điện thoại")
+
+      if (isDuplicatePhone) {
+        const duplicateMsg = err.message || "Số điện thoại đã được sử dụng"
+        setErrors(prev => ({
+          ...prev,
+          phone: duplicateMsg
+        }))
+        toast.error(duplicateMsg)
+        return
+      }
+
       const errorMessage = err.message || "Không thể tạo người dùng"
       toast.error(errorMessage)
     } finally {
@@ -326,6 +366,7 @@ export default function CreateUserPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.gender && <p className="text-sm text-red-500">{errors.gender}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -336,6 +377,7 @@ export default function CreateUserPage() {
                       value={formData.dob}
                       onChange={(e) => handleInputChange("dob", e.target.value)}
                     />
+                    {errors.dob && <p className="text-sm text-red-500">{errors.dob}</p>}
                   </div>
                 </CardContent>
               </Card>

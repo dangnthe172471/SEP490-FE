@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, Users, UserPlus, Activity, ArrowLeft, Save, Loader2, AlertCircle, FileText, MessageCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { DoctorInfoDto, AppointmentDto } from "@/lib/types/appointment"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { toast } from "react-hot-toast"
@@ -28,12 +28,32 @@ export default function NewAppointmentPage() {
     const [isLoadingDoctors, setIsLoadingDoctors] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
+    const VIETNAM_TIME_SLOTS = useMemo(() => {
+        const slots: { value: string; label: string }[] = []
+        const formatter = new Intl.DateTimeFormat("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+            timeZone: "Asia/Ho_Chi_Minh",
+        })
+        for (let hour = 7; hour <= 21; hour++) {
+            for (const minute of [0, 30]) {
+                const value = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`
+                const label = formatter.format(new Date(`2020-01-01T${value}:00+07:00`))
+                slots.push({ value, label })
+            }
+        }
+        return slots
+    }, [])
+
+    const today = useMemo(() => new Date().toISOString().split("T")[0], [])
+
     const [formData, setFormData] = useState({
         patientId: '',
         patientName: '',
         doctorId: '',
         appointmentDate: '',
-        appointmentTime: '17:00', // Set default time to 5:00 PM
+        appointmentTime: '17:00', // Default 17:00 GMT+7
         reasonForVisit: '',
         notes: ''
     })
@@ -259,20 +279,28 @@ export default function NewAppointmentPage() {
                                         type="date"
                                         value={formData.appointmentDate}
                                         onChange={(e) => handleInputChange('appointmentDate', e.target.value)}
+                                        min={today}
                                         required
                                     />
                                 </div>
 
                                 {/* Appointment Time */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="appointmentTime">Giờ khám *</Label>
-                                    <Input
-                                        id="appointmentTime"
-                                        type="time"
-                                        value={formData.appointmentTime}
-                                        onChange={(e) => handleInputChange('appointmentTime', e.target.value)}
-                                        required
-                                    />
+                                    <Label htmlFor="appointmentTime">
+                                        Giờ khám * <span className="text-xs text-muted-foreground">(GMT+7 - Việt Nam)</span>
+                                    </Label>
+                                    <Select value={formData.appointmentTime} onValueChange={(value) => handleInputChange('appointmentTime', value)}>
+                                        <SelectTrigger id="appointmentTime">
+                                            <SelectValue placeholder="Chọn giờ khám" />
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-72">
+                                            {VIETNAM_TIME_SLOTS.map((slot) => (
+                                                <SelectItem key={slot.value} value={slot.value}>
+                                                    {slot.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
 

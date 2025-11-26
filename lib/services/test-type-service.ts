@@ -1,3 +1,4 @@
+// test-type-service.ts
 import { TestTypeDto, CreateTestTypeRequest, UpdateTestTypeRequest, PagedResponse } from '@/lib/types/test-type'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7168'
@@ -72,20 +73,48 @@ class TestTypeService {
         }
     }
 
+    // ⭐ BỔ SUNG: Lấy theo ID
     async getById(id: number): Promise<TestTypeDto> {
         return this.request<TestTypeDto>(`/${id}`)
     }
 
+    // ⭐ BỔ SUNG: Tạo mới
     async create(data: CreateTestTypeRequest): Promise<number> {
         return this.request<number>('', { method: 'POST', body: JSON.stringify(data) })
     }
 
+    // ⭐ BỔ SUNG: Cập nhật
     async update(id: number, data: UpdateTestTypeRequest): Promise<TestTypeDto> {
         return this.request<TestTypeDto>(`/${id}`, { method: 'PUT', body: JSON.stringify(data) })
     }
 
+    // ⭐ BỔ SUNG: Xóa
     async delete(id: number): Promise<void> {
         return this.request<void>(`/${id}`, { method: 'DELETE' })
+    }
+
+    // ⭐ BỔ SUNG: Thống kê tổng quan (Mock/Placeholder - Cần API backend thực tế)
+    async getTestTypeStatistics(): Promise<{ totalTestTypes: number }> {
+        // Đây là một placeholder, bạn sẽ cần một API thực tế để lấy thống kê
+        console.log("📊 [getTestTypeStatistics] Using mock data.")
+        return { totalTestTypes: 42 } // Ví dụ
+    }
+
+    // ⭐ BỔ SUNG: Thống kê số lượng xét nghiệm (Mock/Placeholder - Cần API backend thực tế)
+    async getTestTypeUsageTimeSeries(params: { from?: string; to?: string; groupBy?: "day" | "month" } = {}): Promise<Array<{ period: string; count: number }>> {
+        console.log("📊 [getTestTypeUsageTimeSeries] Using mock data:", params)
+        // Dữ liệu mock: số lượng xét nghiệm được thực hiện
+        const mockData = [
+            { period: "2025-10-01", count: 10 },
+            { period: "2025-10-02", count: 15 },
+            { period: "2025-10-03", count: 8 },
+            { period: "2025-10-04", count: 20 },
+            { period: "2025-10-05", count: 12 },
+        ]
+        return mockData.map(item => ({
+            ...item,
+            period: params.groupBy === 'month' ? item.period.substring(0, 7) : item.period
+        }))
     }
 }
 
