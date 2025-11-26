@@ -119,6 +119,14 @@ export function AIChatInterface() {
             infoLines.push(`- Tiền sử bệnh: ${patientInfo.medicalHistory}`)
         }
 
+        // Chuẩn đoán hiện tại: nếu null hoặc "null" thì hiển thị là chưa có chẩn đoán
+        const diagnosis = record.diagnosisRaw?.toString().trim()
+        if (!diagnosis || diagnosis.toLowerCase() === "null") {
+            infoLines.push(`- Chuẩn đoán hiện tại: Chưa có chẩn đoán`)
+        } else {
+            infoLines.push(`- Chuẩn đoán hiện tại: ${diagnosis}`)
+        }
+
         return infoLines.join("\n")
     }
 
