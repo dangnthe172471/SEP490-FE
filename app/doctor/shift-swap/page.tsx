@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Calendar, Clock, Users, AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import { Clock, Users, AlertCircle, CheckCircle, XCircle } from "lucide-react"
 import { shiftSwapService } from "@/lib/services/shift-swap-service"
 import { getCurrentUser } from "@/lib/auth"
 import { toast } from "sonner"
@@ -86,9 +86,11 @@ export default function DoctorShiftSwapPage() {
         computedMaxDate = targetTo
     }
 
-    const minDateStr = formatDateOnly(computedMinDate)
-    const maxDateStr = formatDateOnly(computedMaxDate)
     const isRangeValid = !computedMaxDate || (computedMinDate <= computedMaxDate)
+
+    // Tập tên ca mà bác sĩ 1 đã có, dùng để ẩn các ca trùng bên bác sĩ 2
+    const myShiftNames = new Set(myShifts.map(shift => shift.shiftName))
+    const availableTargetShifts = targetShifts.filter(shift => !myShiftNames.has(shift.shiftName))
 
     useEffect(() => {
         const user = getCurrentUser()
@@ -570,20 +572,35 @@ export default function DoctorShiftSwapPage() {
                                     <Select
                                         value={formData.targetShiftId}
                                         onValueChange={(value) => setFormData(prev => ({ ...prev, targetShiftId: value }))}
-                                        disabled={!formData.targetDoctorId || doctorsLoading || (swapType === "temporary" && !formData.exchangeDate)}
+                                        disabled={
+                                            !formData.targetDoctorId ||
+                                            !formData.myShiftId || // Bắt buộc chọn ca của tôi trước
+                                            doctorsLoading ||
+                                            (swapType === "temporary" && !formData.exchangeDate)
+                                        }
                                     >
                                         <SelectTrigger>
-                                            <SelectValue placeholder={!formData.targetDoctorId ? "Chọn bác sĩ trước" : (swapType === "temporary" && !formData.exchangeDate ? "Chọn ngày đổi ca trước" : "Chọn ca muốn đổi")} />
+                                            <SelectValue
+                                                placeholder={
+                                                    !formData.targetDoctorId
+                                                        ? "Chọn bác sĩ trước"
+                                                        : !formData.myShiftId
+                                                            ? "Chọn ca của bạn trước"
+                                                            : (swapType === "temporary" && !formData.exchangeDate
+                                                                ? "Chọn ngày đổi ca trước"
+                                                                : "Chọn ca muốn đổi")
+                                                }
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {targetShifts.map((shift) => (
+                                            {availableTargetShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
                                                     {shift.shiftName}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    {swapType === "temporary" && formData.exchangeDate && formData.targetDoctorId && targetShifts.length === 0 && (
+                                    {swapType === "temporary" && formData.exchangeDate && formData.targetDoctorId && availableTargetShifts.length === 0 && (
                                         <p className="text-xs text-orange-500">Bác sĩ này không có ca làm việc nào trong ngày này</p>
                                     )}
                                 </div>
