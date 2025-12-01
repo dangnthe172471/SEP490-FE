@@ -5,18 +5,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Calendar, Award, GraduationCap, Briefcase } from "lucide-react"
 import Image from "next/image"
-
+import Link from "next/link"
 import { managerService } from "@/lib/services/manager-service"
-import type { DoctorDto, ShiftResponseDto } from "@/lib/types/manager-type"
+import type { DoctorHomeDto, ShiftResponseDto } from "@/lib/types/manager-type"
 import { useEffect, useState } from "react"
 export default function BacSiPage() {
-  const [doctors, setDoctors] = useState<DoctorDto[]>([])
+  const [doctors, setDoctors] = useState<DoctorHomeDto[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const data = await managerService.getAllDoctors()
+        const data = await managerService.getAllDoctors2()
         setDoctors(data)
       } catch (err) {
         console.error("Lỗi tải danh sách bác sĩ:", err)
@@ -58,37 +58,38 @@ export default function BacSiPage() {
             ) : doctors.length === 0 ? (
               <p className="text-center text-muted-foreground">Chưa có bác sĩ nào.</p>
             ) : (
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {doctors.map((doctor, index) => (
-                <Card
-                  key={index}
-                  className="group overflow-hidden border-none bg-white shadow-xl ring-1 ring-black/5 transition-all hover:-translate-y-2 hover:shadow-2xl"
-                >
-                  <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10">
-                    <Image
-                      src={`/professional-vietnamese-doctor-in-white-coat-smili.jpg?key=uj04j&height=400&width=400&query=professional Vietnamese doctor in white coat smiling portrait ${doctor.specialty}`}
-                      alt={doctor.fullName}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-105"
-                    />
-                  </div>
-                  <CardContent className="p-6">
-                    <h3 className="mb-2 text-xl font-bold">{doctor.fullName}</h3>
-                    <p className="mb-4 text-sm font-semibold text-primary">{doctor.specialty}</p>
+              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                {doctors.map((doctor, index) => (
+                  <Card
+                    key={index}
+                    className="group overflow-hidden border-none bg-white shadow-xl ring-1 ring-black/5 transition-all hover:-translate-y-2 hover:shadow-2xl"
+                  >
+                    <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10">
+                      <Image
+                        src={doctor.avatarUrl || "/logo.png"}
+                        alt={doctor.fullName}
+                        fill
+                        className="object-cover transition-transform group-hover:scale-105"
+                      />
 
-                    <div className="space-y-3 text-sm">
-                      <div className="flex items-start gap-2">
-                        <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="text-muted-foreground">experience</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="text-muted-foreground"> education </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Award className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="flex flex-wrap gap-2">
-                          {/* {doctor.achievements.map((achievement, i) => (
+                    </div>
+                    <CardContent className="p-6">
+                      <h3 className="mb-2 text-xl font-bold">{doctor.fullName}</h3>
+                      <p className="mb-4 text-sm font-semibold text-primary">{doctor.specialty}</p>
+
+                      <div className="space-y-3 text-sm">
+                        <div className="flex items-start gap-2">
+                          <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-muted-foreground">{doctor.experience} year</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-muted-foreground"> FPT university </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Award className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="flex flex-wrap gap-2">
+                            {/* {doctor.achievements.map((achievement, i) => (
                             <span
                               key={i}
                               className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
@@ -96,19 +97,20 @@ export default function BacSiPage() {
                               {achievement}
                             </span>
                           ))} */}
-                          achievements
+                            Tiến sĩ Y khoa
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    <Button className="mt-6 w-full bg-primary hover:bg-primary/90">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      Đặt lịch khám
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>)}
+                      <Link href="/lien-he">
+                        <Button className="mt-6 w-full bg-primary hover:bg-primary/90">
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Đặt lịch khám
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>)}
           </div>
         </section>
 
