@@ -69,19 +69,6 @@ export default function ReceptionAppointmentsPage() {
     fetchAppointments()
   }, [])
 
-  // Debug: Log appointments để kiểm tra
-  console.log('📋 [DEBUG] All appointments:', appointments)
-  console.log('📋 [DEBUG] Appointments count:', appointments.length)
-  appointments.forEach((apt, index) => {
-    console.log(`📋 [DEBUG] Appointment ${index}:`, {
-      id: apt.appointmentId,
-      patientName: apt.patientName,
-      doctorName: apt.doctorName,
-      date: apt.appointmentDate,
-      status: apt.status
-    })
-  })
-
   const handleCancel = (appointment: AppointmentDto) => {
     setCancelModal({ isOpen: true, appointment })
   }
@@ -118,17 +105,7 @@ export default function ReceptionAppointmentsPage() {
     const status = appointment.status
     // Backend valid statuses: "Pending", "Confirmed", "Completed", "Cancelled", "No-Show"
     // Note: Actual 4-hour rule check is done in CancelAppointmentModal
-    const canCancelResult = status === 'Pending' || status === 'Confirmed'
-
-    // Debug logging
-    console.log('🔍 [DEBUG] canCancel check:', {
-      appointmentId: appointment.appointmentId,
-      status: appointment.status,
-      canCancel: canCancelResult,
-      note: 'Backend valid statuses: Pending, Confirmed, Completed, Cancelled, No-Show. 4-hour rule checked in modal.'
-    })
-
-    return canCancelResult
+    return status === 'Pending' || status === 'Confirmed'
   }
 
   // Nhóm theo trạng thái
@@ -307,16 +284,7 @@ export default function ReceptionAppointmentsPage() {
             <Button size="sm" onClick={() => router.push(`/reception/appointments/${appointment.appointmentId}`)}>
               Chi tiết
             </Button>
-            {(() => {
-              const canCancelResult = canCancel(appointment)
-              console.log('🔍 [DEBUG] AppointmentCard render:', {
-                appointmentId: appointment.appointmentId,
-                status: appointment.status,
-                canCancel: canCancelResult,
-                willRenderButton: canCancelResult
-              })
-              return canCancelResult
-            })() && (
+            {canCancel(appointment) && (
                 <Button
                   size="sm"
                   variant="outline"

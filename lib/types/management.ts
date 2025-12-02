@@ -20,3 +20,4 @@ export interface TestDiagnosticStats {
   trends: DiagnosticTrendPoint[]
 }
 
+

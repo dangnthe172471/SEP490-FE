@@ -81,6 +81,7 @@ export async function getDoctorAppointments(opts?: FetchOpts): Promise<Appointme
     patientId: d.patientId,
     patientName: d.patientName,
     patientPhone: d.patientPhone,
+    reasonForVisit: d.reasonForVisit,
   }));
 }
 
@@ -116,5 +117,6 @@ export async function getDoctorAppointmentDetail(
     doctorId: d.doctorId,
     doctorName: d.doctorName,
     doctorSpecialty: d.doctorSpecialty,
+    reasonForVisit: d.reasonForVisit,
   };
 }
