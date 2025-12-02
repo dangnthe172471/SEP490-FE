@@ -55,7 +55,9 @@ async function ensureOk(res: Response) {
   throw new Error(msg);
 }
 
-export async function getDoctorAppointments(opts?: FetchOpts): Promise<Appointment[]> {
+export async function getDoctorAppointments(
+  opts?: FetchOpts
+): Promise<Appointment[]> {
   if (!BASE_URL) throw new Error(ENV_MISSING_MSG);
 
   const token = opts?.token ?? getAccessTokenFromClient();
@@ -81,6 +83,7 @@ export async function getDoctorAppointments(opts?: FetchOpts): Promise<Appointme
     patientId: d.patientId,
     patientName: d.patientName,
     patientPhone: d.patientPhone,
+    reasonForVisit: d.reasonForVisit,
   }));
 }
 
@@ -92,18 +95,22 @@ export async function getDoctorAppointmentDetail(
 
   const token = opts?.token ?? getAccessTokenFromClient();
 
-  const res = await fetch(`${BASE_URL}/api/DoctorAppointments/appointments/${appointmentId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    credentials: "include",
-  });
+  const res = await fetch(
+    `${BASE_URL}/api/DoctorAppointments/appointments/${appointmentId}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: "include",
+    }
+  );
 
   await ensureOk(res);
 
   const d = (await res.json()) as AppointmentDetailDto;
+
   return {
     appointmentId: d.appointmentId,
     appointmentDateISO: parseVNDate_toISO(d.appointmentDate),
@@ -116,5 +123,7 @@ export async function getDoctorAppointmentDetail(
     doctorId: d.doctorId,
     doctorName: d.doctorName,
     doctorSpecialty: d.doctorSpecialty,
+    visitReason: d.visitReason ?? null,
+
   };
 }

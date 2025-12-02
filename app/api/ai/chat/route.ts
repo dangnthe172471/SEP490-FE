@@ -65,10 +65,10 @@ QUAN TRỌNG:
         const requestBody: any = {
             contents: contents,
             generationConfig: {
-                temperature: 0.7,
+                temperature: 0.5,
                 topK: 40,
-                topP: 0.95,
-                maxOutputTokens: 2048,
+                topP: 0.8,
+                maxOutputTokens: 512,
             },
             safetySettings: [
                 {

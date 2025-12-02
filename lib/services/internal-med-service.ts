@@ -11,6 +11,30 @@ function api(path: string) {
   return `${API_BASE}${path}`
 }
 
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null
+  try {
+    return (
+      window.localStorage.getItem("accessToken") ??
+      window.localStorage.getItem("auth_token") ??
+      window.localStorage.getItem("access_token")
+    )
+  } catch {
+    return null
+  }
+}
+
+function authHeaders(extra?: HeadersInit): HeadersInit {
+  const token = getAccessToken()
+  const base: HeadersInit = {
+    Accept: "application/json",
+  }
+  if (token) {
+    ;(base as any).Authorization = `Bearer ${token}`
+  }
+  return { ...base, ...extra }
+}
+
 async function toJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const txt = await res.text().catch(() => "")
@@ -26,7 +50,10 @@ const BASE_PATH = "/api/InternalMedRecords"
 export async function getInternalMed(
   recordId: number
 ): Promise<ReadInternalMedRecordDto | null> {
-  const res = await fetch(api(`${BASE_PATH}/${recordId}`), { cache: "no-store" })
+  const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
+    cache: "no-store",
+    headers: authHeaders(),
+  })
   if (res.status === 404) return null
   return toJson<ReadInternalMedRecordDto>(res)
 }
@@ -36,7 +63,9 @@ export async function createInternalMed(
 ): Promise<ReadInternalMedRecordDto> {
   const res = await fetch(api(BASE_PATH), {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: authHeaders({
+      "Content-Type": "application/json",
+    }),
     body: JSON.stringify(dto),
     cache: "no-store",
   })
@@ -49,7 +78,9 @@ export async function updateInternalMed(
 ): Promise<ReadInternalMedRecordDto> {
   const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: authHeaders({
+      "Content-Type": "application/json",
+    }),
     body: JSON.stringify(dto),
     cache: "no-store",
   })
@@ -60,14 +91,17 @@ export async function deleteInternalMed(recordId: number): Promise<void> {
   const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
     method: "DELETE",
     cache: "no-store",
+    headers: authHeaders(),
   })
   await toJson<void>(res)
 }
 
-export async function getSpecialtyStatus(recordId: number): Promise<SpecialtyStatus> {
+export async function getSpecialtyStatus(
+  recordId: number
+): Promise<SpecialtyStatus> {
   const res = await fetch(api(`${BASE_PATH}/status/${recordId}`), {
     cache: "no-store",
+    headers: authHeaders(),
   })
   return toJson<SpecialtyStatus>(res)
 }
-

@@ -12,6 +12,58 @@ import { vi } from "date-fns/locale"
 import type { PrescriptionSummaryDto } from "@/lib/types/prescription-doctor"
 import { getPrescriptionById } from "@/lib/services/prescription-doctor-service"
 
+/* ===== Helpers decode token & roles ===== */
+type JwtPayload = { [key: string]: any }
+
+function decodeJwt(token: string): JwtPayload | null {
+  try {
+    const parts = token.split(".")
+    if (parts.length < 2) return null
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/")
+    const padded =
+      base64.length % 4 === 0
+        ? base64
+        : base64.padEnd(base64.length + (4 - (base64.length % 4)), "=")
+    const json = atob(padded)
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
+function extractRoles(payload: JwtPayload | null): string[] {
+  if (!payload) return []
+  const raw =
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+    payload["roles"] ??
+    payload["role"]
+
+  if (!raw) return []
+
+  if (Array.isArray(raw)) {
+    return raw.map((r) => String(r))
+  }
+
+  return String(raw)
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+function getAccessTokenFromClient(): string | null {
+  if (typeof window === "undefined") return null
+  try {
+    return (
+      window.localStorage.getItem("auth_token") ??
+      window.localStorage.getItem("access_token") ??
+      window.localStorage.getItem("accessToken") ??
+      null
+    )
+  } catch {
+    return null
+  }
+}
+
 export default function PrescriptionDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -19,7 +71,53 @@ export default function PrescriptionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [authChecked, setAuthChecked] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+
+  const goBackSafely = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back()
+    } else {
+      router.replace("/")
+    }
+  }
+
+  // ===== Guard: chỉ cho Doctor & Patient vào xem =====
   useEffect(() => {
+    const token = getAccessTokenFromClient()
+
+    if (!token) {
+      // alert("Bạn không có quyền truy cập trang này hoặc trang không tồn tại.")
+      setAuthChecked(true)
+      setIsAuthorized(false)
+      goBackSafely()
+      return
+    }
+
+    const payload = decodeJwt(token)
+    const roles = extractRoles(payload)
+
+    const allow =
+      roles.includes("Doctor") ||
+      roles.includes("Patient")
+
+    if (!allow) {
+      //alert("Bạn không có quyền truy cập trang này hoặc trang không tồn tại.")
+      setAuthChecked(true)
+      setIsAuthorized(false)
+      goBackSafely()
+      return
+    }
+
+    setIsAuthorized(true)
+    setAuthChecked(true)
+  }, [router])
+
+  // ===== Load đơn thuốc (chỉ khi đã pass guard) =====
+  useEffect(() => {
+    if (!authChecked || !isAuthorized) return
+    if (!id) return
+
     let mounted = true
     ;(async () => {
       try {
@@ -29,7 +127,16 @@ export default function PrescriptionDetailPage() {
         if (mounted) setData(res)
       } catch (e: any) {
         const msg = e?.message ?? "Không thể tải đơn thuốc"
-        setError(msg)
+
+        if (msg === "UNAUTHORIZED" || /401|403/.test(String(msg))) {
+          // alert(
+          //   "Bạn không có quyền truy cập trang này hoặc trang không tồn tại."
+          // )
+          goBackSafely()
+          return
+        }
+
+        if (mounted) setError(msg)
       } finally {
         if (mounted) setLoading(false)
       }
@@ -37,7 +144,7 @@ export default function PrescriptionDetailPage() {
     return () => {
       mounted = false
     }
-  }, [id])
+  }, [id, authChecked, isAuthorized])
 
   const issuedAtStr = useMemo(() => {
     if (!data?.issuedDate) return "-"
@@ -65,6 +172,16 @@ export default function PrescriptionDetailPage() {
   }, [data])
 
   const printPage = () => window.print()
+
+  // Chưa check xong quyền thì không render để tránh nháy
+  if (!authChecked) {
+    return null
+  }
+
+  // Nếu không được authorize thì effect đã redirect, ở đây trả null
+  if (!isAuthorized) {
+    return null
+  }
 
   return (
     <main className="min-h-screen bg-background p-4 md:p-6 print:p-0">
@@ -112,14 +229,26 @@ export default function PrescriptionDetailPage() {
                     <InfoRow label="Họ tên" value={data.patient.name} />
                     <InfoRow label="Giới tính" value={genderText} />
                     <InfoRow label="Ngày sinh" value={patientDobStr} />
-                    <InfoRow label="Số điện thoại" value={data.patient.phone ?? "-"} />
+                    <InfoRow
+                      label="Số điện thoại"
+                      value={data.patient.phone ?? "-"}
+                    />
                   </div>
                   <div className="space-y-1">
                     <div className="font-semibold">Thông tin bác sĩ</div>
                     <InfoRow label="Họ tên" value={data.doctor.name} />
-                    <InfoRow label="Chuyên khoa" value={data.doctor.specialty ?? "-"} />
-                    <InfoRow label="Số điện thoại" value={data.doctor.phone ?? "-"} />
-                    <InfoRow label="Mã đơn" value={String(data.prescriptionId)} />
+                    <InfoRow
+                      label="Chuyên khoa"
+                      value={data.doctor.specialty ?? "-"}
+                    />
+                    <InfoRow
+                      label="Số điện thoại"
+                      value={data.doctor.phone ?? "-"}
+                    />
+                    <InfoRow
+                      label="Mã đơn"
+                      value={String(data.prescriptionId)}
+                    />
                   </div>
                 </section>
 
@@ -147,7 +276,9 @@ export default function PrescriptionDetailPage() {
                 {/* GHI CHÚ ĐƠN (NẾU CÓ) */}
                 {data.notes && data.notes.trim() !== "" && (
                   <section>
-                    <div className="font-semibold mb-1">Ghi chú đơn thuốc</div>
+                    <div className="font-semibold mb-1">
+                      Ghi chú đơn thuốc
+                    </div>
                     <p className="text-sm whitespace-pre-wrap">
                       {data.notes}
                     </p>
@@ -173,14 +304,14 @@ export default function PrescriptionDetailPage() {
                       </thead>
                       <tbody>
                         {data.items.map((it, idx) => (
-                          <tr key={it.prescriptionDetailId} className="border-t">
+                          <tr
+                            key={it.prescriptionDetailId}
+                            className="border-t"
+                          >
                             <Td className="text-center w-12">{idx + 1}</Td>
 
                             <Td className="font-medium">
-                              {/* Tên thuốc */}
                               <div>{it.medicineName}</div>
-
-                              {/* Nếu BE sau này trả thêm activeIngredient / strength / dosageForm thì hiển thị thêm */}
                               {(it.activeIngredient ||
                                 it.strength ||
                                 it.dosageForm ||
@@ -189,7 +320,9 @@ export default function PrescriptionDetailPage() {
                                   {it.activeIngredient && (
                                     <div>Hoạt chất: {it.activeIngredient}</div>
                                   )}
-                                  {(it.strength || it.dosageForm || it.route) && (
+                                  {(it.strength ||
+                                    it.dosageForm ||
+                                    it.route) && (
                                     <div>
                                       {it.strength && `${it.strength} · `}
                                       {it.dosageForm ?? ""}{" "}

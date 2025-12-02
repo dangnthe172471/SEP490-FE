@@ -1,7 +1,6 @@
-// components/test-result-dialog.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -20,9 +19,6 @@ import {
 import type { ReadTestResultDto } from "@/lib/types/test-results"
 import { Save, Loader2, ChevronsUpDown, Check } from "lucide-react"
 
-// Radix Toast (chỉ dùng Root/Title/Description—KHÔNG tạo Provider ở đây)
-import { Toast, ToastTitle, ToastDescription } from "@/components/ui/toast"
-
 // Combobox
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
@@ -35,11 +31,24 @@ import {
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 
+// Select đơn vị tách riêng
+import { UnitSelect } from "@/components/unit-select"
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:7168"
+
+function buildAttachmentUrl(path: string): string {
+  if (!path) return ""
+  if (path.startsWith("http://") || path.startsWith("https://")) return path
+  const normalized = path.startsWith("/") ? path : `/${path}`
+  return `${API_BASE_URL}${normalized}`
+}
+
 type RowState = {
-  resultValue: string
-  unit: string
+  resultValue: string   // chỉ phần số / giá trị
+  unit: string          // đơn vị (mmHg, mmol/L,...)
   attachment: string
-  resultDate: string // yyyy-MM-ddTHH:mm
+  resultDate: string    // yyyy-MM-ddTHH:mm
   notes: string
 }
 
@@ -54,6 +63,12 @@ export function TestResultDialog({
 }) {
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
+
+  // upload sẽ chạy khi bấm Lưu
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string>("")
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
 
   // CHỈ lấy các xét nghiệm bác sĩ đã gửi cho hồ sơ này
   const [results, setResults] = useState<ReadTestResultDto[]>([])
@@ -70,7 +85,7 @@ export function TestResultDialog({
     notes: "",
   })
 
-  // toast state (Radix) – KHÔNG tạo Provider ở đây
+  // toast state
   const [toastOpen, setToastOpen] = useState(false)
   const [toastVariant, setToastVariant] = useState<"default" | "destructive">(
     "default"
@@ -99,18 +114,34 @@ export function TestResultDialog({
     async function load() {
       try {
         setLoadingData(true)
-        // CHỈ load testResults cho recordId
         const r = await getTestResultsByRecord(recordId)
         if (!mounted) return
 
         setResults(r)
 
+        // reset file tạm & preview khi mở dialog
+        setPendingFile(null)
+        setLocalPreviewUrl("")
+
         if (r.length > 0) {
           const first = r[0]
           setSelectedResultId(first.testResultId)
+
+          const sanitized = sanitizeValue(first.resultValue)
+          let numeric = sanitized
+          let unit = first.unit ?? ""
+
+          if (sanitized && !unit) {
+            const parts = sanitized.split(" ")
+            if (parts.length > 1) {
+              unit = parts[parts.length - 1]
+              numeric = parts.slice(0, parts.length - 1).join(" ")
+            }
+          }
+
           setForm({
-            resultValue: sanitizeValue(first.resultValue),
-            unit: first.unit ?? "",
+            resultValue: numeric,
+            unit,
             attachment: first.attachment ?? "",
             resultDate: first.resultDate
               ? toLocalDateTimeInputValue(new Date(first.resultDate))
@@ -118,7 +149,6 @@ export function TestResultDialog({
             notes: first.notes ?? "",
           })
         } else {
-          // không có xét nghiệm nào
           setSelectedResultId(null)
           setForm({
             resultValue: "",
@@ -146,12 +176,36 @@ export function TestResultDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, recordId])
 
+  // cleanup blob URL khi đổi file / unmount
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+    }
+  }, [localPreviewUrl])
+
   const onPickResult = (id: number) => {
     setSelectedResultId(id)
     const ex = results.find((r) => r.testResultId === id) ?? null
+
+    const sanitized = sanitizeValue(ex?.resultValue)
+    let numeric = sanitized
+    let unit = ex?.unit ?? ""
+
+    if (sanitized && !unit) {
+      const parts = sanitized.split(" ")
+      if (parts.length > 1) {
+        unit = parts[parts.length - 1]
+        numeric = parts.slice(0, parts.length - 1).join(" ")
+      }
+    }
+
+    // đổi xét nghiệm -> reset file tạm
+    setPendingFile(null)
+    setLocalPreviewUrl("")
+
     setForm({
-      resultValue: sanitizeValue(ex?.resultValue),
-      unit: ex?.unit ?? "",
+      resultValue: numeric,
+      unit,
       attachment: ex?.attachment ?? "",
       resultDate: ex?.resultDate
         ? toLocalDateTimeInputValue(new Date(ex.resultDate))
@@ -163,6 +217,51 @@ export function TestResultDialog({
 
   const handleChange = (k: keyof RowState, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }))
+
+  // chỉ dùng khi nhấn Lưu
+  async function uploadAttachment(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("auth_token") || localStorage.getItem("token")
+        : null
+
+    const res = await fetch(`${API_BASE_URL}/api/uploads/attachments`, {
+      method: "POST",
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : undefined,
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(text || "Upload file thất bại.")
+    }
+
+    const data = (await res.json()) as {
+      relativePath?: string
+      url?: string
+    }
+
+    return data.relativePath || data.url || ""
+  }
+
+  // chỉ đổi file tạm + preview, KHÔNG gọi API
+  const handleAttachmentChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setPendingFile(file)
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+  }
 
   const handleSave = async () => {
     if (!selectedResultId) {
@@ -184,10 +283,23 @@ export function TestResultDialog({
     try {
       setLoading(true)
 
+      let attachmentPath = form.attachment
+
+      // nếu có chọn file mới thì lúc này mới upload
+      if (pendingFile) {
+        setUploadingAttachment(true)
+        attachmentPath = await uploadAttachment(pendingFile)
+        setForm((prev) => ({ ...prev, attachment: attachmentPath }))
+      }
+
+      const numeric = form.resultValue.trim()
+      const unit = (form.unit ?? "").trim()
+      const combined = unit ? `${numeric} ${unit}` : numeric
+
       await updateTestResult(selectedResultId, {
-        resultValue: form.resultValue.trim(),
-        unit: form.unit?.trim() || null,
-        attachment: form.attachment?.trim() || null,
+        resultValue: combined,
+        unit: unit || null,
+        attachment: attachmentPath?.trim() || null,
         resultDate: form.resultDate
           ? new Date(form.resultDate).toISOString()
           : null,
@@ -208,6 +320,7 @@ export function TestResultDialog({
         e?.message ?? "Không thể lưu kết quả."
       )
     } finally {
+      setUploadingAttachment(false)
       setLoading(false)
     }
   }
@@ -218,6 +331,13 @@ export function TestResultDialog({
       results.find((r) => r.testResultId === selectedResultId)?.testName ?? ""
     )
   }, [selectedResultId, results])
+
+  // ưu tiên preview blob nếu đang chọn file mới
+  const previewUrl = pendingFile
+    ? localPreviewUrl
+    : form.attachment
+    ? buildAttachmentUrl(form.attachment)
+    : ""
 
   return (
     <>
@@ -250,7 +370,7 @@ export function TestResultDialog({
                       variant="outline"
                       role="combobox"
                       aria-expanded={typePopoverOpen}
-                      className="w-full justify-between"
+                      className="w-full justify-between bg-slate-50 hover:bg-slate-100"
                     >
                       {selectedLabel || "Chọn loại xét nghiệm"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -300,17 +420,15 @@ export function TestResultDialog({
                     onChange={(e) =>
                       handleChange("resultValue", e.target.value)
                     }
-                    placeholder="VD: 145/90 (mmHg)"
+                    placeholder="VD: 5.6 hoặc 145/90"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label>Đơn vị</Label>
-                  <Input
-                    value={form.unit}
-                    onChange={(e) => handleChange("unit", e.target.value)}
-                    placeholder="mmHg / mmol/L / °C ..."
-                  />
-                </div>
+                {/* Dropdown đơn vị dùng UnitSelect */}
+                <UnitSelect
+                  value={form.unit}
+                  onChange={(v) => handleChange("unit", v)}
+                  placeholder="Chọn đơn vị"
+                />
               </div>
 
               <div className="space-y-1">
@@ -323,14 +441,41 @@ export function TestResultDialog({
               </div>
 
               <div className="space-y-1">
-                <Label>Đính kèm (URL)</Label>
+                <Label>Đính kèm (chọn ảnh từ máy)</Label>
                 <Input
-                  value={form.attachment}
-                  onChange={(e) =>
-                    handleChange("attachment", e.target.value)
-                  }
-                  placeholder="https://... (tùy chọn)"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAttachmentChange}
+                  disabled={loading}
                 />
+                {(uploadingAttachment || loading) && pendingFile && (
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Đang upload ảnh...
+                  </p>
+                )}
+
+                {/* Xem trước ảnh */}
+                {previewUrl && (
+                  <div className="mt-2 space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Xem trước (click để phóng to)
+                    </Label>
+                    <div className="flex items-center justify-center rounded-md border bg-slate-50 p-2">
+                      <button
+                        type="button"
+                        onClick={() => setImagePreviewOpen(true)}
+                        className="focus:outline-none"
+                      >
+                        <img
+                          src={previewUrl}
+                          alt="Ảnh đính kèm xét nghiệm"
+                          className="max-h-40 w-auto rounded-md object-contain"
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -345,12 +490,21 @@ export function TestResultDialog({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="outline"
+              className="bg-slate-50 hover:bg-slate-100"
+              onClick={() => onOpenChange(false)}
+            >
               Đóng
             </Button>
             <Button
               onClick={handleSave}
-              disabled={loading || loadingData || results.length === 0}
+              disabled={
+                loading ||
+                loadingData ||
+                results.length === 0
+              }
+              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-500 hover:text-white"
             >
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -363,15 +517,36 @@ export function TestResultDialog({
         </DialogContent>
       </Dialog>
 
-      {/* Toast instance (Radix) – dùng Provider ở page */}
-      <Toast
-        open={toastOpen}
-        onOpenChange={setToastOpen}
-        variant={toastVariant}
-      >
-        <ToastTitle>{toastTitle}</ToastTitle>
-        {toastDesc ? <ToastDescription>{toastDesc}</ToastDescription> : null}
-      </Toast>
+      {/* Dialog xem ảnh – 2/3 màn hình, căn giữa, có DialogTitle ẩn cho a11y */}
+      <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+        <DialogContent className="max-w-[70vw] max-h-[70vh] p-0 border-none bg-transparent shadow-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Ảnh đính kèm xét nghiệm</DialogTitle>
+          </DialogHeader>
+          {previewUrl && (
+            <div className="flex h-[70vh] w-full items-center justify-center">
+              <img
+                src={previewUrl}
+                alt="Ảnh xét nghiệm"
+                className="max-h-[66vh] max-w-[66vw] object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {toastOpen && (
+        <div
+          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${
+            toastVariant === "destructive"
+              ? "border border-red-200 bg-red-50 text-red-900"
+              : "border border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
+        >
+          <span className="font-semibold">{toastTitle}</span>
+          {toastDesc && <span className="text-sm">{toastDesc}</span>}
+        </div>
+      )}
     </>
   )
 
@@ -383,8 +558,8 @@ export function TestResultDialog({
     setToastVariant(variant)
     setToastTitle(title)
     setToastDesc(desc ?? "")
-    setToastOpen(false)
-    setTimeout(() => setToastOpen(true), 10)
+    setToastOpen(true)
+    setTimeout(() => setToastOpen(false), 3000)
   }
 }
 
@@ -393,7 +568,7 @@ function toLocalDateTimeInputValue(d: Date) {
   const yyyy = d.getFullYear()
   const MM = pad(d.getMonth() + 1)
   const dd = pad(d.getDate())
-  const hh = pad(d.getHours())
-  const mm = pad(d.getMinutes())
+  const hh = d.getHours().toString().padStart(2, "0")
+  const mm = d.getMinutes().toString().padStart(2, "0")
   return `${yyyy}-${MM}-${dd}T${hh}:${mm}`
 }

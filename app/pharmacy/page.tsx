@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +39,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
-  X, // <- dùng cho nút đóng kết quả import
+  X,
 } from "lucide-react";
 import { medicineService } from "@/lib/services/medicine-service";
 import type {
@@ -80,7 +87,8 @@ function decodeJwtPayload<T = any>(token: string): T | null {
 /** Lấy role từ các claim có thể xuất hiện */
 function getRoleFromClaims(payload: any): string | null {
   if (!payload || typeof payload !== "object") return null;
-  const msRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+  const msRole =
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
   const role = payload.role ?? msRole ?? null;
   return typeof role === "string" ? role : Array.isArray(role) ? role[0] : null;
 }
@@ -114,24 +122,41 @@ function validateForm(data: FormData): Partial<Record<keyof FormData, string>> {
   const len = (v: string) => (v || "").length;
 
   if (len(data.medicineName) > 200) e.medicineName = "Tối đa 200 ký tự.";
-  if (len(data.activeIngredient) > 200) e.activeIngredient = "Tối đa 200 ký tự.";
+  if (len(data.activeIngredient) > 200)
+    e.activeIngredient = "Tối đa 200 ký tự.";
   if (len(data.strength) > 50) e.strength = "Tối đa 50 ký tự.";
   if (len(data.dosageForm) > 100) e.dosageForm = "Tối đa 100 ký tự.";
   if (len(data.route) > 50) e.route = "Tối đa 50 ký tự.";
-  if (len(data.prescriptionUnit) > 50) e.prescriptionUnit = "Tối đa 50 ký tự.";
-  if (len(data.therapeuticClass) > 100) e.therapeuticClass = "Tối đa 100 ký tự.";
+  if (len(data.prescriptionUnit) > 50)
+    e.prescriptionUnit = "Tối đa 50 ký tự.";
+  if (len(data.therapeuticClass) > 100)
+    e.therapeuticClass = "Tối đa 100 ký tự.";
   if (len(data.packSize) > 100) e.packSize = "Tối đa 100 ký tự.";
   if (len(data.noteForDoctor) > 500) e.noteForDoctor = "Tối đa 500 ký tự.";
-  if (len(data.commonSideEffects) > 2000) e.commonSideEffects = "Tối đa 2000 ký tự.";
+  if (len(data.commonSideEffects) > 2000)
+    e.commonSideEffects = "Tối đa 2000 ký tự.";
 
   return e;
 }
 
 export default function MedicinesManagementPage() {
   const navigation = getPharmacyNavigation();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const goBackSafely = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.replace("/");
+    }
+  };
 
   const [token, setToken] = useState<string>("");
   const [role, setRole] = useState<string | null>(null);
+
+  // Dùng để chặn render UI khi chưa check xong quyền
+  const [authChecked, setAuthChecked] = useState(false);
 
   const [medicines, setMedicines] = useState<ReadMedicineDto[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -139,7 +164,8 @@ export default function MedicinesManagementPage() {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [statusFilter, setStatusFilter] = useState<"All" | "Providing" | "Stopped">("All");
+  const [statusFilter, setStatusFilter] =
+    useState<"All" | "Providing" | "Stopped">("All");
   const [sortBy, setSortBy] = useState<"" | "az" | "za">("");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -158,43 +184,93 @@ export default function MedicinesManagementPage() {
     commonSideEffects: "",
     noteForDoctor: "",
   });
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof FormData, string>>
+  >({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // Import Excel
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
+  const [importResult, setImportResult] = useState<BulkImportResult | null>(
+    null
+  );
 
-  const { toast } = useToast();
+  // Thống kê toàn bộ (không phụ thuộc filter)
+  const [globalTotal, setGlobalTotal] = useState(0);
+  const [globalProviding, setGlobalProviding] = useState(0);
 
-  // Lấy token từ localStorage & rút role từ JWT
+  // Lấy token + kiểm tra role + load data
   useEffect(() => {
-    const t = localStorage.getItem("auth_token") || "";
-    setToken(t);
+    if (typeof window === "undefined") return;
 
-    if (t) {
-      const payload = decodeJwtPayload(t);
-      const r = getRoleFromClaims(payload);
-      setRole(r);
-    } else {
-      setRole(null);
-      setLoading(false);
+    const t = localStorage.getItem("auth_token") || "";
+    if (!t) {
+      toast({
+        variant: "destructive",
+        title: "Bạn không có quyền truy cập",
+        description: "Vui lòng đăng nhập để tiếp tục.",
+      });
+      goBackSafely();
+      return;
     }
-  }, []);
+
+    const payload = decodeJwtPayload(t);
+    const r = getRoleFromClaims(payload);
+    setToken(t);
+    setRole(r);
+
+    if (!r || r.toLowerCase() !== "pharmacy provider") {
+      toast({
+        variant: "destructive",
+        title: "Bạn không có quyền truy cập",
+        description:
+          "Bạn không có quyền truy cập trang này hoặc trang không tồn tại.",
+      });
+      goBackSafely();
+      return;
+    }
+
+    // Đúng role -> đánh dấu đã check xong quyền
+    setAuthChecked(true);
+
+    // role đúng => load dữ liệu lần đầu
+    (async () => {
+      await loadMine(t, 1, pageSize, statusFilter, sortBy, true);
+      await loadStats(t, true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, toast]);
 
   const isProvider = (role || "").toLowerCase() === "pharmacy provider";
-  const blocked = role !== null && !isProvider;
+
+  // Hàm load thống kê toàn bộ (all + Providing), không theo statusFilter
+  const loadStats = async (accessToken = token, skipGuard = false) => {
+    if (!accessToken || (!isProvider && !skipGuard)) return;
+    try {
+      const allResult: PagedResult<ReadMedicineDto> =
+        await medicineService.getMinePaged(accessToken, 1, 1);
+      setGlobalTotal(allResult.totalCount);
+
+      const providingResult: PagedResult<ReadMedicineDto> =
+        await medicineService.getMinePaged(accessToken, 1, 1, "Providing");
+      setGlobalProviding(providingResult.totalCount);
+    } catch (err) {
+      console.error("Failed to load medicine stats:", err);
+    }
+  };
 
   // Load theo phân trang + filter/sort
   const loadMine = async (
+    accessToken = token,
     _page = pageNumber,
     _size = pageSize,
     _status: "All" | "Providing" | "Stopped" = statusFilter,
-    _sort: "" | "az" | "za" = sortBy
+    _sort: "" | "az" | "za" = sortBy,
+    skipGuard = false
   ) => {
-    if (!token || !isProvider) {
+    if (!accessToken || (!isProvider && !skipGuard)) {
       setLoading(false);
       return;
     }
@@ -204,13 +280,14 @@ export default function MedicinesManagementPage() {
       const effectiveStatus = _status === "All" ? undefined : _status;
       const effectiveSort = _sort || undefined;
 
-      const result: PagedResult<ReadMedicineDto> = await medicineService.getMinePaged(
-        token,
-        _page,
-        _size,
-        effectiveStatus as "Providing" | "Stopped" | undefined,
-        effectiveSort as "az" | "za" | undefined
-      );
+      const result: PagedResult<ReadMedicineDto> =
+        await medicineService.getMinePaged(
+          accessToken,
+          _page,
+          _size,
+          effectiveStatus as "Providing" | "Stopped" | undefined,
+          effectiveSort as "az" | "za" | undefined
+        );
 
       const normalizedItems = (result.items || []).map((m) => ({
         ...m,
@@ -224,10 +301,22 @@ export default function MedicinesManagementPage() {
       setPageSize(result.pageSize);
     } catch (error: any) {
       console.error("Failed to load medicines:", error);
+      const msg = error?.message ?? "Không thể tải danh sách thuốc";
+
+      if (msg === "UNAUTHORIZED" || /401|403/.test(msg)) {
+        toast({
+          variant: "destructive",
+          title: "Phiên làm việc hết hạn",
+          description: "Vui lòng đăng nhập lại.",
+        });
+        goBackSafely();
+        return;
+      }
+
       setMedicines([]);
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể tải danh sách thuốc",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -235,24 +324,10 @@ export default function MedicinesManagementPage() {
     }
   };
 
+  // Khi đổi filter/sort thì reload lại (khi đã có token + role đúng)
   useEffect(() => {
-    if (token && isProvider) {
-      loadMine(1, pageSize, statusFilter, sortBy);
-    } else if (blocked) {
-      setLoading(false);
-      toast({
-        title: "Không có quyền",
-        description: "Trang này chỉ dành cho tài khoản Pharmacy Provider.",
-        variant: "destructive",
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, role]);
-
-  useEffect(() => {
-    if (token && isProvider) {
-      loadMine(1, pageSize, statusFilter, sortBy);
-    }
+    if (!token || !isProvider) return;
+    loadMine(token, 1, pageSize, statusFilter, sortBy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, sortBy]);
 
@@ -263,13 +338,7 @@ export default function MedicinesManagementPage() {
       const name = (m.medicineName || "").toLowerCase();
       const active = (m.activeIngredient || "").toLowerCase();
       const group = (m.therapeuticClass || "").toLowerCase();
-      const provider = (m.providerName || "").toLowerCase();
-      return (
-        name.includes(q) ||
-        active.includes(q) ||
-        group.includes(q) ||
-        provider.includes(q)
-      );
+      return name.includes(q) || active.includes(q) || group.includes(q);
     });
   }, [medicines, searchTerm]);
 
@@ -344,7 +413,9 @@ export default function MedicinesManagementPage() {
     try {
       setSaving(true);
 
-      const payloadStatus: "Providing" | "Stopped" = normalizeStatus(formData.status);
+      const payloadStatus: "Providing" | "Stopped" = normalizeStatus(
+        formData.status
+      );
 
       const dtoBase = {
         medicineName: formData.medicineName.trim(),
@@ -363,13 +434,23 @@ export default function MedicinesManagementPage() {
       if (editingId) {
         const updateData: UpdateMedicineDto = dtoBase;
         await medicineService.update(editingId, updateData, token);
-        await loadMine(pageNumber, pageSize, statusFilter, sortBy);
-        toast({ title: "Thành công", description: "Cập nhật thuốc thành công" });
+        await loadMine(token, pageNumber, pageSize, statusFilter, sortBy);
+        await loadStats(token);
+        toast({
+          title: "Thành công",
+          description: "Cập nhật thuốc thành công",
+          className: "border border-green-500 bg-green-50 text-green-900",
+        });
       } else {
         const createData: CreateMedicineDto = dtoBase;
         await medicineService.create(createData, token);
-        await loadMine(1, pageSize, statusFilter, sortBy);
-        toast({ title: "Thành công", description: "Tạo thuốc thành công" });
+        await loadMine(token, 1, pageSize, statusFilter, sortBy);
+        await loadStats(token);
+        toast({
+          title: "Thành công",
+          description: "Tạo thuốc thành công",
+          className: "border border-green-500 bg-green-50 text-green-900",
+        });
       }
 
       handleCloseDialog();
@@ -406,14 +487,18 @@ export default function MedicinesManagementPage() {
   const canPrev = pageNumber > 1;
   const canNext = pageNumber < totalPages;
 
-  const goFirst = () => canPrev && loadMine(1, pageSize, statusFilter, sortBy);
-  const goPrev = () => canPrev && loadMine(pageNumber - 1, pageSize, statusFilter, sortBy);
-  const goNext = () => canNext && loadMine(pageNumber + 1, pageSize, statusFilter, sortBy);
-  const goLast = () => canNext && loadMine(totalPages, pageSize, statusFilter, sortBy);
+  const goFirst = () =>
+    canPrev && loadMine(token, 1, pageSize, statusFilter, sortBy);
+  const goPrev = () =>
+    canPrev && loadMine(token, pageNumber - 1, pageSize, statusFilter, sortBy);
+  const goNext = () =>
+    canNext && loadMine(token, pageNumber + 1, pageSize, statusFilter, sortBy);
+  const goLast = () =>
+    canNext && loadMine(token, totalPages, pageSize, statusFilter, sortBy);
 
   const handleChangePageSize = (value: number) => {
     setPageSize(value);
-    loadMine(1, value, statusFilter, sortBy);
+    loadMine(token, 1, value, statusFilter, sortBy);
   };
 
   // Excel handlers
@@ -440,6 +525,7 @@ export default function MedicinesManagementPage() {
       toast({
         title: "Thành công",
         description: "Đã tải file mẫu Excel.",
+        className: "border border-green-500 bg-green-50 text-green-900",
       });
     } catch (error: any) {
       console.error("Download template failed:", error);
@@ -480,7 +566,8 @@ export default function MedicinesManagementPage() {
       setImportResult(result);
 
       // reload lại trang 1 sau khi import xong
-      await loadMine(1, pageSize, statusFilter, sortBy);
+      await loadMine(token, 1, pageSize, statusFilter, sortBy);
+      await loadStats(token);
 
       // KHÔNG hiển thị toast thành công nữa, chỉ hiển thị block "Kết quả import"
     } catch (error: any) {
@@ -495,6 +582,11 @@ export default function MedicinesManagementPage() {
     }
   };
 
+  // ⛔ Nếu chưa check xong quyền thì không render UI
+  if (!authChecked) {
+    return null;
+  }
+
   return (
     <DashboardLayout navigation={navigation}>
       <div className="space-y-6">
@@ -508,16 +600,24 @@ export default function MedicinesManagementPage() {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={blocked}>
+              <Button
+                onClick={() => handleOpenDialog()}
+                className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                disabled={!isProvider}
+              >
                 <Plus className="h-4 w-4" />
                 Thêm thuốc
               </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingId ? "Chỉnh sửa" : "Thêm"} thuốc</DialogTitle>
+                <DialogTitle>
+                  {editingId ? "Chỉnh sửa" : "Thêm"} thuốc
+                </DialogTitle>
                 <DialogDescription>
-                  {editingId ? "Cập nhật thông tin thuốc" : "Tạo thuốc mới với đầy đủ thông tin"}
+                  {editingId
+                    ? "Cập nhật thông tin thuốc"
+                    : "Tạo thuốc mới với đầy đủ thông tin"}
                 </DialogDescription>
               </DialogHeader>
 
@@ -530,11 +630,15 @@ export default function MedicinesManagementPage() {
                   <Input
                     placeholder="Nhập tên thuốc"
                     value={formData.medicineName}
-                    onChange={(e) => setFormData({ ...formData, medicineName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, medicineName: e.target.value })
+                    }
                     className="mt-1"
                   />
                   {errors.medicineName && (
-                    <p className="mt-1 text-xs text-red-500">{errors.medicineName}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.medicineName}
+                    </p>
                   )}
                 </div>
 
@@ -548,12 +652,17 @@ export default function MedicinesManagementPage() {
                       placeholder="Ví dụ: Paracetamol"
                       value={formData.activeIngredient}
                       onChange={(e) =>
-                        setFormData({ ...formData, activeIngredient: e.target.value })
+                        setFormData({
+                          ...formData,
+                          activeIngredient: e.target.value,
+                        })
                       }
                       className="mt-1"
                     />
                     {errors.activeIngredient && (
-                      <p className="mt-1 text-xs text-red-500">{errors.activeIngredient}</p>
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.activeIngredient}
+                      </p>
                     )}
                   </div>
                   <div>
@@ -563,11 +672,15 @@ export default function MedicinesManagementPage() {
                     <Input
                       placeholder="500mg, 5mg/5ml..."
                       value={formData.strength}
-                      onChange={(e) => setFormData({ ...formData, strength: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, strength: e.target.value })
+                      }
                       className="mt-1"
                     />
                     {errors.strength && (
-                      <p className="mt-1 text-xs text-red-500">{errors.strength}</p>
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.strength}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -581,11 +694,18 @@ export default function MedicinesManagementPage() {
                     <Input
                       placeholder="Viên nén, siro, viên nang..."
                       value={formData.dosageForm}
-                      onChange={(e) => setFormData({ ...formData, dosageForm: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          dosageForm: e.target.value,
+                        })
+                      }
                       className="mt-1"
                     />
                     {errors.dosageForm && (
-                      <p className="mt-1 text-xs text-red-500">{errors.dosageForm}</p>
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.dosageForm}
+                      </p>
                     )}
                   </div>
                   <div>
@@ -595,11 +715,15 @@ export default function MedicinesManagementPage() {
                     <Input
                       placeholder="Uống, tiêm, bôi ngoài da..."
                       value={formData.route}
-                      onChange={(e) => setFormData({ ...formData, route: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, route: e.target.value })
+                      }
                       className="mt-1"
                     />
                     {errors.route && (
-                      <p className="mt-1 text-xs text-red-500">{errors.route}</p>
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.route}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -614,12 +738,17 @@ export default function MedicinesManagementPage() {
                       placeholder="Viên, lọ, ống, hộp..."
                       value={formData.prescriptionUnit}
                       onChange={(e) =>
-                        setFormData({ ...formData, prescriptionUnit: e.target.value })
+                        setFormData({
+                          ...formData,
+                          prescriptionUnit: e.target.value,
+                        })
                       }
                       className="mt-1"
                     />
                     {errors.prescriptionUnit && (
-                      <p className="mt-1 text-xs text-red-500">{errors.prescriptionUnit}</p>
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.prescriptionUnit}
+                      </p>
                     )}
                   </div>
                   <div>
@@ -630,12 +759,17 @@ export default function MedicinesManagementPage() {
                       placeholder="Hạ sốt, giảm đau, kháng sinh..."
                       value={formData.therapeuticClass}
                       onChange={(e) =>
-                        setFormData({ ...formData, therapeuticClass: e.target.value })
+                        setFormData({
+                          ...formData,
+                          therapeuticClass: e.target.value,
+                        })
                       }
                       className="mt-1"
                     />
                     {errors.therapeuticClass && (
-                      <p className="mt-1 text-xs text-red-500">{errors.therapeuticClass}</p>
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.therapeuticClass}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -648,45 +782,63 @@ export default function MedicinesManagementPage() {
                   <Input
                     placeholder="Hộp 10 vỉ x 10 viên..."
                     value={formData.packSize}
-                    onChange={(e) => setFormData({ ...formData, packSize: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, packSize: e.target.value })
+                    }
                     className="mt-1"
                   />
                   {errors.packSize && (
-                    <p className="mt-1 text-xs text-red-500">{errors.packSize}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.packSize}
+                    </p>
                   )}
                 </div>
 
                 {/* Tác dụng phụ */}
                 <div>
-                  <label className="text-sm font-medium">Tác dụng phụ thường gặp</label>
+                  <label className="text-sm font-medium">
+                    Tác dụng phụ thường gặp
+                  </label>
                   <Textarea
                     placeholder="Nhập tác dụng phụ thường gặp..."
                     value={formData.commonSideEffects}
                     onChange={(e) =>
-                      setFormData({ ...formData, commonSideEffects: e.target.value })
+                      setFormData({
+                        ...formData,
+                        commonSideEffects: e.target.value,
+                      })
                     }
                     className="mt-1"
                     rows={3}
                   />
                   {errors.commonSideEffects && (
-                    <p className="mt-1 text-xs text-red-500">{errors.commonSideEffects}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.commonSideEffects}
+                    </p>
                   )}
                 </div>
 
                 {/* Ghi chú */}
                 <div>
-                  <label className="text-sm font-medium">Ghi chú nội bộ cho bác sĩ</label>
+                  <label className="text-sm font-medium">
+                    Ghi chú nội bộ cho bác sĩ
+                  </label>
                   <Textarea
                     placeholder="Ghi chú hướng dẫn kê đơn, lưu ý đặc biệt..."
                     value={formData.noteForDoctor}
                     onChange={(e) =>
-                      setFormData({ ...formData, noteForDoctor: e.target.value })
+                      setFormData({
+                        ...formData,
+                        noteForDoctor: e.target.value,
+                      })
                     }
                     className="mt-1"
                     rows={3}
                   />
                   {errors.noteForDoctor && (
-                    <p className="mt-1 text-xs text-red-500">{errors.noteForDoctor}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.noteForDoctor}
+                    </p>
                   )}
                 </div>
 
@@ -708,12 +860,27 @@ export default function MedicinesManagementPage() {
                   </select>
                 </div>
 
-                <div className="flex gap-2 justify-end pt-2">
-                  <Button variant="outline" onClick={handleCloseDialog} disabled={saving}>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseDialog}
+                    disabled={saving}
+                    className="border-red-200 text-red-700 hover:bg-red-50"
+                  >
                     Hủy
                   </Button>
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className={
+                      editingId
+                        ? "bg-amber-500 text-white hover:bg-amber-600"
+                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+                    }
+                  >
+                    {saving && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     {editingId ? "Cập nhật" : "Tạo"}
                   </Button>
                 </div>
@@ -722,44 +889,40 @@ export default function MedicinesManagementPage() {
           </Dialog>
         </div>
 
-        {/* Cảnh báo quyền */}
-        {blocked && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Không có quyền truy cập</CardTitle>
-              <CardDescription>
-                Bạn đang đăng nhập với vai trò <b>{role}</b>. Chức năng này chỉ dành cho{" "}
-                <b>Pharmacy Provider</b>.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-
         {/* Statistics */}
         <div className="grid gap-4 md:grid-cols-3">
+          {/* Tổng số thuốc toàn bộ */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tổng số thuốc</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Tổng số thuốc
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalCount}</div>
+              <div className="text-2xl font-bold">{globalTotal}</div>
               <p className="text-xs text-muted-foreground">
-                Tổng số thuốc thuộc nhà cung cấp của bạn
+                Tổng số thuốc thuộc nhà cung cấp của bạn (toàn bộ, không theo
+                lọc)
               </p>
             </CardContent>
           </Card>
+
+          {/* Đang cung cấp toàn bộ */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Đang cung cấp (trang hiện tại)</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Đang cung cấp (toàn bộ)
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {medicines.filter((m) => normalizeStatus(m.status ?? undefined) === "Providing")
-                  .length}
-              </div>
-              <p className="text-xs text-muted-foreground">Đếm theo dữ liệu trang đang xem</p>
+              <div className="text-2xl font-bold">{globalProviding}</div>
+              <p className="text-xs text-muted-foreground">
+                Số thuốc ở trạng thái Providing trên toàn bộ danh sách
+              </p>
             </CardContent>
           </Card>
+
+          {/* Kết quả tìm kiếm trên trang hiện tại */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -767,7 +930,9 @@ export default function MedicinesManagementPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredMedicines.length}</div>
+              <div className="text-2xl font-bold">
+                {filteredMedicines.length}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Lọc theo ô tìm kiếm trên trang hiện tại
               </p>
@@ -780,12 +945,12 @@ export default function MedicinesManagementPage() {
           <CardHeader>
             <CardTitle>Tìm kiếm</CardTitle>
             <CardDescription>
-              Tìm theo tên, hoạt chất, nhóm điều trị hoặc nhà cung cấp (trên trang hiện tại)
+              Tìm theo tên, hoạt chất hoặc nhóm điều trị (trên trang hiện tại)
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              <div className="relative flex-1 min-w-[240px]">
+              <div className="relative min-w-[240px] flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Tìm kiếm thuốc..."
@@ -798,7 +963,9 @@ export default function MedicinesManagementPage() {
               <select
                 value={statusFilter}
                 onChange={(e) =>
-                  setStatusFilter(e.target.value as "All" | "Providing" | "Stopped")
+                  setStatusFilter(
+                    e.target.value as "All" | "Providing" | "Stopped"
+                  )
                 }
                 className="w-[160px] rounded-md border border-input bg-background px-2 py-2 text-sm"
               >
@@ -809,7 +976,9 @@ export default function MedicinesManagementPage() {
 
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as "" | "az" | "za")}
+                onChange={(e) =>
+                  setSortBy(e.target.value as "" | "az" | "za")
+                }
                 className="w-[140px] rounded-md border border-input bg-background px-2 py-2 text-sm"
               >
                 <option value="">Sort: default</option>
@@ -817,7 +986,11 @@ export default function MedicinesManagementPage() {
                 <option value="za">Name Z → A</option>
               </select>
 
-              <Button variant="outline" onClick={() => setSearchTerm("")}>
+              <Button
+                variant="outline"
+                onClick={() => setSearchTerm("")}
+                className="border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
                 Xóa tìm kiếm
               </Button>
             </div>
@@ -832,7 +1005,8 @@ export default function MedicinesManagementPage() {
                 <CardTitle>Danh sách thuốc</CardTitle>
                 <CardDescription>
                   Trang <b>{pageNumber}</b>/<b>{totalPages}</b> · Hiển thị{" "}
-                  <b>{medicines.length}</b> / Trang · Tổng <b>{totalCount}</b>
+                  <b>{medicines.length}</b> / Trang · Tổng <b>{totalCount}</b>{" "}
+                  (theo filter hiện tại)
                 </CardDescription>
               </div>
 
@@ -842,7 +1016,8 @@ export default function MedicinesManagementPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleDownloadTemplate}
-                  disabled={blocked || !token}
+                  disabled={!token || !isProvider}
+                  className="border-sky-300 text-sky-700 hover:bg-sky-50"
                 >
                   Tải file mẫu Excel
                 </Button>
@@ -858,9 +1033,12 @@ export default function MedicinesManagementPage() {
                     type="button"
                     size="sm"
                     onClick={handleImportExcel}
-                    disabled={blocked || !token || importing}
+                    disabled={!token || !isProvider || importing}
+                    className="bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
                   >
-                    {importing && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                    {importing && (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    )}
                     Import Excel
                   </Button>
                 </div>
@@ -886,10 +1064,12 @@ export default function MedicinesManagementPage() {
                     Tổng: <b>{importResult.total}</b>
                   </span>
                   <span>
-                    Thành công: <b className="text-green-600">{importResult.success}</b>
+                    Thành công:{" "}
+                    <b className="text-green-600">{importResult.success}</b>
                   </span>
                   <span>
-                    Thất bại: <b className="text-red-600">{importResult.failed}</b>
+                    Thất bại:{" "}
+                    <b className="text-red-600">{importResult.failed}</b>
                   </span>
                 </div>
                 {importResult.errors && importResult.errors.length > 0 && (
@@ -927,8 +1107,12 @@ export default function MedicinesManagementPage() {
                         <TableHead>Quy cách</TableHead>
                         <TableHead>Trạng thái</TableHead>
                         <TableHead>Nhà cung cấp</TableHead>
-                        <TableHead className="max-w-xs">Tác dụng phụ thường gặp</TableHead>
-                        <TableHead className="max-w-xs">Ghi chú bác sĩ</TableHead>
+                        <TableHead className="max-w-xs">
+                          Tác dụng phụ thường gặp
+                        </TableHead>
+                        <TableHead className="max-w-xs">
+                          Ghi chú bác sĩ
+                        </TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -937,7 +1121,9 @@ export default function MedicinesManagementPage() {
                         filteredMedicines.map((medicine) => (
                           <TableRow key={medicine.medicineId}>
                             <TableCell>
-                              <Badge variant="outline">{medicine.medicineId}</Badge>
+                              <Badge variant="outline">
+                                {medicine.medicineId}
+                              </Badge>
                             </TableCell>
                             <TableCell className="font-medium">
                               {medicine.medicineName}
@@ -962,7 +1148,9 @@ export default function MedicinesManagementPage() {
                               {medicine.packSize || "-"}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={getStatusBadgeVariant(medicine.status)}>
+                              <Badge
+                                variant={getStatusBadgeVariant(medicine.status)}
+                              >
                                 {getStatusLabel(medicine.status)}
                               </Badge>
                             </TableCell>
@@ -980,8 +1168,8 @@ export default function MedicinesManagementPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleOpenDialog(medicine)}
-                                className="gap-1"
-                                disabled={saving || blocked}
+                                disabled={saving || !isProvider}
+                                className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
                               >
                                 <Edit2 className="h-4 w-4" />
                                 Sửa
@@ -993,7 +1181,7 @@ export default function MedicinesManagementPage() {
                         <TableRow>
                           <TableCell
                             colSpan={13}
-                            className="text-center py-8 text-muted-foreground"
+                            className="py-8 text-center text-muted-foreground"
                           >
                             {searchTerm
                               ? "Không tìm thấy thuốc nào trong trang hiện tại"
@@ -1010,7 +1198,8 @@ export default function MedicinesManagementPage() {
                   <div className="text-sm text-muted-foreground">
                     Đang xem{" "}
                     <b>
-                      {(pageNumber - 1) * pageSize + (medicines.length > 0 ? 1 : 0)}
+                      {(pageNumber - 1) * pageSize +
+                        (medicines.length > 0 ? 1 : 0)}
                     </b>
                     –
                     <b>
@@ -1019,7 +1208,7 @@ export default function MedicinesManagementPage() {
                         totalCount
                       )}
                     </b>{" "}
-                    trên <b>{totalCount}</b>
+                    trên <b>{totalCount}</b> (theo filter hiện tại)
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -1044,19 +1233,43 @@ export default function MedicinesManagementPage() {
 
                     {/* Nút chuyển trang */}
                     <div className="flex items-center gap-1">
-                      <Button variant="outline" size="sm" onClick={goFirst} disabled={!canPrev}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goFirst}
+                        disabled={!canPrev}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
                         <ChevronsLeft className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={goPrev} disabled={!canPrev}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goPrev}
+                        disabled={!canPrev}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
                       <span className="px-3 text-sm">
                         Trang <b>{pageNumber}</b> / <b>{totalPages}</b>
                       </span>
-                      <Button variant="outline" size="sm" onClick={goNext} disabled={!canNext}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goNext}
+                        disabled={!canNext}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={goLast} disabled={!canNext}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goLast}
+                        disabled={!canNext}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
                         <ChevronsRight className="h-4 w-4" />
                       </Button>
                     </div>
