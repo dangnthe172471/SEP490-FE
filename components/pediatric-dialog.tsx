@@ -1,19 +1,47 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  useEffect,
+  useState,
+  type KeyboardEvent,
+} from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Save } from "lucide-react"
-import { getPediatric, createPediatric, updatePediatric } from "@/lib/services/pediatric-service"
+import {
+  getPediatric,
+  createPediatric,
+  updatePediatric,
+} from "@/lib/services/pediatric-service"
 import type { ReadPediatricRecordDto } from "@/lib/types/specialties"
 
-// Radix Toast (Provider đã ở page)
-import { Toast, ToastTitle, ToastDescription } from "@/components/ui/toast"
+// chặn nhập -, +, e, E trên input number
+const blockInvalidNumberKeys = (e: KeyboardEvent<HTMLInputElement>) => {
+  if (["e", "E", "+", "-"].includes(e.key)) {
+    e.preventDefault()
+  }
+}
+
+const toPositiveOrNull = (raw: string): number | null => {
+  if (!raw) return null
+  const num = Number(raw)
+  if (!Number.isFinite(num) || num <= 0) return null
+  return num
+}
 
 export function PediatricDialog({
-  open, onOpenChange, recordId, onSaved
+  open,
+  onOpenChange,
+  recordId,
+  onSaved,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -26,7 +54,8 @@ export function PediatricDialog({
 
   // toast state
   const [toastOpen, setToastOpen] = useState(false)
-  const [toastVariant, setToastVariant] = useState<"default" | "destructive">("default")
+  const [toastVariant, setToastVariant] =
+    useState<"default" | "destructive">("default")
   const [toastTitle, setToastTitle] = useState("")
   const [toastDesc, setToastDesc] = useState("")
 
@@ -39,50 +68,62 @@ export function PediatricDialog({
         if (!alive) return
         setForm(data ?? { recordId })
       })
-      .catch((e: any) => showToast("destructive", "Lỗi tải dữ liệu", e?.message ?? "Không tải được hồ sơ Nhi khoa."))
+      .catch((e: any) =>
+        showToast(
+          "destructive",
+          "Lỗi tải dữ liệu",
+          e?.message ?? "Không tải được hồ sơ Nhi khoa."
+        )
+      )
       .finally(() => setLoading(false))
-    return () => { alive = false }
+    return () => {
+      alive = false
+    }
   }, [open, recordId])
 
   const save = async () => {
     try {
       setSaving(true)
       const existed = await getPediatric(recordId)
+      const payload = {
+        recordId,
+        weightKg: form.weightKg ?? null,
+        heightCm: form.heightCm ?? null,
+        heartRate: form.heartRate ?? null,
+        temperatureC: form.temperatureC ?? null,
+      }
       if (existed) {
-        await updatePediatric(recordId, {
-          weightKg: form.weightKg ?? null,
-          heightCm: form.heightCm ?? null,
-          heartRate: form.heartRate ?? null,
-          temperatureC: form.temperatureC ?? null,
-        })
+        await updatePediatric(recordId, payload)
         showToast("default", "Cập nhật thành công", "Đã lưu khám Nhi khoa.")
       } else {
-        await createPediatric({
-          recordId,
-          weightKg: form.weightKg ?? null,
-          heightCm: form.heightCm ?? null,
-          heartRate: form.heartRate ?? null,
-          temperatureC: form.temperatureC ?? null,
-        })
+        await createPediatric(payload)
         showToast("default", "Thêm thành công", "Đã tạo hồ sơ Nhi khoa.")
       }
       onOpenChange(false)
       onSaved?.()
     } catch (e: any) {
-      showToast("destructive", "Lỗi khi lưu", e?.message ?? "Không thể lưu hồ sơ Nhi khoa.")
+      showToast(
+        "destructive",
+        "Lỗi khi lưu",
+        e?.message ?? "Không thể lưu hồ sơ Nhi khoa."
+      )
     } finally {
       setSaving(false)
     }
   }
 
-  const set = <K extends keyof ReadPediatricRecordDto>(k: K, v: ReadPediatricRecordDto[K]) =>
-    setForm(prev => ({ ...prev, [k]: v }))
+  const set = <K extends keyof ReadPediatricRecordDto>(
+    k: K,
+    v: ReadPediatricRecordDto[K]
+  ) => setForm((prev) => ({ ...prev, [k]: v }))
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader><DialogTitle>Khám Nhi khoa</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Khám Nhi khoa</DialogTitle>
+          </DialogHeader>
           {loading ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Đang tải...
@@ -93,62 +134,99 @@ export function PediatricDialog({
                 <Label>Cân nặng (kg)</Label>
                 <Input
                   value={form.weightKg ?? ""}
-                  onChange={e => set("weightKg", e.target.value ? Number(e.target.value) : null)}
+                  onChange={(e) =>
+                    set("weightKg", toPositiveOrNull(e.target.value))
+                  }
                   type="number"
                   step="0.01"
+                  min={0.01}
+                  onKeyDown={blockInvalidNumberKeys}
+                  placeholder="VD: 12.4"
                 />
               </div>
               <div className="space-y-1">
                 <Label>Chiều cao (cm)</Label>
                 <Input
                   value={form.heightCm ?? ""}
-                  onChange={e => set("heightCm", e.target.value ? Number(e.target.value) : null)}
+                  onChange={(e) =>
+                    set("heightCm", toPositiveOrNull(e.target.value))
+                  }
                   type="number"
                   step="0.1"
+                  min={0.1}
+                  onKeyDown={blockInvalidNumberKeys}
+                  placeholder="VD: 95.5"
                 />
               </div>
               <div className="space-y-1">
-                <Label>Nhịp tim</Label>
+                <Label>Nhịp tim (lần/phút, bpm)</Label>
                 <Input
                   value={form.heartRate ?? ""}
-                  onChange={e => set("heartRate", e.target.value ? Number(e.target.value) : null)}
+                  onChange={(e) =>
+                    set("heartRate", toPositiveOrNull(e.target.value))
+                  }
                   type="number"
+                  min={1}
+                  onKeyDown={blockInvalidNumberKeys}
+                  placeholder="VD: 90"
                 />
               </div>
               <div className="space-y-1">
                 <Label>Nhiệt độ (°C)</Label>
                 <Input
                   value={form.temperatureC ?? ""}
-                  onChange={e => set("temperatureC", e.target.value ? Number(e.target.value) : null)}
+                  onChange={(e) =>
+                    set("temperatureC", toPositiveOrNull(e.target.value))
+                  }
                   type="number"
                   step="0.1"
+                  min={1}
+                  onKeyDown={blockInvalidNumberKeys}
+                  placeholder="VD: 37.5"
                 />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Đóng</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Đóng
+            </Button>
             <Button onClick={save} disabled={saving || loading}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
               {saving ? "Đang lưu..." : "Lưu"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Toast instance */}
-      <Toast open={toastOpen} onOpenChange={setToastOpen} variant={toastVariant}>
-        <ToastTitle>{toastTitle}</ToastTitle>
-        {toastDesc ? <ToastDescription>{toastDesc}</ToastDescription> : null}
-      </Toast>
+      {toastOpen && (
+        <div
+          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${
+            toastVariant === "destructive"
+              ? "border border-red-200 bg-red-50 text-red-900"
+              : "border border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
+        >
+          <span className="font-semibold">{toastTitle}</span>
+          {toastDesc && <span className="text-sm">{toastDesc}</span>}
+        </div>
+      )}
     </>
   )
 
-  function showToast(variant: "default" | "destructive", title: string, desc?: string) {
+  function showToast(
+    variant: "default" | "destructive",
+    title: string,
+    desc?: string
+  ) {
     setToastVariant(variant)
     setToastTitle(title)
     setToastDesc(desc ?? "")
-    setToastOpen(false)
-    setTimeout(() => setToastOpen(true), 10)
+    setToastOpen(true)
+    setTimeout(() => setToastOpen(false), 3000)
   }
 }

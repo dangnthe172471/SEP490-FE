@@ -10,6 +10,30 @@ function api(path: string) {
   return `${API_BASE}${path}`
 }
 
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null
+  try {
+    return (
+      window.localStorage.getItem("accessToken") ??
+      window.localStorage.getItem("auth_token") ??
+      window.localStorage.getItem("access_token")
+    )
+  } catch {
+    return null
+  }
+}
+
+function authHeaders(extra?: HeadersInit): HeadersInit {
+  const token = getAccessToken()
+  const base: HeadersInit = {
+    Accept: "application/json",
+  }
+  if (token) {
+    ;(base as any).Authorization = `Bearer ${token}`
+  }
+  return { ...base, ...extra }
+}
+
 async function toJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const txt = await res.text().catch(() => "")
@@ -24,7 +48,10 @@ const BASE_PATH = "/api/PediatricRecords"
 export async function getPediatric(
   recordId: number
 ): Promise<ReadPediatricRecordDto | null> {
-  const res = await fetch(api(`${BASE_PATH}/${recordId}`), { cache: "no-store" })
+  const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
+    cache: "no-store",
+    headers: authHeaders(),
+  })
   if (res.status === 404) return null
   return toJson<ReadPediatricRecordDto>(res)
 }
@@ -34,7 +61,9 @@ export async function createPediatric(
 ): Promise<ReadPediatricRecordDto> {
   const res = await fetch(api(BASE_PATH), {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: authHeaders({
+      "Content-Type": "application/json",
+    }),
     body: JSON.stringify(dto),
     cache: "no-store",
   })
@@ -47,7 +76,9 @@ export async function updatePediatric(
 ): Promise<ReadPediatricRecordDto> {
   const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: authHeaders({
+      "Content-Type": "application/json",
+    }),
     body: JSON.stringify(dto),
     cache: "no-store",
   })
@@ -58,6 +89,7 @@ export async function deletePediatric(recordId: number): Promise<void> {
   const res = await fetch(api(`${BASE_PATH}/${recordId}`), {
     method: "DELETE",
     cache: "no-store",
+    headers: authHeaders(),
   })
   await toJson<void>(res)
 }

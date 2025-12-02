@@ -1,5 +1,3 @@
-// src/lib/services/prescription-doctor-service.ts
-
 "use client";
 
 import type {
@@ -40,7 +38,6 @@ async function readBodySafe(res: Response) {
   }
 }
 
-// ========== XEM ĐƠN THUỐC ==========
 export async function getPrescriptionById(
   id: number,
   token?: string
@@ -68,7 +65,6 @@ export async function getPrescriptionById(
   return data as PrescriptionSummaryDto;
 }
 
-// ========== KÊ ĐƠN THUỐC (Doctor tạo mới) ==========
 export async function createPrescriptionDoctor(
   payload: CreatePrescriptionRequest,
   token?: string
