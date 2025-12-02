@@ -6,6 +6,7 @@ export type AppointmentListItemDto = {
   patientId: number;
   patientName: string;
   patientPhone: string;
+  reasonForVisit: string;
 };
 
 export type AppointmentDetailDto = {
@@ -21,6 +22,7 @@ export type AppointmentDetailDto = {
   patientName: string;
   patientPhone: string;
   visitReason?: string | null;
+
 };
 
 export type AppointmentStatus = "Confirmed" | "Cancelled";
@@ -33,6 +35,7 @@ export interface Appointment {
   patientId: number;
   patientName: string;
   patientPhone: string;
+  reasonForVisit: string;
 }
 
 export interface AppointmentDetail extends Appointment {

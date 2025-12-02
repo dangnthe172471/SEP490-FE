@@ -83,6 +83,7 @@ export async function getDoctorAppointments(
     patientId: d.patientId,
     patientName: d.patientName,
     patientPhone: d.patientPhone,
+    reasonForVisit: d.reasonForVisit,
   }));
 }
 
@@ -123,5 +124,6 @@ export async function getDoctorAppointmentDetail(
     doctorName: d.doctorName,
     doctorSpecialty: d.doctorSpecialty,
     visitReason: d.visitReason ?? null,
+
   };
 }

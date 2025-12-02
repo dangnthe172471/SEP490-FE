@@ -21,3 +21,4 @@ class ManagementAnalyticsService extends BaseApiService {
 
 export const managementAnalyticsService = new ManagementAnalyticsService()
 
+

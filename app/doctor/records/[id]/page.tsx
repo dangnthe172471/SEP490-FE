@@ -591,244 +591,260 @@ export default function MedicalRecordDetailPage() {
         </Card>
 
         <Card className="p-6 shadow-sm border border-gray-200 rounded-2xl">
-          <CardContent>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* Cột trái - Loại khám */}
-              <div className="space-y-4">
+    <CardContent>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* Cột trái - Loại khám */}
+            <div className="space-y-4">
                 <h3 className="text-base font-semibold text-gray-800">
-                  Loại khám
+                    Loại khám
                 </h3>
 
                 <div className="space-y-3">
-                  {[
-                    {
-                      id: "internal",
-                      label: "Khám nội",
-                      creating: creatingInternal,
-                      created: !!record?.internalMedRecord,
-                      onClick: handleCreateInternalMed,
-                    },
-                    {
-                      id: "pediatric",
-                      label: "Khám nhi",
-                      creating: creatingPediatric,
-                      created: !!record?.pediatricRecord,
-                      onClick: handleCreatePediatric,
-                    },
-                    {
-                      id: "dermatology",
-                      label: "Khám da liễu",
-                      creating: creatingDermatology,
-                      created: hasDermatology,
-                      onClick: handleCreateDermatology,
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex flex-col gap-3 rounded-lg border border-gray-200 px-4 py-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-gray-800">
-                            {item.label}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.created
-                              ? "Đã gửi yêu cầu khám"
-                              : "Chưa gửi yêu cầu khám"}
-                          </p>
-                        </div>
-
-                        <Button
-                          variant={item.created ? "secondary" : "outline"}
-                          disabled={
-                            item.created ||
-                            item.creating ||
-                            (item.id === "dermatology" &&
-                              !hasDermatology &&
-                              !dermRequestedProcedure.trim())
-                          }
-                          onClick={item.onClick}
+                    {[
+                        {
+                            id: "internal",
+                            label: "Khám nội",
+                            creating: creatingInternal,
+                            created: !!record?.internalMedRecord,
+                            onClick: handleCreateInternalMed,
+                        },
+                        {
+                            id: "pediatric",
+                            label: "Khám nhi",
+                            creating: creatingPediatric,
+                            created: !!record?.pediatricRecord,
+                            onClick: handleCreatePediatric,
+                        },
+                        {
+                            id: "dermatology",
+                            label: "Khám da liễu",
+                            creating: creatingDermatology,
+                            created: hasDermatology,
+                            onClick: handleCreateDermatology,
+                        },
+                    ].map((item) => (
+                        <div
+                            key={item.id}
+                            className="flex flex-col gap-3 rounded-lg border border-gray-200 px-4 py-3"
                         >
-                          {item.created
-                            ? "Đã gửi"
-                            : item.creating
-                            ? "Đang gửi..."
-                            : "Gửi điều dưỡng"}
-                        </Button>
-                      </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium text-gray-800">
+                                        {item.label}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {item.created
+                                            ? "Đã gửi yêu cầu khám"
+                                            : "Chưa gửi yêu cầu khám"}
+                                    </p>
+                                </div>
 
-                      {item.id === "dermatology" && !hasDermatology && (
-                        <div className="space-y-2 text-sm">
-                          <div className="space-y-1">
-                            <label className="block text-xs text-slate-700">
-                              Thủ thuật / dịch vụ da liễu yêu cầu
-                            </label>
-                            <Input
-                              placeholder="Ví dụ: Lazer điều trị sẹo, peel da..."
-                              value={dermRequestedProcedure}
-                              onChange={(e) =>
-                                setDermRequestedProcedure(e.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="block text-xs text-slate-700">
-                              Vùng da / vị trí trên cơ thể
-                            </label>
-                            <Input
-                              placeholder="Ví dụ: Mặt, lưng, tay..."
-                              value={dermBodyArea}
-                              onChange={(e) =>
-                                setDermBodyArea(e.target.value)
-                              }
-                            />
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            Điều dưỡng sẽ dựa vào thông tin này để chuẩn bị và
-                            thực hiện thủ thuật.
-                          </p>
+                                {/* NÚT KHÁM (ĐÃ ĐỒNG BỘ MÀU) */}
+                                <Button
+                                    variant={item.created ? "secondary" : "outline"}
+                                    disabled={
+                                        item.created ||
+                                        item.creating ||
+                                        (item.id === "dermatology" &&
+                                            !hasDermatology &&
+                                            !dermRequestedProcedure.trim())
+                                    }
+                                    onClick={item.onClick}
+                                    // Áp dụng màu xanh lá nhạt khi ở trạng thái "Gửi điều dưỡng"
+                                    className={
+                                        !item.created && !item.creating
+                                            ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-300 hover:text-green-800"
+                                            : "bg-blue-500"
+                                    }
+                                >
+                                    {item.created
+                                        ? "Đã gửi"
+                                        : item.creating
+                                        ? "Đang gửi..."
+                                        : "Gửi điều dưỡng"}
+                                </Button>
+                            </div>
+
+                            {item.id === "dermatology" && !hasDermatology && (
+                                <div className="space-y-2 text-sm">
+                                    <div className="space-y-1">
+                                        <label className="block text-xs text-slate-700">
+                                            Thủ thuật / dịch vụ da liễu yêu cầu
+                                        </label>
+                                        <Input
+                                            placeholder="Ví dụ: Lazer điều trị sẹo, peel da..."
+                                            value={dermRequestedProcedure}
+                                            onChange={(e) =>
+                                                setDermRequestedProcedure(e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs text-slate-700">
+                                            Vùng da / vị trí trên cơ thể
+                                        </label>
+                                        <Input
+                                            placeholder="Ví dụ: Mặt, lưng, tay..."
+                                            value={dermBodyArea}
+                                            onChange={(e) =>
+                                                setDermBodyArea(e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Điều dưỡng sẽ dựa vào thông tin này để chuẩn bị và
+                                        thực hiện thủ thuật.
+                                    </p>
+                                </div>
+                            )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
                 </div>
-              </div>
+            </div>
 
-              {/* Cột phải - Yêu cầu xét nghiệm */}
-              <div className="space-y-4 lg:border-l border-gray-100 lg:pl-6">
+            {/* Cột phải - Yêu cầu xét nghiệm */}
+            <div className="space-y-4 lg:border-l border-gray-100 lg:pl-6">
                 <h3 className="text-base font-semibold text-gray-800">
-                  Yêu cầu xét nghiệm
+                    Yêu cầu xét nghiệm
                 </h3>
                 {loadingTestTypes ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="w-3 h-3 border-2 border-t-transparent border-current rounded-full animate-spin" />
-                    Đang tải danh sách xét nghiệm...
-                  </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="w-3 h-3 border-2 border-t-transparent border-current rounded-full animate-spin" />
+                        Đang tải danh sách xét nghiệm...
+                    </div>
                 ) : testTypes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Chưa có danh mục xét nghiệm. Vui lòng liên hệ quản trị viên.
-                  </p>
+                    <p className="text-sm text-muted-foreground">
+                        Chưa có danh mục xét nghiệm. Vui lòng liên hệ quản trị viên.
+                    </p>
                 ) : (
-                  <div className="space-y-3 w-full">
-                    {/* HÀNG 1: dropdown + nút luôn trên cùng một hàng */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 min-w-0 max-w-md">
-                        <Popover
-                          open={openTestPopover}
-                          onOpenChange={setOpenTestPopover}
-                        >
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between"
-                              disabled={noMoreAvailableTests}
-                            >
-                              {noMoreAvailableTests
-                                ? "Đã gửi hết các loại xét nghiệm"
-                                : selectedTest
-                                ? selectedTest.testName
-                                : "Chọn loại xét nghiệm"}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          {!noMoreAvailableTests && (
-                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] max-w-md p-0">
-                              <Command>
-                                <CommandInput
-                                  placeholder="Tìm tên xét nghiệm..."
-                                  className="h-9"
-                                />
-                                <CommandList className="max-h-64 overflow-y-auto">
-                                  <CommandEmpty>
-                                    Không tìm thấy xét nghiệm phù hợp.
-                                  </CommandEmpty>
-                                  {availableTestTypes.map((tt) => (
-                                    <CommandItem
-                                      key={tt.testTypeId}
-                                      value={tt.testName}
-                                      onSelect={() => {
-                                        setSelectedTestTypeId(tt.testTypeId);
-                                        setOpenTestPopover(false);
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          selectedTestTypeId === tt.testTypeId
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        )}
-                                      />
-                                      <span className="truncate">
-                                        {tt.testName}
-                                      </span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          )}
-                        </Popover>
-                      </div>
-                      <Button
-                        disabled={
-                          noMoreAvailableTests ||
-                          !selectedTestTypeId ||
-                          requestingTestTypeId !== null
-                        }
-                        onClick={() => {
-                          if (!selectedTestTypeId) return;
-                          const type = availableTestTypes.find(
-                            (t) => t.testTypeId === selectedTestTypeId
-                          );
-                          if (type) handleRequestTest(type);
-                        }}
-                      >
-                        {requestingTestTypeId ? "Đang gửi..." : "Gửi điều dưỡng"}
-                      </Button>
-                    </div>
-
-                    {/* Danh sách các xét nghiệm đã yêu cầu (giới hạn chiều cao) */}
-                    <div className="space-y-2 text-xs text-muted-foreground max-h-64 overflow-y-auto pr-1">
-                      {testTypes
-                        .map((type) => {
-                          const existing = testsByTypeId.get(type.testTypeId);
-                          if (!existing) return null;
-                          const pending = existing.resultValue
-                            ? existing.resultValue
-                                .toLowerCase()
-                                .includes("pending") ||
-                              existing.resultValue
-                                .toLowerCase()
-                                .includes("chờ")
-                            : true;
-                          return (
-                            <div
-                              key={type.testTypeId}
-                              className="flex justify-between items-center border rounded px-3 py-2 bg-slate-50"
-                            >
-                              <span className="font-medium text-slate-700 truncate mr-2">
-                                {type.testName}
-                              </span>
-                              <span>
-                                {pending ? "Chờ điều dưỡng" : "Đã có kết quả"}
-                              </span>
+                    <div className="space-y-3 w-full">
+                        {/* HÀNG 1: dropdown + nút luôn trên cùng một hàng */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0 max-w-md">
+                                <Popover
+                                    open={openTestPopover}
+                                    onOpenChange={setOpenTestPopover}
+                                >
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className="w-full justify-between"
+                                            disabled={noMoreAvailableTests}
+                                        >
+                                            {noMoreAvailableTests
+                                                ? "Đã gửi hết các loại xét nghiệm"
+                                                : selectedTest
+                                                ? selectedTest.testName
+                                                : "Chọn loại xét nghiệm"}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    {!noMoreAvailableTests && (
+                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] max-w-md p-0">
+                                            <Command>
+                                                <CommandInput
+                                                    placeholder="Tìm tên xét nghiệm..."
+                                                    className="h-9"
+                                                />
+                                                <CommandList className="max-h-64 overflow-y-auto">
+                                                    <CommandEmpty>
+                                                        Không tìm thấy xét nghiệm phù hợp.
+                                                    </CommandEmpty>
+                                                    {availableTestTypes.map((tt) => (
+                                                        <CommandItem
+                                                            key={tt.testTypeId}
+                                                            value={tt.testName}
+                                                            onSelect={() => {
+                                                                setSelectedTestTypeId(tt.testTypeId);
+                                                                setOpenTestPopover(false);
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    selectedTestTypeId === tt.testTypeId
+                                                                        ? "opacity-100"
+                                                                        : "opacity-0"
+                                                                )}
+                                                            />
+                                                            <span className="truncate">
+                                                                {tt.testName}
+                                                            </span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    )}
+                                </Popover>
                             </div>
-                          );
-                        })
-                        .filter(Boolean)}
-                      {testResults.length === 0 && (
-                        <p>Chưa gửi yêu cầu xét nghiệm nào.</p>
-                      )}
+
+                            {/* NÚT GỬI ĐIỀU DƯỠNG XÉT NGHIỆM (ĐÃ ĐỒNG BỘ MÀU) */}
+                            <Button
+                            variant="outline"
+                                disabled={
+                                    noMoreAvailableTests ||
+                                    !selectedTestTypeId ||
+                                    requestingTestTypeId !== null
+                                }
+                                onClick={() => {
+                                    if (!selectedTestTypeId) return;
+                                    const type = availableTestTypes.find(
+                                        (t) => t.testTypeId === selectedTestTypeId
+                                    );
+                                    if (type) handleRequestTest(type);
+                                }}
+                                // Áp dụng màu xanh lá chỉ khi nút không bị disabled và đang ở trạng thái "Gửi điều dưỡng"
+                                className={
+                                    requestingTestTypeId === null && !noMoreAvailableTests && selectedTestTypeId
+                                        ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-300 hover:text-green-800"
+                                        : "bg-blue-500 text-white"
+                                }
+                            >
+                                {requestingTestTypeId ? "Đang gửi..." : "Gửi điều dưỡng"}
+                            </Button>
+                        </div>
+
+                        {/* Danh sách các xét nghiệm đã yêu cầu (giới hạn chiều cao) */}
+                        <div className="space-y-2 text-xs text-muted-foreground max-h-64 overflow-y-auto pr-1">
+                            {testTypes
+                                .map((type) => {
+                                    const existing = testsByTypeId.get(type.testTypeId);
+                                    if (!existing) return null;
+                                    const pending = existing.resultValue
+                                        ? existing.resultValue
+                                            .toLowerCase()
+                                            .includes("pending") ||
+                                            existing.resultValue
+                                                .toLowerCase()
+                                                .includes("chờ")
+                                        : true;
+                                    return (
+                                        <div
+                                            key={type.testTypeId}
+                                            className="flex justify-between items-center border rounded px-3 py-2 bg-slate-50"
+                                        >
+                                            <span className="font-medium text-slate-700 truncate mr-2">
+                                                {type.testName}
+                                            </span>
+                                            <span>
+                                                {pending ? "Chờ điều dưỡng" : "Đã có kết quả"}
+                                            </span>
+                                        </div>
+                                    );
+                                })
+                                .filter(Boolean)}
+                            {testResults.length === 0 && (
+                                <p>Chưa gửi yêu cầu xét nghiệm nào.</p>
+                            )}
+                        </div>
                     </div>
-                  </div>
                 )}
-              </div>
             </div>
-          </CardContent>
-        </Card>
+        </div>
+    </CardContent>
+</Card>
 
         <Card className="p-4">
           <div className="grid gap-4">
@@ -856,6 +872,12 @@ export default function MedicalRecordDetailPage() {
                           record.appointment.appointmentDate
                         ).toLocaleString("vi-VN")
                       : "-"}
+                  </span>
+                </div>
+                <div>
+                  Lý do khám:{" "}
+                  <span className="font-medium">
+                    {record.appointment?.reasonForVisit ?? "-"}
                   </span>
                 </div>
               </div>
@@ -955,9 +977,9 @@ export default function MedicalRecordDetailPage() {
             {/* Đơn thuốc */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <div className="font-semibold">
+                {/* <div className="font-semibold">
                   Đơn thuốc ({record.prescriptions?.length ?? 0})
-                </div>
+                </div> */}
 
                 {hasPrescriptions ? (
                   <Button
@@ -978,7 +1000,7 @@ export default function MedicalRecordDetailPage() {
                 )}
               </div>
 
-              {hasPrescriptions ? (
+              {/* {hasPrescriptions ? (
                 <div className="border rounded divide-y">
                   {record.prescriptions!.map((p) => (
                     <div key={p.prescriptionId} className="p-2 text-sm">
@@ -1024,7 +1046,7 @@ export default function MedicalRecordDetailPage() {
                 <p className="text-sm text-muted-foreground">
                   Chưa có đơn thuốc
                 </p>
-              )}
+              )} */}
             </div>
 
             {/* Lên lịch tái khám */}

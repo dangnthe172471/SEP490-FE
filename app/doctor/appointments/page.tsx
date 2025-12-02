@@ -145,7 +145,9 @@ function getRoleFromToken(token?: string): string | null {
     if (parts.length < 2) return null;
     const base = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const padded =
-      base.length % 4 === 0 ? base : base.padEnd(base.length + (4 - (base.length % 4)), "=");
+      base.length % 4 === 0
+        ? base
+        : base.padEnd(base.length + (4 - (base.length % 4)), "=");
     const json = atob(padded);
     const payload = JSON.parse(json);
 
@@ -214,6 +216,7 @@ export default function DoctorAppointmentsPage() {
   const [year, setYear] = useState<number>(today.getFullYear());
   const [weekStart, setWeekStart] = useState<string>(currentWeekStart);
 
+  // cửa sổ năm động 10 năm quanh năm hiện tại
   const yearOptions = useMemo(
     () => Array.from({ length: 10 }, (_, i) => year - 5 + i),
     [year]

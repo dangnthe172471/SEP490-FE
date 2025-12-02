@@ -82,7 +82,6 @@ class AppointmentService {
             
             try {
                 responseText = await responseClone.text()
-                console.error(`❌ [appointment-service] Error response body (raw):`, responseText)
                 
                 if (responseText && responseText.trim()) {
                     try {
@@ -93,9 +92,8 @@ class AppointmentService {
                         rawMessage = responseText || rawMessage
                         console.error(`❌ [appointment-service] Failed to parse error response as JSON:`, parseError)
                     }
-                } else {
-                    console.warn(`⚠️ [appointment-service] Empty error response body`)
                 }
+                // Empty response body is acceptable - use default error message
             } catch (readError) {
                 console.error(`❌ [appointment-service] Failed to read error response:`, readError)
             }
@@ -178,36 +176,49 @@ class AppointmentService {
         pageSize = 10,
         searchTerm?: string
     ): Promise<PagedResponse<DoctorInfoDto>> {
+        try {
+            // Backend không có phân trang, lấy tất cả rồi filter ở frontend
+            const doctors = await this.request<DoctorInfoDto[]>(`/doctors`) || []
 
-        // Backend không có phân trang, lấy tất cả rồi filter ở frontend
-        const doctors = await this.request<DoctorInfoDto[]>(`/doctors`)
+            // Filter theo searchTerm nếu có
+            let filteredDoctors = doctors
+            if (searchTerm && searchTerm.trim()) {
+                const term = searchTerm.toLowerCase().trim()
+                filteredDoctors = doctors.filter(doctor =>
+                    doctor.fullName?.toLowerCase().includes(term) ||
+                    doctor.specialty?.toLowerCase().includes(term) ||
+                    doctor.email?.toLowerCase().includes(term)
+                )
+            }
 
-        // Filter theo searchTerm nếu có
-        let filteredDoctors = doctors
-        if (searchTerm && searchTerm.trim()) {
-            const term = searchTerm.toLowerCase().trim()
-            filteredDoctors = doctors.filter(doctor =>
-                doctor.fullName.toLowerCase().includes(term) ||
-                doctor.specialty.toLowerCase().includes(term) ||
-                doctor.email.toLowerCase().includes(term)
-            )
-        }
+            // Tính toán phân trang ở frontend
+            const totalCount = filteredDoctors.length
+            const startIndex = (pageNumber - 1) * pageSize
+            const endIndex = startIndex + pageSize
+            const paginatedDoctors = filteredDoctors.slice(startIndex, endIndex)
+            const totalPages = Math.ceil(totalCount / pageSize)
 
-        // Tính toán phân trang ở frontend
-        const totalCount = filteredDoctors.length
-        const startIndex = (pageNumber - 1) * pageSize
-        const endIndex = startIndex + pageSize
-        const paginatedDoctors = filteredDoctors.slice(startIndex, endIndex)
-        const totalPages = Math.ceil(totalCount / pageSize)
-
-        return {
-            data: paginatedDoctors,
-            totalCount,
-            pageNumber,
-            pageSize,
-            totalPages,
-            hasPreviousPage: pageNumber > 1,
-            hasNextPage: pageNumber < totalPages,
+            return {
+                data: paginatedDoctors,
+                totalCount,
+                pageNumber,
+                pageSize,
+                totalPages,
+                hasPreviousPage: pageNumber > 1,
+                hasNextPage: pageNumber < totalPages,
+            }
+        } catch (error: any) {
+            // Nếu lỗi, trả về empty result thay vì throw
+            console.error('❌ [appointment-service] Failed to get doctors:', error)
+            return {
+                data: [],
+                totalCount: 0,
+                pageNumber,
+                pageSize,
+                totalPages: 0,
+                hasPreviousPage: false,
+                hasNextPage: false,
+            }
         }
     }
 
