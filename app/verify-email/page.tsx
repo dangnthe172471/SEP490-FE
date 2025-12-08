@@ -14,7 +14,7 @@ import Image from "next/image"
 export default function VerifyEmailPage() {
     const [otp, setOtp] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const [timeLeft, setTimeLeft] = useState(300) // 5 phút
+    const [timeLeft, setTimeLeft] = useState(120) // 5 phút
     const [canResend, setCanResend] = useState(false)
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -207,7 +207,7 @@ export default function VerifyEmailPage() {
                     </Card>
 
                     <p className="text-center text-sm leading-relaxed text-muted-foreground">
-                        Mã OTP có hiệu lực trong 5 phút. Vui lòng kiểm tra email của bạn (có thể trong thư mục spam).
+                        Mã OTP có hiệu lực trong 2 phút. Vui lòng kiểm tra email của bạn (có thể trong thư mục spam).
                     </p>
                 </div>
             </div>

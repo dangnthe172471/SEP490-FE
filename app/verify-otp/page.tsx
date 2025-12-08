@@ -197,7 +197,7 @@ export default function VerifyEmailOtpPage() {
           </Card>
 
           <p className="text-center text-sm leading-relaxed text-muted-foreground">
-            Mã OTP có hiệu lực trong 5 phút. Vui lòng kiểm tra email của bạn.
+            Mã OTP có hiệu lực trong 2 phút. Vui lòng kiểm tra email của bạn.
           </p>
         </div>
       </div>

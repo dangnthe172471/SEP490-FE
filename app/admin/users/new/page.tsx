@@ -350,7 +350,7 @@ export default function CreateUserPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="gender">Giới tính</Label>
+                    <Label htmlFor="gender">Giới tính *</Label>
                     <Select
                       value={formData.gender}
                       onValueChange={(value) => handleInputChange("gender", value)}
@@ -370,7 +370,7 @@ export default function CreateUserPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="dob">Ngày sinh</Label>
+                    <Label htmlFor="dob">Ngày sinh *</Label>
                     <Input
                       id="dob"
                       type="date"
