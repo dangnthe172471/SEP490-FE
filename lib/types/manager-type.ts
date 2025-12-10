@@ -4,7 +4,14 @@ export interface DoctorDto {
     specialty: string
     email: string
 }
-
+export interface DoctorHomeDto {
+    doctorID: number
+    fullName: string
+    specialty: string
+    experience: string
+    email: string
+    avatarUrl: string
+}
 export interface ShiftResponseDto {
     shiftID: number
     shiftType: string

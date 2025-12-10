@@ -9,10 +9,16 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, FileText, Users, Activity, Plus, MessageCircle, UserPlus, HeartPulse } from "lucide-react"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+
 import { MedicalRecordService } from "@/lib/services/medical-record-service"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { patientService } from "@/lib/services/patient-service"
 import { userService } from "@/lib/services/user.service"
+import { format } from "date-fns"
+import { vi } from "date-fns/locale"
+import { createPayment2, getPaymentStatus, getPaymentDetails } from "@/lib/services/payment-service";
+import { PaymentDetailsResponse, PaymentDetailsItem } from "@/lib/types/payment";
+
 
 interface MedicalRecord {
   recordId: number
@@ -70,6 +76,75 @@ export default function DoctorRecordsPage() {
   const [loading, setLoading] = useState(true)
   const [patientCache, setPatientCache] = useState<Record<number, PatientDetail>>({})
   const [appointmentCache, setAppointmentCache] = useState<Record<number, AppointmentDetail>>({})
+
+  
+  // Filter states
+  const [globalSearch, setGlobalSearch] = useState("") // Search tổng quát
+  const [searchName, setSearchName] = useState("")
+  const [searchDiagnosis, setSearchDiagnosis] = useState("")
+  const [searchDoctor, setSearchDoctor] = useState("")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined)
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>(undefined)
+  const [filterDateTo, setFilterDateTo] = useState<Date | undefined>(undefined)
+  const [filterWeek, setFilterWeek] = useState<string>("")
+  const [filterMonth, setFilterMonth] = useState<string>("")
+  const [filterYear, setFilterYear] = useState<string>("")
+  const [filterBloodPressureMin, setFilterBloodPressureMin] = useState<string>("")
+  const [filterBloodPressureMax, setFilterBloodPressureMax] = useState<string>("")
+  const [filterHeartRateMin, setFilterHeartRateMin] = useState<string>("")
+  const [filterHeartRateMax, setFilterHeartRateMax] = useState<string>("")
+  const [filterBloodSugarMin, setFilterBloodSugarMin] = useState<string>("")
+  const [filterBloodSugarMax, setFilterBloodSugarMax] = useState<string>("")
+  const [showFilters, setShowFilters] = useState(false)
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [isPaid, setIsPaid] = useState<boolean | null>(null);
+//Payment
+const [paymentLoadingId, setPaymentLoadingId] = useState<number | null>(null);
+
+const handlePayNow = async (recordId: number) => {
+  setPaymentLoadingId(recordId);
+  try {
+    // Lấy chi tiết dịch vụ để build payload
+    const details = await getPaymentDetails(recordId);
+    if (!details || !details.items || details.items.length === 0) {
+      alert("Hồ sơ này chưa có thông tin dịch vụ để thanh toán.");
+      return;
+    }
+
+    const services: PaymentDetailsItem[] = details.items;
+    const total =
+      details.totalAmount ??
+      services.reduce((sum, item) => sum + item.total, 0);
+
+    const payload = {
+      medicalRecordId: recordId,
+      amount: total,
+      description: "Thanh toán lịch khám tại quầy",
+      items: services.map((s) => ({
+        name: s.name,
+        quantity: s.quantity,
+        price: s.unitPrice,
+      })),
+    };
+
+    const res = await createPayment2(payload);
+
+    window.location.href = res.checkoutUrl;
+  } catch (err: any) {
+    console.error(err);
+    alert(err?.message || "Không thể tạo thanh toán");
+  } finally {
+    setPaymentLoadingId(null);
+  }
+};
+
+
+
+
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -151,7 +226,19 @@ export default function DoctorRecordsPage() {
     const p = record.patientData as PatientDetail | undefined
     const a = record.appointmentInfo as AppointmentDetail | undefined
     const med = record.internalMedRecord
+      const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await getPaymentStatus(record.recordId);
+        setPaymentStatus(res.status);  
+      } catch (e) {
+        setPaymentStatus(null);
+      }
+    };
 
+    fetchStatus();
+  }, [record.recordId]);
     return (
       <Card className="hover:shadow-md transition-shadow">
         <CardContent className="p-6">
@@ -231,15 +318,45 @@ export default function DoctorRecordsPage() {
                 )}
               </div>
             </div>
+            
+<div className="flex items-start justify-between">
+  <div className="space-y-3 flex-1">
+    {/* ... toàn bộ info ... */}
+  </div>
 
-            <Button
-              size="sm"
-              className="ml-4"
-              onClick={() => router.push(`/reception/records/${record.recordId}`)}
-            >
-              Xem chi tiết
-            </Button>
-          </div>
+
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => router.push(`/reception/records/${record.recordId}`)}
+    >
+      Xem chi tiết
+    </Button>
+
+   {paymentStatus === "Paid" ? (
+  <Button
+    size="sm"
+    disabled
+    className="opacity-50 cursor-not-allowed bg-green-500 text-white"
+  >
+    Đã thanh toán
+  </Button>
+) : (
+  <Button
+    size="sm"
+    disabled={paymentLoadingId === record.recordId}
+    onClick={() => handlePayNow(record.recordId)}
+  >
+    {paymentLoadingId === record.recordId
+      ? "Đang tạo thanh toán..."
+      : "Thanh toán ngay"}
+  </Button>
+)}
+
+  </div>
+</div>
+
+         
         </CardContent>
       </Card>
     )

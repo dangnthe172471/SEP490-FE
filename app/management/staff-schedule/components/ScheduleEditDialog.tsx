@@ -37,6 +37,15 @@ export default function ScheduleEditDialog({
     const [doctorShiftCount, setDoctorShiftCount] = useState<Record<number, number>>({})
     const [doctorLimitStatus, setDoctorLimitStatus] = useState<Record<number, boolean>>({})
 
+    function removeVN(str: string) {
+        return str
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // remove diacritics
+            .replace(/đ/g, "d")
+            .replace(/Đ/g, "D")
+            .toLowerCase()
+    }
+
     // Khi mở popup load giới hạn bác sĩ (gọi 1 lần)
     useEffect(() => {
         if (open) {
@@ -162,6 +171,35 @@ export default function ScheduleEditDialog({
             setLoading(false)
         }
     }
+    useEffect(() => {
+        if (!open) {
+            // reset lại ngày
+            setFromDate(effectiveFrom)
+            setToDate(effectiveTo)
+
+            const freshMap: Record<number, number[]> = {}
+            shifts.forEach((s) => {
+                freshMap[s.shiftID] = s.doctors?.map((d) => d.doctorID) || []
+            })
+            setSelectedDoctorsByShift(freshMap)
+            setSearchDoctors({})
+            const newCount: Record<number, number> = {}
+            const newStatus: Record<number, boolean> = {}
+
+            shifts.forEach(s => {
+                s.doctors?.forEach(d => {
+                    newCount[d.doctorID] = (newCount[d.doctorID] || 0) + 1
+                })
+            })
+
+            doctors.forEach(d => {
+                newStatus[d.doctorID] = (newCount[d.doctorID] || 0) >= 2
+            })
+
+            setDoctorShiftCount(newCount)
+            setDoctorLimitStatus(newStatus)
+        }
+    }, [open])
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -215,8 +253,8 @@ export default function ScheduleEditDialog({
                             {doctors
                                 .filter(
                                     (d) =>
-                                        d.fullName.toLowerCase().includes(search) ||
-                                        d.specialty.toLowerCase().includes(search)
+                                        removeVN(d.fullName).includes(removeVN(search)) ||
+                                        removeVN(d.specialty).includes(removeVN(search))
                                 )
                                 .map((d) => {
                                     const isInCurrentShift =
