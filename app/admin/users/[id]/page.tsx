@@ -518,7 +518,7 @@ export default function UserDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Họ và tên</label>
+                  <label className="text-sm font-medium text-muted-foreground">Họ và tên *</label>
                   {isEditing ? (
                     <input
                       type="text"
@@ -532,7 +532,7 @@ export default function UserDetailPage() {
                   {isEditing && fieldErrors.fullName && <p className="text-sm text-red-500">{fieldErrors.fullName}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Email</label>
+                  <label className="text-sm font-medium text-muted-foreground">Email *</label>
                   {isEditing ? (
                     <input
                       type="email"
@@ -546,7 +546,7 @@ export default function UserDetailPage() {
                   {isEditing && fieldErrors.email && <p className="text-sm text-red-500">{fieldErrors.email}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Số điện thoại</label>
+                  <label className="text-sm font-medium text-muted-foreground">Số điện thoại *</label>
                   {isEditing ? (
                     <input
                       type="tel"
@@ -572,13 +572,13 @@ export default function UserDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Vai trò</label>
+                  <label className="text-sm font-medium text-muted-foreground">Vai trò *</label>
                   <Badge className={getRoleColor(user.role)}>
                     {getRoleLabel(user.role)}
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Trạng thái</label>
+                  <label className="text-sm font-medium text-muted-foreground">Trạng thái </label>
                   <Badge variant={user.isActive ? "default" : "destructive"}>
                     {user.isActive ? (
                       <>
@@ -593,12 +593,12 @@ export default function UserDetailPage() {
                     )}
                   </Badge>
                 </div>
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">ID người dùng</label>
                   <p className="text-sm font-mono">{user.userId}</p>
-                </div>
+                </div> */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Giới tính</label>
+                  <label className="text-sm font-medium text-muted-foreground">Giới tính *</label>
                   {isEditing ? (
                     <select
                       value={editData.gender || ""}
@@ -628,7 +628,7 @@ export default function UserDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Ngày sinh</label>
+                  <label className="text-sm font-medium text-muted-foreground">Ngày sinh *</label>
                   {isEditing ? (
                     <input
                       type="date"

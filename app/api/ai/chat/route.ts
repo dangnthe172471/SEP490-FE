@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Use NEXT_PUBLIC_AI_KEY from environment variables
-        const apiKey = process.env.NEXT_PUBLIC_AI_KEY || 'AIzaSyCzGw30pZtKKB0n9liYyNqeu7JCLd7EAu4'
+        const apiKey = process.env.NEXT_PUBLIC_AI_KEY
 
         if (!apiKey) {
             console.error("NEXT_PUBLIC_AI_KEY is not set")

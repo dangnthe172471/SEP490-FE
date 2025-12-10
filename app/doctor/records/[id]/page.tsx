@@ -994,7 +994,13 @@ export default function MedicalRecordDetailPage() {
                     Xem đơn thuốc
                   </Button>
                 ) : (
-                  <Button size="sm" onClick={handleOpenPrescription}>
+                  <Button
+                    size="sm"
+                    onClick={handleOpenPrescription}
+                    disabled={!record.diagnosis || record.diagnosis.trim() === ""} // disable nếu chẩn đoán rỗng
+                    title={!record.diagnosis ? "Vui lòng điền chẩn đoán trước khi kê đơn" : ""}
+    
+                  >
                     Kê đơn thuốc
                   </Button>
                 )}
