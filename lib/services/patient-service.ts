@@ -3,7 +3,7 @@
 
 import { getToken } from "@/lib/auth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn"
 
 interface SearchUserRequest {
     fullName?: string
@@ -152,6 +152,14 @@ class PatientService {
      */
     async getPatientById(patientId: number): Promise<PatientInfoDto> {
         return this.request<PatientInfoDto>(`/api/Appointments/patients/${patientId}`)
+    }
+
+    /**
+     * ✅ Lấy thông tin bệnh nhân theo PatientID (endpoint /api/Patient/{id})
+     * GET /api/Patient/{id}
+     */
+    async getById(patientId: number): Promise<any> {
+        return this.request<any>(`/api/Patient/${patientId}`)
     }
 
     /**

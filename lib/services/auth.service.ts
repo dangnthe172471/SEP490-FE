@@ -66,6 +66,41 @@ export class AuthService extends BaseApiService {
         const { avatarService } = await import('./avatar.service')
         return avatarService.changeAvatar(avatarFile)
     }
+
+    async forgotPassword(email: string): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/api/Auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        })
+    }
+
+    async verifyEmailOtp(email: string, otpCode: string): Promise<{ message: string; resetToken?: string }> {
+        return this.request<{ message: string; resetToken?: string }>('/api/auth/verify-email-otp', {
+            method: 'POST',
+            body: JSON.stringify({ email, otpCode }),
+        })
+    }
+
+    async verifyEmail(email: string, otpCode: string): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/api/auth/verify-email', {
+            method: 'POST',
+            body: JSON.stringify({ email, otpCode }),
+        })
+    }
+
+    async resendVerificationEmail(email: string): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/api/auth/resend-verification-email', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        })
+    }
+
+    async resetPassword(email: string, token: string, newPassword: string): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/api/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ email, token, newPassword }),
+        })
+    }
 }
 
 export const authService = new AuthService()

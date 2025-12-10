@@ -22,7 +22,7 @@ import type { ReadDermatologyRecordDto } from "@/lib/types/specialties"
 
 // base URL API
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:7168"
+  process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn"
 
 // Lấy userId hiện tại từ localStorage / JWT
 function getCurrentUserId(): number | null {

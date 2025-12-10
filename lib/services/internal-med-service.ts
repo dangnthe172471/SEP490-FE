@@ -5,7 +5,7 @@ import type {
   SpecialtyStatus,
 } from "@/lib/types/specialties"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://localhost:7168"
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.diamondhealth.io.vn"
 
 function api(path: string) {
   return `${API_BASE}${path}`

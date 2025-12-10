@@ -9,6 +9,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { authService } from "@/lib/services/auth.service"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -33,25 +34,12 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`https://localhost:7168/api/Auth/forgot-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast.success(data.message || "Đã gửi mã OTP. Vui lòng kiểm tra email của bạn.")
-        router.push(`/verify-otp?email=${encodeURIComponent(email)}`)
-      } else {
-        toast.error(data.message || "Có lỗi xảy ra khi yêu cầu mã OTP.")
-      }
-    } catch (error) {
+      const data = await authService.forgotPassword(email)
+      toast.success(data.message || "Đã gửi mã OTP. Vui lòng kiểm tra email của bạn.")
+      router.push(`/verify-otp?email=${encodeURIComponent(email)}`)
+    } catch (error: any) {
       console.error("Forgot Password Error:", error)
-      toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.")
+      toast.error(error.message || "Có lỗi xảy ra khi yêu cầu mã OTP.")
     } finally {
       setIsLoading(false)
     }
@@ -143,7 +131,7 @@ export default function ForgotPasswordPage() {
           </Card>
 
           <p className="text-center text-sm leading-relaxed text-muted-foreground">
-            Mã OTP sẽ được gửi đến email của bạn và có hiệu lực trong 5 phút.
+            Mã OTP sẽ được gửi đến email của bạn và có hiệu lực trong 2 phút.
           </p>
         </div>
       </div>

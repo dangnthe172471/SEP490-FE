@@ -1,6 +1,6 @@
 import type { ReadInternalMedRecordDto, ReadPediatricRecordDto, ReadDermatologyRecordDto } from "@/lib/types/specialties"
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7168'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
 const API_BASE_URL = `${API_ORIGIN}/api/MedicalRecord`
 
 export interface AppointmentLiteDto {
@@ -109,6 +109,15 @@ export const MedicalRecordService = {
       if (msg.includes('HTTP 404') || msg.toLowerCase().includes('no medical record')) return null
       throw e
     }
+  },
+  async getById(recordId: number): Promise<MedicalRecordDto> {
+    return request<MedicalRecordDto>(`/${recordId}`)
+  },
+  async getByDoctorId(doctorId: number): Promise<MedicalRecordDto[]> {
+    return request<MedicalRecordDto[]>(`/by-doctor/${doctorId}`)
+  },
+  async getAll(): Promise<MedicalRecordDto[]> {
+    return request<MedicalRecordDto[]>('')
   },
   async create(req: CreateMedicalRecordRequest): Promise<MedicalRecordDto> {
     // After creating, refetch by appointment to get the fully populated object

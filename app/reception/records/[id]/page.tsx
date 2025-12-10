@@ -20,6 +20,10 @@ import {
   UserPlus
 } from "lucide-react"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { MedicalRecordService } from "@/lib/services/medical-record-service"
+import { appointmentService } from "@/lib/services/appointment-service"
+import { patientService } from "@/lib/services/patient-service"
+import { userService } from "@/lib/services/user.service"
 
 // --- Interfaces định nghĩa cấu trúc dữ liệu ---
 
@@ -63,15 +67,15 @@ interface Payment {
 
 interface MedicalRecord {
   recordId: number
-  doctorNotes: string
-  diagnosis: string
-  createdAt: string
+  doctorNotes?: string | null
+  diagnosis?: string | null
+  createdAt?: string | null
   appointmentId: number
-  appointment: Appointment // Đảm bảo trường này luôn có
-  internalMedRecord?: InternalMedRecord
-  prescriptions?: Prescription[] // Đảm bảo là mảng các Prescription
-  testResults?: TestResult[] // Đảm bảo là mảng các TestResult
-  payments?: Payment[] // Đảm bảo là mảng các Payment
+  appointment?: Appointment | null
+  internalMedRecord?: InternalMedRecord | null
+  prescriptions?: Prescription[]
+  testResults?: TestResult[]
+  payments?: Payment[]
 }
 
 interface PatientDetail {
@@ -113,16 +117,23 @@ export default function MedicalRecordDetailPage() {
     const fetchRecord = async () => {
       try {
         // Lấy hồ sơ bệnh án
-        const res = await fetch(`https://localhost:7168/api/MedicalRecord/${id}`)
-        if (!res.ok) throw new Error("Không thể tải dữ liệu hồ sơ.")
-        const data: MedicalRecord = await res.json()
+        const data = await MedicalRecordService.getById(Number(id))
         setRecord(data)
 
-        let appointmentInfo = appointmentCache[data?.appointment?.appointmentId]
-        if (!appointmentInfo) {
-          const aRes = await fetch(`https://localhost:7168/api/Appointments/${data?.appointment?.appointmentId}`)
-          appointmentInfo = await aRes.json()
-          setAppointmentCache((prev) => ({ ...prev, [data?.appointment?.appointmentId]: appointmentInfo }))
+        let appointmentInfo = appointmentCache[data?.appointment?.appointmentId || 0]
+        if (!appointmentInfo && data?.appointment?.appointmentId) {
+          const appointmentDto = await appointmentService.getById(data.appointment.appointmentId)
+          // Map AppointmentDto to AppointmentDetail
+          appointmentInfo = {
+            appointmentDate: appointmentDto.appointmentDate || "",
+            patientName: appointmentDto.patientName || "",
+            patientPhone: appointmentDto.patientPhone || "",
+            doctorName: appointmentDto.doctorName || "",
+            doctorSpecialty: appointmentDto.doctorSpecialty || "",
+            status: appointmentDto.status || "",
+            reasonForVisit: appointmentDto.reasonForVisit || "",
+          }
+          setAppointmentCache((prev) => ({ ...prev, [data.appointment!.appointmentId]: appointmentInfo }))
         }
         // --- Lấy thông tin bệnh nhân từ bảng Users ---
         const patientId = data?.appointment?.patientId
@@ -130,30 +141,32 @@ export default function MedicalRecordDetailPage() {
           let patientData = patientCache[patientId]
           try {
             // 🔹 1. Lấy thông tin từ bảng Patient
-            const pRes = await fetch(`https://localhost:7168/api/Patient/${patientId}`);
-            if (!pRes.ok) throw new Error("Không thể lấy dữ liệu Patient");
-
-            const patient = await pRes.json();
+            const patient = await patientService.getById(patientId);
 
             // 🔹 2. Lấy thông tin User từ userId của Patient
             const userId = patient?.userId;
             if (!userId) throw new Error("Không tìm thấy userId trong Patient");
 
-            const uRes = await fetch(`https://localhost:7168/api/Users/${userId}`);
-            if (!uRes.ok) throw new Error("Không thể lấy dữ liệu User");
-
-            const userData = await uRes.json();
+            const userData = await userService.fetchUserById(userId);
 
             // 🔹 3. Gộp dữ liệu Patient và User (tuỳ ý)
-            patientData = { ...patient, ...userData };
+            patientData = {
+              fullName: userData.fullName ?? "",
+              gender: userData.gender ?? "",
+              dob: userData.dob ?? "",
+              phone: userData.phone ?? "",
+              email: userData.email ?? "",
+              allergies: patient.allergies ?? "",
+              medicalHistory: patient.medicalHistory ?? "",
+            };
 
             // 🔹 4. Lưu vào cache
             setPatientCache((prev) => ({ ...prev, [patientId]: patientData }));
           } catch (error) {
             console.error("Lỗi khi lấy thông tin bệnh nhân:", error);
           }
-          setPatientInfo(patientData)
-          setAppointmentInfo(appointmentInfo)
+          setPatientInfo(patientData ?? null)
+          setAppointmentInfo(appointmentInfo ?? null)
         }
       } catch (error) {
         console.error(error)
@@ -246,8 +259,8 @@ export default function MedicalRecordDetailPage() {
                 <p><strong>Chuyên khoa:</strong> {appointmentInfo?.doctorSpecialty || "—"}</p>
                 <Separator className="my-3" />
                 <p><strong>Lý do khám:</strong> {appointmentInfo?.reasonForVisit || "—"}</p>
-                <p><strong>Chẩn đoán:</strong> {record.diagnosis || "—"}</p>
-                <p><strong>Ghi chú bác sĩ:</strong> {record.doctorNotes || "—"}</p>
+                <p><strong>Chẩn đoán:</strong> {record.diagnosis ?? "—"}</p>
+                <p><strong>Ghi chú bác sĩ:</strong> {record.doctorNotes ?? "—"}</p>
               </CardContent>
             </Card>
 

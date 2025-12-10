@@ -10,7 +10,7 @@ import type {
 } from "@/lib/types/notification-type"
 
 export class NotificationService {
-    private readonly baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168"
+    private readonly baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn"
 
     async sendNotification(request: CreateNotificationDto): Promise<boolean> {
         try {

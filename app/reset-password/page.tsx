@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Eye, EyeOff, Key, Loader2 } from "lucide-react"
+import { authService } from "@/lib/services/auth.service"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -69,27 +70,12 @@ export default function ResetPasswordPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("https://localhost:7168/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          token,
-          newPassword: formData.newPassword,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast.success(data.message || "Đặt lại mật khẩu thành công!")
-        router.push("/login?message=password-reset-success")
-      } else {
-        toast.error(data.message || "Token không hợp lệ hoặc đã hết hạn")
-      }
-    } catch (error) {
+      const data = await authService.resetPassword(email!, token!, formData.newPassword)
+      toast.success(data.message || "Đặt lại mật khẩu thành công!")
+      router.push("/login?message=password-reset-success")
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi kết nối đến máy chủ")
+      toast.error(error.message || "Token không hợp lệ hoặc đã hết hạn")
     } finally {
       setIsLoading(false)
     }

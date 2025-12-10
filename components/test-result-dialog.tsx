@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils"
 import { UnitSelect } from "@/components/unit-select"
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:7168"
+  process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn"
 
 function buildAttachmentUrl(path: string): string {
   if (!path) return ""

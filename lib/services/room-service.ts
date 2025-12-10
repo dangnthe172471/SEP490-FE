@@ -1,6 +1,6 @@
 import { RoomDto, CreateRoomRequest, UpdateRoomRequest, PagedResponse } from '@/lib/types/room'
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7168'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
 const API_BASE_URL = `${API_ORIGIN}/api/Rooms`
 
 class RoomService {

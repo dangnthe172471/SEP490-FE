@@ -24,8 +24,11 @@ import {
   UserPlus
 } from "lucide-react"
 import { getDoctorNavigation } from "@/lib/navigation"
-import { TestResultDto } from "@/lib/services/medical-record-service"
+import { TestResultDto, MedicalRecordService } from "@/lib/services/medical-record-service"
 import { ReadInternalMedRecordDto, ReadPediatricRecordDto } from "@/lib/types/specialties"
+import { appointmentService } from "@/lib/services/appointment-service"
+import { patientService } from "@/lib/services/patient-service"
+import { userService } from "@/lib/services/user.service"
 
 // --- Interfaces định nghĩa cấu trúc dữ liệu ---
 
@@ -122,16 +125,23 @@ export default function MedicalRecordDetailPage() {
     const fetchRecord = async () => {
       try {
         // Lấy hồ sơ bệnh án
-        const res = await fetch(`https://localhost:7168/api/MedicalRecord/${idView}`)
-        if (!res.ok) throw new Error("Không thể tải dữ liệu hồ sơ.")
-        const data: MedicalRecord = await res.json()
+        const data = await MedicalRecordService.getById(Number(idView))
         setRecord(data)
 
-        let appointmentInfo = appointmentCache[data?.appointment?.appointmentId]
-        if (!appointmentInfo) {
-          const aRes = await fetch(`https://localhost:7168/api/Appointments/${data?.appointment?.appointmentId}`)
-          appointmentInfo = await aRes.json()
-          setAppointmentCache((prev) => ({ ...prev, [data?.appointment?.appointmentId]: appointmentInfo }))
+        let appointmentInfo = appointmentCache[data?.appointment?.appointmentId || 0]
+        if (!appointmentInfo && data?.appointment?.appointmentId) {
+          const appointmentDto = await appointmentService.getById(data.appointment.appointmentId)
+          // Map AppointmentDto to AppointmentDetail
+          appointmentInfo = {
+            appointmentDate: appointmentDto.appointmentDate || "",
+            patientName: appointmentDto.patientName || "",
+            patientPhone: appointmentDto.patientPhone || "",
+            doctorName: appointmentDto.doctorName || "",
+            doctorSpecialty: appointmentDto.doctorSpecialty || "",
+            status: appointmentDto.status || "",
+            reasonForVisit: appointmentDto.reasonForVisit || "",
+          }
+          setAppointmentCache((prev) => ({ ...prev, [data.appointment!.appointmentId]: appointmentInfo }))
         }
         // --- Lấy thông tin bệnh nhân từ bảng Users ---
         const patientId = data?.appointment?.patientId
@@ -139,29 +149,33 @@ export default function MedicalRecordDetailPage() {
           let patientData = patientCache[patientId]
           try {
             // 🔹 1. Lấy thông tin từ bảng Patient
-            const pRes = await fetch(`https://localhost:7168/api/Patient/${patientId}`);
-            if (!pRes.ok) throw new Error("Không thể lấy dữ liệu Patient");
-
-            const patient = await pRes.json();
+            const patient = await patientService.getById(patientId);
 
             // 🔹 2. Lấy thông tin User từ userId của Patient
             const userId = patient?.userId;
             if (!userId) throw new Error("Không tìm thấy userId trong Patient");
 
-            const uRes = await fetch(`https://localhost:7168/api/Users/${userId}`);
-            if (!uRes.ok) throw new Error("Không thể lấy dữ liệu User");
-
-            const userData = await uRes.json();
+            const userData = await userService.fetchUserById(userId);
 
             // 🔹 3. Gộp dữ liệu Patient và User (tuỳ ý)
-            patientData = { ...patient, ...userData };
+            patientData = {
+              fullName: userData.fullName ?? "",
+              gender: userData.gender ?? "",
+              dob: userData.dob ?? "",
+              phone: userData.phone ?? "",
+              email: userData.email ?? "",
+              allergies: patient.allergies ?? "",
+              medicalHistory: patient.medicalHistory ?? "",
+            };
 
             // 🔹 4. Lưu vào cache
             setPatientCache((prev) => ({ ...prev, [patientId]: patientData }));
+            setPatientInfo(patientData)
           } catch (error) {
             console.error("Lỗi khi lấy thông tin bệnh nhân:", error);
           }
-          setPatientInfo(patientData)
+        }
+        if (appointmentInfo) {
           setAppointmentInfo(appointmentInfo)
         }
       } catch (error) {

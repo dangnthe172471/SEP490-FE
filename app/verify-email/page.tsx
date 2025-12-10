@@ -10,11 +10,12 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
+import { authService } from "@/lib/services/auth.service"
 
 export default function VerifyEmailPage() {
     const [otp, setOtp] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const [timeLeft, setTimeLeft] = useState(120) // 5 phút
+    const [timeLeft, setTimeLeft] = useState(120) // 2 phút
     const [canResend, setCanResend] = useState(false)
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -60,22 +61,11 @@ export default function VerifyEmailPage() {
 
         setIsLoading(true)
         try {
-            const response = await fetch(`https://localhost:7168/api/auth/verify-email`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email, otpCode: otp }),
-            })
-
-            const data = await response.json()
-
-            if (response.ok) {
-                toast.success(data.message || "Xác thực email thành công!")
-                router.push("/login?verified=true")
-            } else {
-                toast.error(data.message || "Mã OTP không đúng hoặc đã hết hạn")
-            }
-        } catch {
-            toast.error("Có lỗi xảy ra khi xác thực mã OTP")
+            const data = await authService.verifyEmail(email!, otp)
+            toast.success(data.message || "Xác thực email thành công!")
+            router.push("/login?verified=true")
+        } catch (error: any) {
+            toast.error(error.message || "Mã OTP không đúng hoặc đã hết hạn")
         } finally {
             setIsLoading(false)
         }
@@ -86,24 +76,13 @@ export default function VerifyEmailPage() {
 
         setIsLoading(true)
         try {
-            const response = await fetch(`https://localhost:7168/api/auth/resend-verification-email`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email }),
-            })
-
-            const data = await response.json()
-
-            if (response.ok) {
-                toast.success(data.message || "Mã xác thực mới đã được gửi đến email của bạn")
-                setTimeLeft(300)
-                setCanResend(false)
-                setOtp("")
-            } else {
-                toast.error(data.message || "Không thể gửi lại mã OTP")
-            }
-        } catch {
-            toast.error("Có lỗi xảy ra khi gửi lại mã OTP")
+            const data = await authService.resendVerificationEmail(email!)
+            toast.success(data.message || "Mã xác thực mới đã được gửi đến email của bạn")
+            setTimeLeft(300)
+            setCanResend(false)
+            setOtp("")
+        } catch (error: any) {
+            toast.error(error.message || "Không thể gửi lại mã OTP")
         } finally {
             setIsLoading(false)
         }

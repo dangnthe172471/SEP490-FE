@@ -8,7 +8,7 @@ import {
     PagedResponse,
 } from '@/lib/types/appointment'
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7168'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
 const API_BASE_URL = `${API_ORIGIN}/api/Appointments`
 
 class AppointmentService {
@@ -241,6 +241,14 @@ class AppointmentService {
     }
 
     /**
+     * Lấy thông tin chi tiết một appointment bằng ID
+     * GET /api/Appointments/{id}
+     */
+    async getById(appointmentId: number): Promise<AppointmentDto> {
+        return this.request<AppointmentDto>(`/${appointmentId}`)
+    }
+
+    /**
      * ✅ Lấy lịch hẹn của bệnh nhân đang đăng nhập
      * GET /api/Appointments/patient/my-appointments
      * Backend tự lấy userId từ JWT token
@@ -256,7 +264,7 @@ class AppointmentService {
      */
     async getMyDoctorAppointments(): Promise<AppointmentDto[]> {
         // Gọi API chuyên biệt cho bác sĩ
-        const baseOrigin = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7168'
+        const baseOrigin = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
         const url = `${baseOrigin}/api/DoctorAppointments/appointments`
 
         // Lấy token
