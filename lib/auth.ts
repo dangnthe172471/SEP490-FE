@@ -101,7 +101,7 @@ export function getRoleName(role: UserRole): string {
 export function getDashboardPath(role: UserRole): string {
     const paths: Record<UserRole, string> = {
         doctor: "/doctor",
-        nurse: "/nurse",
+        nurse: "/nurse/tasks",
         reception: "/reception",
         pharmacy: "/pharmacy",
         admin: "/admin/users",

@@ -1,8 +1,9 @@
 // test-type-service.ts
 import { TestTypeDto, CreateTestTypeRequest, UpdateTestTypeRequest, PagedResponse } from '@/lib/types/test-type'
+import { ServiceDto, CreateServiceRequest, UpdateServiceRequest, PagedResponse as ServicePagedResponse } from '@/lib/types/service'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
-const API_BASE_URL = `${API_ORIGIN}/api/TestTypes`
+const API_BASE_URL = `${API_ORIGIN}/api/Services`
 
 class TestTypeService {
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -45,47 +46,104 @@ class TestTypeService {
     }
 
     async getAll(): Promise<TestTypeDto[]> {
-        return this.request<TestTypeDto[]>('')
+        const services = await this.request<ServiceDto[]>('')
+        // Filter by category = "Test"
+        const testServices = services.filter(s => s.category === 'Test')
+        // Convert ServiceDto to TestTypeDto
+        return testServices.map(service => ({
+            testTypeId: service.serviceId,
+            testName: service.serviceName,
+            description: service.description || undefined,
+        }))
     }
 
     async getPaged(pageNumber = 1, pageSize = 10, searchTerm?: string): Promise<PagedResponse<TestTypeDto>> {
-        const params = new URLSearchParams({
-            pageNumber: pageNumber.toString(),
-            pageSize: pageSize.toString(),
-        })
-        if (searchTerm) params.append('searchTerm', searchTerm)
-        const raw = await this.request<any>(`/paged?${params.toString()}`)
+        // Get all services and filter by category="Test" on client side
+        // Note: This approach gets all services first, then filters and paginates
+        // A better solution would be to add category filter support in backend
+        const allServices = await this.request<ServiceDto[]>('')
 
-        const items = raw?.items ?? raw?.Items ?? []
-        const totalCount = raw?.totalCount ?? raw?.TotalCount ?? 0
-        const respPageNumber = raw?.pageNumber ?? raw?.PageNumber ?? pageNumber
-        const respPageSize = raw?.pageSize ?? raw?.PageSize ?? pageSize
-        const totalPages = raw?.totalPages ?? raw?.TotalPages ?? Math.ceil(totalCount / Math.max(1, respPageSize))
+        // Filter by category = "Test"
+        let testServices = allServices.filter(s => s.category === 'Test')
+
+        // Apply search filter if provided
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase()
+            testServices = testServices.filter(s =>
+                s.serviceName.toLowerCase().includes(term) ||
+                (s.description && s.description.toLowerCase().includes(term))
+            )
+        }
+
+        // Calculate pagination
+        const totalCount = testServices.length
+        const totalPages = Math.ceil(totalCount / Math.max(1, pageSize))
+        const startIndex = (pageNumber - 1) * pageSize
+        const paginatedServices = testServices.slice(startIndex, startIndex + pageSize)
+
+        // Convert ServiceDto to TestTypeDto
+        const testTypes: TestTypeDto[] = paginatedServices.map(service => ({
+            testTypeId: service.serviceId,
+            testName: service.serviceName,
+            description: service.description || undefined,
+        }))
 
         return {
-            data: items as TestTypeDto[],
+            data: testTypes,
             totalCount,
-            pageNumber: respPageNumber,
-            pageSize: respPageSize,
+            pageNumber,
+            pageSize,
             totalPages,
-            hasPreviousPage: respPageNumber > 1,
-            hasNextPage: respPageNumber < totalPages,
+            hasPreviousPage: pageNumber > 1,
+            hasNextPage: pageNumber < totalPages,
         }
     }
 
     // ⭐ BỔ SUNG: Lấy theo ID
     async getById(id: number): Promise<TestTypeDto> {
-        return this.request<TestTypeDto>(`/${id}`)
+        const service = await this.request<ServiceDto>(`/${id}`)
+        // Verify it's a Test category service
+        if (service.category !== 'Test') {
+            throw new Error('Service is not a test type')
+        }
+        return {
+            testTypeId: service.serviceId,
+            testName: service.serviceName,
+            description: service.description || undefined,
+        }
     }
 
     // ⭐ BỔ SUNG: Tạo mới
     async create(data: CreateTestTypeRequest): Promise<number> {
-        return this.request<number>('', { method: 'POST', body: JSON.stringify(data) })
+        const createRequest: CreateServiceRequest = {
+            serviceName: data.testName,
+            description: data.description || null,
+            price: null,
+            isActive: true,
+        }
+        return this.request<number>('', { method: 'POST', body: JSON.stringify(createRequest) })
     }
 
     // ⭐ BỔ SUNG: Cập nhật
     async update(id: number, data: UpdateTestTypeRequest): Promise<TestTypeDto> {
-        return this.request<TestTypeDto>(`/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+        // First get the existing service to preserve category and other fields
+        const existing = await this.request<ServiceDto>(`/${id}`)
+        if (existing.category !== 'Test') {
+            throw new Error('Service is not a test type')
+        }
+
+        const updateRequest: UpdateServiceRequest = {
+            serviceName: data.testName,
+            description: data.description || null,
+            price: existing.price,
+            isActive: existing.isActive,
+        }
+        const updated = await this.request<ServiceDto>(`/${id}`, { method: 'PUT', body: JSON.stringify(updateRequest) })
+        return {
+            testTypeId: updated.serviceId,
+            testName: updated.serviceName,
+            description: updated.description || undefined,
+        }
     }
 
     // ⭐ BỔ SUNG: Xóa

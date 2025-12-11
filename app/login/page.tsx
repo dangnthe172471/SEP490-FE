@@ -54,7 +54,7 @@ export default function LoginPage() {
       // Chuyển trang sau khi hiện thông báo
       setTimeout(() => {
         router.push(getDashboardPath(user.role))
-      }, 1000)
+      }, 800)
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Đăng nhập thất bại"

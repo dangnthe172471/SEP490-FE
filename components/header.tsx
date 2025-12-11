@@ -1,10 +1,10 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Menu, X, Phone, Clock, User as UserIcon, LogOut, MessageCircle, Calendar } from "lucide-react"
+import { Menu, X, Phone, Clock, User as UserIcon, LogOut, MessageCircle, Calendar, Home } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { getCurrentUser, logout, getRoleName, User } from "@/lib/auth"
+import { getCurrentUser, getDashboardPath, logout, getRoleName, User } from "@/lib/auth"
 import { avatarService } from "@/lib/services/avatar.service"
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ export function Header() {
   const [isClient, setIsClient] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+  const dashboardPath = currentUser ? getDashboardPath(currentUser.role) : null
 
   useEffect(() => {
     const handleScroll = () => {
@@ -113,12 +114,14 @@ export function Header() {
       { href: "/lien-he", label: "Liên hệ" },
     ]
 
+    // Quick way back to the user's dashboard when they land on homepage
+    if (dashboardPath && dashboardPath !== "/") {
+      items.unshift({ href: dashboardPath, label: "Trang của tôi" })
+    }
+
     // Add chat link for patient role only
     if (currentUser && currentUser.role === 'patient') {
       items.push({ href: "/chat", label: "Chat hỗ trợ" })
-    }
-    if (currentUser && currentUser.role === 'reception') {
-      items.push({ href: "/reception", label: "Lễ tân" })
     }
 
     return items
@@ -240,10 +243,18 @@ export function Header() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => router.push('/profile')}>
-                      <UserIcon className="mr-2 h-4 w-4" />
-                      <span>Hồ sơ</span>
-                    </DropdownMenuItem>
+                    {currentUser.role === 'patient' && (
+                      <DropdownMenuItem onClick={() => router.push('/profile')}>
+                        <UserIcon className="mr-2 h-4 w-4" />
+                        <span>Hồ sơ</span>
+                      </DropdownMenuItem>
+                    )}
+                    {dashboardPath && dashboardPath !== "/" && (
+                      <DropdownMenuItem onClick={() => router.push(dashboardPath)}>
+                        <Home className="mr-2 h-4 w-4" />
+                        <span>Trang của tôi</span>
+                      </DropdownMenuItem>
+                    )}
                     {currentUser.role === 'patient' && (
                       <>
                         <DropdownMenuItem onClick={() => router.push('/patient/appointments')}>
@@ -255,12 +266,6 @@ export function Header() {
                           <span>Chat hỗ trợ</span>
                         </DropdownMenuItem>
                       </>
-                    )}
-                    {currentUser.role === 'reception' && (
-                      <DropdownMenuItem onClick={() => router.push('/reception')}>
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        <span>Lễ tân</span>
-                      </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
@@ -327,17 +332,32 @@ export function Header() {
                   </div>
 
                   <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        router.push('/profile')
-                        setMobileMenuOpen(false)
-                      }}
-                      className="w-full justify-start"
-                    >
-                      <UserIcon className="mr-2 h-4 w-4" />
-                      Hồ sơ
-                    </Button>
+                    {dashboardPath && dashboardPath !== "/" && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          router.push(dashboardPath)
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-full justify-start bg-primary/10 hover:bg-primary/20"
+                      >
+                        <Home className="mr-2 h-4 w-4" />
+                        Trang của tôi
+                      </Button>
+                    )}
+                    {currentUser.role === 'patient' && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          router.push('/profile')
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-full justify-start"
+                      >
+                        <UserIcon className="mr-2 h-4 w-4" />
+                        Hồ sơ
+                      </Button>
+                    )}
 
                     {currentUser.role === 'patient' && (
                       <Button
@@ -350,19 +370,6 @@ export function Header() {
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
                         Chat hỗ trợ
-                      </Button>
-                    )}
-                    {currentUser.role === 'reception' && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          router.push('/reception')
-                          setMobileMenuOpen(false)
-                        }}
-                        className="w-full justify-start bg-primary/10 hover:bg-primary/20"
-                      >
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        Lễ tân
                       </Button>
                     )}
                   </div>

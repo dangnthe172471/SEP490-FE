@@ -525,7 +525,7 @@ export default function ServicesManagementPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>ID</TableHead>
+                        <TableHead>STT</TableHead>
                         <TableHead>Tên dịch vụ</TableHead>
                         <TableHead>Mô tả</TableHead>
                         <TableHead>Giá</TableHead>
@@ -536,10 +536,10 @@ export default function ServicesManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredServices.length > 0 ? (
-                        filteredServices.map((service) => (
+                        filteredServices.map((service, index) => (
                           <TableRow key={service.serviceId}>
                             <TableCell>
-                              <Badge variant="outline">{service.serviceId}</Badge>
+                              <Badge variant="outline">{(pageNumber - 1) * pageSize + index + 1}</Badge>
                             </TableCell>
                             <TableCell className="font-medium">{service.serviceName}</TableCell>
                             <TableCell className="max-w-xs truncate text-sm text-muted-foreground">

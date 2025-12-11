@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { getCurrentUser, logout, getRoleName, type User } from "@/lib/auth"
+import { getCurrentUser, logout, getRoleName, getDashboardPath, type User } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Heart, LogOut, UserIcon, Home } from "lucide-react"
+import { Heart, LogOut, UserIcon, Home, LayoutDashboard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { NotificationBell } from "@/components/notification-bell"
@@ -57,6 +57,8 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
     .join("")
     .toUpperCase()
     .slice(0, 2)
+
+  const dashboardPath = getDashboardPath(user.role)
 
   return (
     <div className="min-h-screen bg-background" suppressHydrationWarning>
@@ -100,10 +102,18 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <UserIcon className="mr-2 h-4 w-4" />
-                Thông tin cá nhân
-              </DropdownMenuItem>
+              {user.role === 'patient' && (
+                <DropdownMenuItem onClick={() => router.push('/profile')}>
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  Thông tin cá nhân
+                </DropdownMenuItem>
+              )}
+              {dashboardPath && dashboardPath !== "/" && (
+                <DropdownMenuItem onClick={() => router.push(dashboardPath)}>
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  Trang của tôi
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />

@@ -1097,7 +1097,7 @@ export default function MedicinesManagementPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>ID</TableHead>
+                        <TableHead>STT</TableHead>
                         <TableHead>Tên thuốc</TableHead>
                         <TableHead>Hoạt chất</TableHead>
                         <TableHead>Hàm lượng</TableHead>
@@ -1118,11 +1118,11 @@ export default function MedicinesManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredMedicines.length > 0 ? (
-                        filteredMedicines.map((medicine) => (
+                        filteredMedicines.map((medicine, index) => (
                           <TableRow key={medicine.medicineId}>
                             <TableCell>
                               <Badge variant="outline">
-                                {medicine.medicineId}
+                                {(pageNumber - 1) * pageSize + index + 1}
                               </Badge>
                             </TableCell>
                             <TableCell className="font-medium">
