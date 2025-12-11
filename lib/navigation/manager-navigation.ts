@@ -19,7 +19,7 @@ import type { NavigationItem } from "./types"
 export const MANAGER_NAVIGATION: NavigationItem[] = [
     { name: "Tổng quan", href: "/management", icon: Activity },
     { name: "Lịch hẹn", href: "/management/appointments", icon: Calendar },
-    { name: "Báo cáo", href: "/management/reports", icon: FileText },
+    // { name: "Báo cáo", href: "/management/reports", icon: FileText },
     { name: "Lịch làm việc", href: "/management/staff-schedule", icon: Calendar },
     // { name: "Lịch phòng khám", href: "/management/clinic-schedule", icon: Clock },
     { name: "Yêu cầu đổi ca", href: "/management/shift-swap-requests", icon: Clock },
