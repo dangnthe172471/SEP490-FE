@@ -11,10 +11,10 @@ import type { NavigationItem } from "./types"
 
 // Admin navigation configuration
 export const ADMIN_NAVIGATION: NavigationItem[] = [
-    { name: "Tổng quan", href: "/admin", icon: Activity },
+    // { name: "Tổng quan", href: "/admin", icon: Activity },
     { name: "Người dùng", href: "/admin/users", icon: Users },
     { name: "Phân quyền", href: "/admin/roles", icon: Shield },
-    { name: "Cài đặt", href: "/admin/settings", icon: Settings },
+    // { name: "Cài đặt", href: "/admin/settings", icon: Settings },
 ]
 
 // Helper function to get admin navigation

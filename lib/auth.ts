@@ -104,7 +104,7 @@ export function getDashboardPath(role: UserRole): string {
         nurse: "/nurse",
         reception: "/reception",
         pharmacy: "/pharmacy",
-        admin: "/admin",
+        admin: "/admin/users",
         management: "/management",
         patient: "/",
     }
