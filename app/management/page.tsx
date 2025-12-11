@@ -811,36 +811,7 @@ export default function ManagementDashboard() {
             </TabsContent>
           </Tabs>
 
-          {/* Top Doctors (giữ nguyên) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Bác sĩ xuất sắc</CardTitle>
-              <CardDescription>Top 5 bác sĩ có hiệu suất cao nhất</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {topDoctors.map((doctor, index) => (
-                  <div key={doctor.name} className="flex items-center justify-between border-b pb-4 last:border-0">
-                    <div className="flex items-center gap-4">
-                      <Badge variant="outline" className="h-8 w-8 rounded-full flex items-center justify-center">
-                        {index + 1}
-                      </Badge>
-                      <div>
-                        <p className="font-medium">{doctor.name}</p>
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span>{doctor.patients} bệnh nhân</span>
-                          <span>•</span>
-                          <span>{formatCurrency(doctor.revenue)}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">⭐ {doctor.rating}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+       
         </div>
       </DashboardLayout>
     </PageGuard>
