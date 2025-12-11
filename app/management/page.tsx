@@ -47,6 +47,13 @@ import { managementAnalyticsService } from "@/lib/services/management-analytics.
 import type { AppointmentTimeSeriesPoint, AppointmentHeatmapPoint } from "@/lib/types/appointment"
 import { getPaymentsChartData } from "@/lib/services/payment-service";
 import { DashboardService } from "@/lib/services/dashboard-service"
+import { getDoctorStatisticsSummary } from "@/lib/services/doctor-statistics-service"
+import type { DoctorStatisticsSummaryDto } from "@/lib/types/doctor-statistics"
+import PatientCountChart from "@/components/charts/patient-count-chart"
+import VisitTrendChart from "@/components/charts/visit-trend-chart"
+import ReturnRateChart from "@/components/charts/return-rate-chart"
+import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button"
 
 import type { TestDiagnosticStats } from "@/lib/types/management"
 
@@ -142,6 +149,15 @@ export default function ManagementDashboard() {
   const [patientStatsError, setPatientStatsError] = useState<string | null>(null)
   const [patientStatsFrom, setPatientStatsFrom] = useState('')
   const [patientStatsTo, setPatientStatsTo] = useState('')
+
+  // ⭐ BỔ SUNG: Doctor statistics states
+  const { toast } = useToast()
+  const [doctorStats, setDoctorStats] = useState<DoctorStatisticsSummaryDto | null>(null)
+  const [doctorStatsLoading, setDoctorStatsLoading] = useState(false)
+  const [doctorStatsError, setDoctorStatsError] = useState<string | null>(null)
+  const [doctorStatsFrom, setDoctorStatsFrom] = useState('')
+  const [doctorStatsTo, setDoctorStatsTo] = useState('')
+  const [isClient, setIsClient] = useState(false)
 
 
   const rangeOptions = [
@@ -292,6 +308,84 @@ export default function ManagementDashboard() {
 
     loadPatientStats()
   }, [patientStatsFrom, patientStatsTo])
+
+  // ⭐ BỔ SUNG: useEffect cho Doctor Statistics
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isClient) return
+
+    const toDateInputValue = (date: Date) => {
+      const y = date.getFullYear()
+      const m = `${date.getMonth() + 1}`.padStart(2, "0")
+      const d = `${date.getDate()}`.padStart(2, "0")
+      return `${y}-${m}-${d}`
+    }
+
+    if (!doctorStatsFrom || !doctorStatsTo) {
+      const to = new Date()
+      const from = new Date()
+      from.setDate(to.getDate() - 30)
+      setDoctorStatsFrom(toDateInputValue(from))
+      setDoctorStatsTo(toDateInputValue(to))
+    }
+  }, [isClient, doctorStatsFrom, doctorStatsTo])
+
+  const loadDoctorStats = async (fromStr: string, toStr: string) => {
+    if (!fromStr || !toStr) return
+
+    try {
+      setDoctorStatsLoading(true)
+      setDoctorStatsError(null)
+
+      const from = new Date(fromStr)
+      const to = new Date(toStr)
+      if (isNaN(from.getTime()) || isNaN(to.getTime()) || to < from) {
+        throw new Error("Khoảng thời gian không hợp lệ.")
+      }
+
+      const data = await getDoctorStatisticsSummary(
+        from.toISOString(),
+        to.toISOString(),
+        { token: typeof window !== "undefined" ? (localStorage.getItem("auth_token") || localStorage.getItem("access_token") || "") : "" }
+      )
+      setDoctorStats(data)
+    } catch (error: any) {
+      setDoctorStats(null)
+      toast({
+        title: "Lỗi tải dữ liệu",
+        description:
+          error?.message === "UNAUTHORIZED"
+            ? "Bạn không có quyền hoặc phiên đăng nhập đã hết hạn."
+            : error?.message || "Không thể tải thống kê bác sĩ.",
+        variant: "destructive",
+      })
+      setDoctorStatsError(error?.message || "Không thể tải thống kê bác sĩ")
+    } finally {
+      setDoctorStatsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isClient) return
+    if (!doctorStatsFrom || !doctorStatsTo) return
+
+    loadDoctorStats(doctorStatsFrom, doctorStatsTo)
+  }, [isClient, doctorStatsFrom, doctorStatsTo])
+
+  const handleDoctorStatsApplyRange = () => {
+    if (!doctorStatsFrom || !doctorStatsTo) {
+      toast({
+        title: "Thiếu ngày",
+        description: "Vui lòng chọn đầy đủ Từ ngày và Đến ngày.",
+        variant: "destructive",
+      })
+      return
+    }
+    loadDoctorStats(doctorStatsFrom, doctorStatsTo)
+  }
 
   // ⭐ BỔ SUNG: useMemo cho Patient Statistics charts
   const genderChartData = useMemo(() => {
@@ -490,6 +584,7 @@ export default function ManagementDashboard() {
               <TabsTrigger value="patients">Bệnh nhân</TabsTrigger>
               <TabsTrigger value="appointments">Lịch hẹn</TabsTrigger>
               <TabsTrigger value="diagnostics">Xét nghiệm & Chẩn đoán</TabsTrigger>
+              <TabsTrigger value="charts">Bác sĩ</TabsTrigger>
             </TabsList>
 
             {/* Revenue Chart (giữ nguyên) */}
@@ -1006,6 +1101,123 @@ export default function ManagementDashboard() {
                     </Card>
                   </div>
                 </div>
+              )}
+            </TabsContent>
+
+            {/* Doctor Statistics Chart */}
+            <TabsContent value="charts" className="space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight mb-2">Thống kê Bác sĩ</h2>
+                <p className="text-muted-foreground">
+                  Theo dõi hiệu suất và tỷ lệ tái khám của đội ngũ bác sĩ theo từng giai đoạn.
+                </p>
+              </div>
+
+              {/* Bộ lọc thời gian */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Khoảng thời gian</CardTitle>
+                  <CardDescription>
+                    Chọn giai đoạn muốn xem thống kê (mặc định 30 ngày gần nhất).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-end gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Từ ngày</label>
+                    <input
+                      type="date"
+                      className="mt-1 block rounded-md border px-3 py-2 text-sm"
+                      value={doctorStatsFrom}
+                      onChange={(e) => setDoctorStatsFrom(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Đến ngày</label>
+                    <input
+                      type="date"
+                      className="mt-1 block rounded-md border px-3 py-2 text-sm"
+                      value={doctorStatsTo}
+                      onChange={(e) => setDoctorStatsTo(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleDoctorStatsApplyRange} disabled={doctorStatsLoading}>
+                    {doctorStatsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Áp dụng
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Đang tải */}
+              {doctorStatsLoading && (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-10 gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Đang tải dữ liệu thống kê...</span>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Lỗi */}
+              {doctorStatsError && !doctorStatsLoading && (
+                <Card className="border-red-200 bg-red-50">
+                  <CardHeader>
+                    <CardTitle>Lỗi tải dữ liệu</CardTitle>
+                    <CardDescription className="text-red-600">{doctorStatsError}</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+
+              {/* Có dữ liệu */}
+              {!doctorStatsLoading && !doctorStatsError && doctorStats && (
+                <div className="grid grid-cols-1 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Số lượng bệnh nhân & lượt khám</CardTitle>
+                      <CardDescription>
+                        So sánh khối lượng công việc giữa các bác sĩ trong giai đoạn chọn.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <PatientCountChart data={doctorStats.patientCountByDoctor} />
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Xu hướng số ca khám</CardTitle>
+                      <CardDescription>
+                        Theo dõi biến động số ca khám theo ngày trong giai đoạn chọn.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <VisitTrendChart data={doctorStats.visitTrend} />
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Tỷ lệ tái khám</CardTitle>
+                      <CardDescription>
+                        Đánh giá mức độ quay lại của bệnh nhân với từng bác sĩ.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ReturnRateChart data={doctorStats.returnRates} />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Không có dữ liệu */}
+              {!doctorStatsLoading && !doctorStatsError && !doctorStats && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Không có dữ liệu</CardTitle>
+                    <CardDescription>
+                      Không tìm thấy thống kê trong khoảng thời gian đã chọn.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
               )}
             </TabsContent>
           </Tabs>

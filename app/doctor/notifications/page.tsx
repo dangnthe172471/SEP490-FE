@@ -132,7 +132,7 @@ export default function PharmacyNotificationsPage() {
     const navigation = [
         { name: "Tổng quan", href: "/pharmacy", icon: BarChart3 },
         { name: "Đơn thuốc", href: "/pharmacy/prescriptions", icon: Pill },
-        { name: "Kho thuốc", href: "/pharmacy/medicines", icon: Package },
+        { name: "Kho thuốc", href: "/pharmacy", icon: Package },
         { name: "Tồn kho", href: "/pharmacy/inventory", icon: Package },
         { name: "Thông báo", href: "/pharmacy/notifications", icon: Bell },
     ]
