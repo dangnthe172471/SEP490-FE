@@ -20,10 +20,25 @@ import {
   UserPlus
 } from "lucide-react"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
-import { MedicalRecordService } from "@/lib/services/medical-record-service"
+import { MedicalRecordService, type MedicalRecordDto } from "@/lib/services/medical-record-service"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { patientService } from "@/lib/services/patient-service"
 import { userService } from "@/lib/services/user.service"
+import { getTestResultsByRecord } from "@/lib/services/test-results-service"
+import type { ReadTestResultDto } from "@/lib/types/test-results"
+import { ReadInternalMedRecordDto, ReadPediatricRecordDto, ReadDermatologyRecordDto } from "@/lib/types/specialties"
+import type { TestTypeLite } from "@/lib/types/test-results"
+import { getTestTypes } from "@/lib/services/test-results-service"
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.https://api.diamondhealth.io.vn";
+
+function buildAttachmentUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE_URL}${normalized}`;
+}
 
 // --- Interfaces định nghĩa cấu trúc dữ liệu ---
 
@@ -39,44 +54,8 @@ interface Appointment {
   doctorSpecialty?: string
 }
 
-interface InternalMedRecord {
-  bloodPressure?: number
-  heartRate?: number
-  bloodSugar?: number
-  notes?: string
-}
-
-interface Prescription {
-  medicationName: string
-  dosage: string
-  instructions: string
-}
-
-interface TestResult {
-  testName: string
-  resultValue: string
-  notes?: string
-}
-
-interface Payment {
-  amount: number
-  paymentDate: string
-  method: string
-  status: string
-}
-
-interface MedicalRecord {
-  recordId: number
-  doctorNotes?: string | null
-  diagnosis?: string | null
-  createdAt?: string | null
-  appointmentId: number
-  appointment?: Appointment | null
-  internalMedRecord?: InternalMedRecord | null
-  prescriptions?: Prescription[]
-  testResults?: TestResult[]
-  payments?: Payment[]
-}
+// Sử dụng MedicalRecordDto từ service thay vì định nghĩa lại
+type MedicalRecord = MedicalRecordDto
 
 interface PatientDetail {
   fullName: string
@@ -112,6 +91,10 @@ export default function MedicalRecordDetailPage() {
   const [loading, setLoading] = useState(true)
   const [patientCache, setPatientCache] = useState<Record<number, PatientDetail>>({})
   const [appointmentCache, setAppointmentCache] = useState<Record<number, AppointmentDetail>>({})
+  const [testResults, setTestResults] = useState<ReadTestResultDto[]>([])
+  const [testTypes, setTestTypes] = useState<TestTypeLite[]>([])
+  // Lưu trạng thái lỗi khi load testTypes (có thể do không có quyền)
+  const [testTypesError, setTestTypesError] = useState(false)
   useEffect(() => {
     if (!id) return
     const fetchRecord = async () => {
@@ -119,6 +102,15 @@ export default function MedicalRecordDetailPage() {
         // Lấy hồ sơ bệnh án
         const data = await MedicalRecordService.getById(Number(id))
         setRecord(data)
+
+        // LẤY THÊM TẤT CẢ TESTRESULT CHO RECORD NÀY (có đầy đủ attachment và testName)
+        try {
+          const tests = await getTestResultsByRecord(data.recordId);
+          setTestResults(tests ?? []);
+        } catch (err) {
+          console.error("Không thể tải kết quả xét nghiệm theo record", err);
+          setTestResults([]);
+        }
 
         let appointmentInfo = appointmentCache[data?.appointment?.appointmentId || 0]
         if (!appointmentInfo && data?.appointment?.appointmentId) {
@@ -178,6 +170,32 @@ export default function MedicalRecordDetailPage() {
     fetchRecord()
   }, [id])
 
+  useEffect(() => {
+    let aborted = false;
+    (async () => {
+      try {
+        const types = await getTestTypes();
+        if (!aborted) {
+          setTestTypes(types);
+          setTestTypesError(false);
+        }
+      } catch (err: any) {
+        // Xử lý lỗi 403 (Forbidden) một cách graceful - có thể do không có quyền
+        if (err?.message?.includes("403") || err?.message?.includes("Forbidden")) {
+          console.warn("Không có quyền truy cập danh sách loại xét nghiệm (403). Sẽ sử dụng tên từ kết quả xét nghiệm.");
+          setTestTypesError(true);
+        } else {
+          console.error("Không thể tải danh sách xét nghiệm", err);
+          setTestTypesError(true);
+        }
+        if (!aborted) setTestTypes([]);
+      }
+    })();
+    return () => {
+      aborted = true;
+    };
+  }, []);
+
   if (loading) {
     return (
       <DashboardLayout navigation={navigation}>
@@ -205,8 +223,7 @@ export default function MedicalRecordDetailPage() {
   const appointment = record.appointment
   const med = record.internalMedRecord
   const prescriptions = record.prescriptions || []
-  const testResults = record.testResults || []
-  const payments = record.payments || []
+  // Sử dụng testResults từ state (đã lấy từ getTestResultsByRecord) thay vì từ record
 
   return (
     <DashboardLayout navigation={navigation}>
@@ -304,6 +321,75 @@ export default function MedicalRecordDetailPage() {
               </Card>
             )} */}
 
+            {/* Kết quả khám da liễu */}
+            {record.dermatologyRecords && record.dermatologyRecords.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Kết quả khám da liễu ({record.dermatologyRecords.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {record.dermatologyRecords.map((derm) => (
+                    <div key={derm.dermRecordId} className="border rounded-lg p-3 space-y-2">
+                      <div>
+                        <span className="font-medium">Thủ thuật:</span>{" "}
+                        {derm.requestedProcedure ?? "-"}
+                      </div>
+                      {derm.bodyArea && (
+                        <div>
+                          <span className="font-medium">Vùng da:</span> {derm.bodyArea}
+                        </div>
+                      )}
+                      {derm.procedureNotes && (
+                        <div>
+                          <span className="font-medium">Ghi chú thủ thuật:</span>{" "}
+                          {derm.procedureNotes}
+                        </div>
+                      )}
+                      {derm.resultSummary && (
+                        <div>
+                          <span className="font-medium">Kết quả khám da liễu:</span>{" "}
+                          {derm.resultSummary}
+                        </div>
+                      )}
+                      {derm.attachment && (
+                        <div>
+                          <span className="font-medium">Ảnh đính kèm:</span>
+                          <div className="mt-2">
+                            <a
+                              href={buildAttachmentUrl(derm.attachment)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block"
+                            >
+                              <img
+                                src={buildAttachmentUrl(derm.attachment)}
+                                alt="Ảnh khám da liễu"
+                                className="max-w-xs max-h-48 rounded border cursor-pointer hover:opacity-80 transition-opacity object-contain"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = "none";
+                                  const parent = target.parentElement;
+                                  if (parent) {
+                                    parent.innerHTML = `<span class="text-xs text-muted-foreground">Không thể tải ảnh: ${derm.attachment}</span>`;
+                                  }
+                                }}
+                              />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      {derm.performedAt && (
+                        <div className="text-xs text-muted-foreground">
+                          Thực hiện lúc:{" "}
+                          {new Date(derm.performedAt).toLocaleString("vi-VN")}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Test Results */}
             {testResults.length > 0 && (
               <Card>
@@ -314,36 +400,84 @@ export default function MedicalRecordDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {testResults.map((t: TestResult, idx: number) => (
-                    <div key={idx} className="border rounded-lg p-3">
-                      <p className="font-medium">{t.testName || "Không rõ xét nghiệm"}</p>
-                      <p className="text-sm text-muted-foreground">Kết quả: {t.resultValue || "—"}</p>
-                      {t.notes && <p className="text-sm text-muted-foreground">Ghi chú: {t.notes}</p>}
-                    </div>
-                  ))}
+                  {testResults.map((t) => {
+                    // Ưu tiên sử dụng testName từ API response (đã có sẵn)
+                    // Chỉ fallback sang testTypes nếu testName không có và đã load được testTypes
+                    const typeName =
+                      t.testName ??
+                      (!testTypesError && testTypes.length > 0
+                        ? testTypes.find(
+                          (tt) => tt.testTypeId === t.testTypeId
+                        )?.testName
+                        : null) ??
+                      `Loại xét nghiệm #${t.testTypeId}`;
+                    const pending = t.resultValue
+                      ? t.resultValue.toLowerCase().includes("pending") ||
+                      t.resultValue.toLowerCase().includes("chờ")
+                      : true;
+                    return (
+                      <div key={t.testResultId} className="border rounded-lg p-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="font-medium">Xét nghiệm:</span> {typeName}
+                          </div>
+                          <div>
+                            <span className="font-medium">Trạng thái:</span>{" "}
+                            {pending ? (
+                              <span className="text-orange-600">Chờ kết quả</span>
+                            ) : (
+                              <span>
+                                {t.resultValue ?? "-"}
+                                {t.unit && ` ${t.unit}`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {t.resultDate && (
+                          <div>
+                            <span className="font-medium">Ngày kết quả:</span>{" "}
+                            {new Date(t.resultDate).toLocaleDateString("vi-VN")}
+                          </div>
+                        )}
+                        {t.notes && (
+                          <div>
+                            <span className="font-medium">Ghi chú:</span> {t.notes}
+                          </div>
+                        )}
+                        {t.attachment && (
+                          <div>
+                            <span className="font-medium">Ảnh đính kèm:</span>
+                            <div className="mt-2">
+                              <a
+                                href={buildAttachmentUrl(t.attachment)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block"
+                              >
+                                <img
+                                  src={buildAttachmentUrl(t.attachment)}
+                                  alt={`Ảnh xét nghiệm ${typeName}`}
+                                  className="max-w-xs max-h-48 rounded border cursor-pointer hover:opacity-80 transition-opacity object-contain"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = "none";
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = `<span class="text-xs text-muted-foreground">Không thể tải ảnh: ${t.attachment}</span>`;
+                                    }
+                                  }}
+                                />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
 
-            {/* Payments */}
-            {payments.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Thanh toán ({payments.length})</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {payments.map((pay: Payment, idx: number) => (
-                    <div key={idx} className="border rounded-lg p-3">
-                      {/* Sử dụng optional chaining và kiểm tra tồn tại của amount */}
-                      <p className="font-medium">Số tiền: {pay.amount?.toLocaleString("vi-VN") || "0"}₫</p>
-                      <p className="text-sm text-muted-foreground">Ngày: {new Date(pay.paymentDate).toLocaleDateString("vi-VN")}</p>
-                      <p className="text-sm text-muted-foreground">Phương thức: {pay.method}</p>
-                      <p className="text-sm text-muted-foreground">Trạng thái: {pay.status}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>
