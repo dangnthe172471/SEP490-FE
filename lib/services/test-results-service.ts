@@ -27,7 +27,7 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
     Accept: "application/json",
   }
   if (token) {
-    ;(base as any).Authorization = `Bearer ${token}`
+    ; (base as any).Authorization = `Bearer ${token}`
   }
   return { ...base, ...extra }
 }

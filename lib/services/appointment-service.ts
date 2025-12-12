@@ -79,10 +79,10 @@ class AppointmentService {
             let rawMessage = `HTTP error! status: ${response.status}`
             let errorData: any = null
             let responseText: string = ""
-            
+
             try {
                 responseText = await responseClone.text()
-                
+
                 if (responseText && responseText.trim()) {
                     try {
                         errorData = JSON.parse(responseText)

@@ -283,8 +283,8 @@ export default function AdminUsersPage() {
                 <div className="flex gap-2 mb-2 flex-wrap">
                   <Badge variant="secondary">{user.role || "N/A"}</Badge>
                   <Badge variant="outline">{user.department || "N/A"}</Badge>
-                  {user.specialty && (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  {user.role === "Doctor" && user.specialty && (
+                    <Badge variant="default" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
                       {user.specialty}
                     </Badge>
                   )}

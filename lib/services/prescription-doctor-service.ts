@@ -25,7 +25,7 @@ function tokenFromBrowser(): string | undefined {
     const c2 = pick("access_token");
     if (c1) return decodeURIComponent(c1.split("=")[1]);
     if (c2) return decodeURIComponent(c2.split("=")[1]);
-  } catch {}
+  } catch { }
   return undefined;
 }
 

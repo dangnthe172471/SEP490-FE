@@ -71,6 +71,7 @@ export interface UserDto {
     allergies?: string
     medicalHistory?: string
     avatar?: string
+    specialty?: string
 }
 
 export interface ApiResponse<T = any> {
