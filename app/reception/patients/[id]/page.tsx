@@ -386,10 +386,10 @@ export default function UserDetailPage() {
                 </>
               ) : (
                 <>
-                  <Button onClick={() => setIsEditing(true)}>
+                  {/* <Button onClick={() => setIsEditing(true)}>
                     <Edit3 className="mr-2 h-4 w-4" />
                     Chỉnh sửa
-                  </Button>
+                  </Button> */}
                   {/* <Button 
                   variant="outline"
                   onClick={handleResetPassword}
