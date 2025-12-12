@@ -173,8 +173,8 @@ export default function ScheduleCreateDialog({
         }
 
         setDateError("");
-        setSelectedDateFrom(range.from);
-        setSelectedDateTo(range.to);
+     setSelectedDateFrom((prev) => prev || range.from);
+    setSelectedDateTo((prev) => prev || range.to);
     }, [mode, selectedWeek, selectedMonth, selectedYear, weeks]);
 
     useEffect(() => {
@@ -360,23 +360,31 @@ export default function ScheduleCreateDialog({
 
                     </div>
                 )}
-                <div className="grid  pointer-events-none">
+                <div className="grid ">
 
                     {dateError && (
                         <p className="text-sm text-red-500 mt-2">{dateError}</p>
                     )}
                 </div>
                 {/*  Hiển thị khoảng ngày (chỉ xem) */}
-                <div className="grid grid-cols-2 gap-3 mt-4 opacity-60 pointer-events-none">
-                    <div>
-                        <label className="text-sm font-medium">Từ ngày</label>
-                        <Input type="date" value={selectedDateFrom} readOnly />
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium">Đến ngày</label>
-                        <Input type="date" value={selectedDateTo} readOnly />
-                    </div>
-                </div>
+                <div className="grid grid-cols-2 gap-3 mt-4">
+    <div>
+        <label className="text-sm font-medium">Từ ngày</label>
+        <Input
+            type="date"
+            value={selectedDateFrom}
+            onChange={(e) => setSelectedDateFrom(e.target.value)}
+        />
+    </div>
+    <div>
+        <label className="text-sm font-medium">Đến ngày</label>
+        <Input
+            type="date"
+            value={selectedDateTo}
+            onChange={(e) => setSelectedDateTo(e.target.value)} 
+        />
+    </div>
+</div>
 
 
                 {/* danh sách ca và bác sĩ */}
