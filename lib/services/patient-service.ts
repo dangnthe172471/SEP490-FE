@@ -3,7 +3,7 @@
 
 import { getToken } from "@/lib/auth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.https://api.diamondhealth.io.vn"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn"
 
 interface SearchUserRequest {
     fullName?: string

@@ -10,7 +10,7 @@ export interface ShiftResponseDTO {
 }
 
 class ShiftService {
-    private baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.https://api.diamondhealth.io.vn'
+    private baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
 
     private async request<T>(endpoint: string, config: RequestInit = {}): Promise<T> {
         const token = getToken()

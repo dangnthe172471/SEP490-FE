@@ -1,6 +1,6 @@
 // /lib/services/medicine-service.ts
 
-const RAW_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://api.https://api.diamondhealth.io.vn").trim();
+const RAW_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn").trim();
 const API_BASE_URL = RAW_BASE.replace(/\/+$/, "").endsWith("/api")
   ? RAW_BASE.replace(/\/+$/, "")
   : `${RAW_BASE.replace(/\/+$/, "")}/api`;
