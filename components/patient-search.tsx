@@ -32,6 +32,7 @@ export function PatientSearch({
     const [isOpen, setIsOpen] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [selectedPatient, setSelectedPatient] = useState<PatientInfoDto | null>(null)
+    const [isLoadingInitial, setIsLoadingInitial] = useState(false)
     const searchRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
@@ -40,6 +41,40 @@ export function PatientSearch({
         // Load trong background, không block UI
         loadDefaultPatients()
     }, [])
+
+    // Load patient when value prop is provided (from URL query param)
+    useEffect(() => {
+        if (value && !selectedPatient) {
+            const loadInitialPatient = async () => {
+                try {
+                    setIsLoadingInitial(true)
+                    // value is patientId, need to find patient info
+                    // First try to find in defaultPatients
+                    const foundInDefault = defaultPatients.find(p => p.patientId.toString() === value)
+                    if (foundInDefault) {
+                        setSelectedPatient(foundInDefault)
+                        setSearchTerm(`${foundInDefault.userId} - ${foundInDefault.fullName}`)
+                        return
+                    }
+
+                    // If not found, try to load from API
+                    // We need to get patient by patientId, but we only have patientId
+                    // Try to search in all patients or load by patientId
+                    const allPatients = await patientService.getAllPatientsFromDatabase()
+                    const found = allPatients.find(p => p.patientId.toString() === value)
+                    if (found) {
+                        setSelectedPatient(found)
+                        setSearchTerm(`${found.userId} - ${found.fullName}`)
+                    }
+                } catch (err: any) {
+                    console.error('❌ [ERROR] Failed to load initial patient:', err)
+                } finally {
+                    setIsLoadingInitial(false)
+                }
+            }
+            loadInitialPatient()
+        }
+    }, [value, selectedPatient, defaultPatients])
 
     // Handle default patients display when defaultPatients changes
     useEffect(() => {
@@ -176,7 +211,7 @@ export function PatientSearch({
                         className="pl-10"
                         required={required}
                     />
-                    {(isLoading || isLoadingDefault) && (
+                    {(isLoading || isLoadingDefault || isLoadingInitial) && (
                         <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                 </div>
@@ -215,9 +250,9 @@ export function PatientSearch({
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <p className="font-medium text-sm truncate">{patient.fullName}</p>
-                                                        <Badge variant="outline" className="text-xs">
+                                                        {/* <Badge variant="outline" className="text-xs">
                                                             ID: {patient.patientId}
-                                                        </Badge>
+                                                        </Badge> */}
                                                     </div>
                                                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                                         <div className="flex items-center gap-1">
@@ -251,7 +286,8 @@ export function PatientSearch({
                         <span className="text-sm font-medium">Đã chọn: {selectedPatient.fullName}</span>
                     </div>
                     <div className="text-xs text-green-700 mt-1">
-                        ID: {selectedPatient.patientId} • SĐT: {selectedPatient.phone}
+                        {/* ID: {selectedPatient.patientId}  */}
+                        • SĐT: {selectedPatient.phone}
                     </div>
                 </div>
             )}
