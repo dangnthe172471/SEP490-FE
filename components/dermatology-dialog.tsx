@@ -183,8 +183,8 @@ export function DermatologyDialog({
       method: "POST",
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined,
       body: formData,
     })
@@ -270,8 +270,8 @@ export function DermatologyDialog({
   const previewUrl = pendingFile
     ? localPreviewUrl
     : attachmentPath
-    ? buildAttachmentUrl(attachmentPath)
-    : ""
+      ? buildAttachmentUrl(attachmentPath)
+      : ""
 
   return (
     <>
@@ -418,11 +418,10 @@ export function DermatologyDialog({
 
       {toastOpen && (
         <div
-          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${
-            toastVariant === "destructive"
-              ? "border border-red-200 bg-red-50 text-red-900"
-              : "border border-emerald-200 bg-emerald-50 text-emerald-900"
-          }`}
+          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${toastVariant === "destructive"
+            ? "border border-red-200 bg-red-50 text-red-900"
+            : "border border-emerald-200 bg-emerald-50 text-emerald-900"
+            }`}
         >
           <span className="font-semibold">{toastTitle}</span>
           {toastDesc && <span className="text-sm">{toastDesc}</span>}

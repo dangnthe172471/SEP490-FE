@@ -221,9 +221,14 @@ export default function AdminUsersPage() {
                   <h3 className="text-lg font-semibold">{user.name || "N/A"}</h3>
                   <Badge variant="outline">{user.id || "N/A"}</Badge>
                 </div>
-                <div className="flex gap-2 mb-2">
+                <div className="flex gap-2 mb-2 flex-wrap">
                   <Badge variant="secondary">{user.role || "N/A"}</Badge>
                   <Badge variant="outline">{user.department || "N/A"}</Badge>
+                  {user.role === "Doctor" && user.specialty && (
+                    <Badge variant="default" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                      {user.specialty}
+                    </Badge>
+                  )}
                   <Badge
                     variant={user.status === "active" ? "default" : "destructive"}
                   >

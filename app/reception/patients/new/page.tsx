@@ -30,7 +30,7 @@ import {
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { userService } from "@/lib/services/user.service"
-import { CreateUserRequest } from "@/lib/types/api"
+import { ApiError, CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
@@ -113,9 +113,11 @@ export default function CreateUserPage() {
       newErrors.email = "Email không hợp lệ"
     }
 
-    if (!formData.phone.trim()) {
+    const normalizedPhone = formData.phone.replace(/\D/g, "")
+
+    if (!normalizedPhone) {
       newErrors.phone = "Số điện thoại là bắt buộc"
-    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ""))) {
+    } else if (!/^[0-9]{10,11}$/.test(normalizedPhone)) {
       newErrors.phone = "Số điện thoại phải có 10-11 chữ số"
     }
 
@@ -135,6 +137,24 @@ export default function CreateUserPage() {
       newErrors.role = "Vai trò là bắt buộc"
     }
 
+    if (!formData.dob) {
+      newErrors.dob = "Ngày sinh là bắt buộc";
+    } else {
+      const dob = new Date(formData.dob);
+      const today = new Date();
+
+      // Xóa giờ phút giây để so sánh đúng ngày
+      dob.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+
+      if (dob > today) {
+        newErrors.dob = "Ngày sinh không được vượt quá ngày hôm nay";
+      }
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = "Giới tính là bắt buộc"
+    } 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -152,8 +172,10 @@ export default function CreateUserPage() {
 
     try {
       // Prepare create data, only include non-empty fields
+      const normalizedPhone = formData.phone.replace(/\D/g, "")
+
       const createData: CreateUserRequest = {
-        phone: formData.phone.trim(),
+        phone: normalizedPhone,
         password: formData.password,
         fullName: formData.fullName.trim(),
         roleId: formData.role
@@ -180,7 +202,24 @@ export default function CreateUserPage() {
       toast.success("Tạo bệnh nhân thành công!")
       router.push("/reception/patients")
     } catch (err: any) {
-      console.error("Error creating user:", err)
+      console.warn("Error creating user:", err)
+
+      const isDuplicatePhone =
+        err instanceof ApiError &&
+        err.status === 400 &&
+        typeof err.message === "string" &&
+        err.message.toLowerCase().includes("số điện thoại")
+
+      if (isDuplicatePhone) {
+        const duplicateMsg = err.message || "Số điện thoại đã được sử dụng"
+        setErrors(prev => ({
+          ...prev,
+          phone: duplicateMsg
+        }))
+        toast.error(duplicateMsg)
+        return
+      }
+
       const errorMessage = err.message || "Không thể tạo bệnh nhân"
       toast.error(errorMessage)
     } finally {
@@ -322,12 +361,12 @@ export default function CreateUserPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="gender">Giới tính</Label>
+                    <Label htmlFor="gender">Giới tính *</Label>
                     <Select
                       value={formData.gender}
                       onValueChange={(value) => handleInputChange("gender", value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={errors?.gender ? "border-red-500" : ""}>
                         <SelectValue placeholder="Chọn giới tính" />
                       </SelectTrigger>
                       <SelectContent>
@@ -338,16 +377,19 @@ export default function CreateUserPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors?.gender && <p className="text-sm text-red-500">{errors.gender}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="dob">Ngày sinh</Label>
+                    <Label htmlFor="dob">Ngày sinh *</Label>
                     <Input
                       id="dob"
                       type="date"
                       value={formData.dob}
+                      className={errors.dob ? "border-red-500" : ""}
                       onChange={(e) => handleInputChange("dob", e.target.value)}
                     />
+                    {errors.dob && <p className="text-sm text-red-500">{errors.dob}</p>}
                   </div>
                 </CardContent>
               </Card>

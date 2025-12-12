@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Activity, Users, FileText, Calendar as CalendarIcon } from "lucide-react"
 
@@ -17,6 +18,8 @@ import PrescriptionModal from "@/components/doctor/prescription-modal"
 import type { RecordListItemDto, PagedResult } from "@/lib/types/doctor-record"
 import { getDoctorRecords } from "@/lib/services/doctor-record-service"
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
+import { appointmentService } from "@/lib/services/appointment-service"
+import type { DoctorInfoDto } from "@/lib/types/appointment"
 
 export default function DoctorRecordsPage() {
   const router = useRouter()
@@ -26,10 +29,16 @@ export default function DoctorRecordsPage() {
 
   // Filters & paging
   const [search, setSearch] = useState("")
+  const [diagnosis, setDiagnosis] = useState("")
+  const [doctorId, setDoctorId] = useState<string>("")
   const [from, setFrom] = useState("") // yyyy-MM-dd
   const [to, setTo] = useState("")     // yyyy-MM-dd
   const [pageNumber, setPageNumber] = useState(1)
   const [pageSize, setPageSize] = useState(12) // card grid đẹp hơn với 6/12/18/24
+
+  // Doctors list
+  const [doctors, setDoctors] = useState<DoctorInfoDto[]>([])
+  const [loadingDoctors, setLoadingDoctors] = useState(false)
 
   // Data (dùng PagedResult để truyền thẳng cho RecordList)
   const [result, setResult] = useState<PagedResult<RecordListItemDto>>({
@@ -47,6 +56,29 @@ export default function DoctorRecordsPage() {
   // Modal
   const [selectedRecord, setSelectedRecord] = useState<RecordListItemDto | null>(null)
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false)
+
+  // Apply client-side filters for diagnosis and doctor
+  const filteredItems = useMemo(() => {
+    let items = [...result.items]
+
+    // Filter by diagnosis
+    if (diagnosis.trim()) {
+      const diagnosisLower = diagnosis.toLowerCase()
+      items = items.filter((item) => {
+        const itemDiagnosis = item.diagnosisRaw?.toLowerCase() || ""
+        return itemDiagnosis.includes(diagnosisLower)
+      })
+    }
+
+    // Filter by doctor (doctor page shows only current doctor's records, so this might not be needed)
+    // But we'll keep it for consistency
+    if (doctorId && doctorId !== "all") {
+      // Note: Doctor page typically shows only current doctor's records
+      // This filter might not be applicable, but we'll keep it for UI consistency
+    }
+
+    return items
+  }, [result.items, diagnosis, doctorId])
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(result.totalCount / pageSize)),
@@ -77,12 +109,38 @@ export default function DoctorRecordsPage() {
     }
   }
 
+  // Load doctors list
+  useEffect(() => {
+    const loadDoctors = async () => {
+      try {
+        setLoadingDoctors(true)
+        const result = await appointmentService.getPagedDoctors(1, 1000) // Lấy tất cả
+        setDoctors(result.data || [])
+      } catch (error) {
+        console.error("Error loading doctors:", error)
+      } finally {
+        setLoadingDoctors(false)
+      }
+    }
+    loadDoctors()
+  }, [])
+
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, pageSize])
 
   const onSearch = () => {
+    setPageNumber(1)
+    load()
+  }
+
+  const onClearFilters = () => {
+    setSearch("")
+    setDiagnosis("")
+    setDoctorId("")
+    setFrom("")
+    setTo("")
     setPageNumber(1)
     load()
   }
@@ -122,7 +180,9 @@ export default function DoctorRecordsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Hồ sơ bệnh án</h1>
             <p className="text-muted-foreground">Lọc theo ngày khám, tìm theo tên bệnh nhân & kê đơn nhanh</p>
           </div>
-          <Badge variant="outline" className="tabular-nums">Tổng: {result.totalCount}</Badge>
+          <Badge variant="outline" className="tabular-nums">
+            Tổng: {result.totalCount} {filteredItems.length !== result.items.length ? `(Đã lọc: ${filteredItems.length})` : ""}
+          </Badge>
         </div>
 
         {/* Filters */}
@@ -131,8 +191,8 @@ export default function DoctorRecordsPage() {
             <CardTitle className="text-base">Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+              <div>
                 <label className="text-sm font-medium block mb-1">Tên bệnh nhân</label>
                 <Input
                   placeholder="Nhập tên bệnh nhân…"
@@ -141,6 +201,33 @@ export default function DoctorRecordsPage() {
                   onKeyDown={(e) => e.key === "Enter" && onSearch()}
                 />
               </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Chẩn đoán</label>
+                <Input
+                  placeholder="Nhập chẩn đoán…"
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && onSearch()}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Bác sĩ</label>
+                <Select value={doctorId} onValueChange={setDoctorId} disabled={loadingDoctors}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn bác sĩ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả bác sĩ</SelectItem>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.doctorId} value={doctor.doctorId.toString()}>
+                        {doctor.fullName} - {doctor.specialty}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="text-sm font-medium block mb-1">Từ ngày</label>
                 <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -155,7 +242,7 @@ export default function DoctorRecordsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => { setSearch(""); setFrom(""); setTo(""); setPageNumber(1); load() }}
+                  onClick={onClearFilters}
                   disabled={loading}
                 >
                   Xoá lọc
@@ -175,7 +262,11 @@ export default function DoctorRecordsPage() {
               <p className="text-red-600 text-sm">{error}</p>
             ) : (
               <RecordList
-                data={result}
+                data={{
+                  ...result,
+                  items: filteredItems,
+                  totalCount: filteredItems.length,
+                }}
                 isLoading={loading}
                 onViewDetails={onViewDetails}
                 onViewPrescription={onViewPrescription}
