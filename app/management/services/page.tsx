@@ -33,6 +33,10 @@ import type { ServiceDto, CreateServiceRequest, UpdateServiceRequest, PagedRespo
 import { useToast } from "@/hooks/use-toast";
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation";
 
+const PRICE_ONLY_CATEGORIES = ["Dermatology", "InternalMed", "Pediatric"];
+const isPriceOnlyCategory = (category?: string | null) =>
+  category ? PRICE_ONLY_CATEGORIES.includes(category) : false;
+
 interface FormData {
   serviceName: string;
   description: string;
@@ -54,6 +58,7 @@ export default function ServicesManagementPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingService, setEditingService] = useState<ServiceDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<FormData>({
     serviceName: "",
@@ -65,6 +70,7 @@ export default function ServicesManagementPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
+  const isPriceOnly = isPriceOnlyCategory(editingService?.category);
 
   // Load services với phân trang + filter
   const loadServices = async (
@@ -140,6 +146,7 @@ export default function ServicesManagementPage() {
   const handleOpenDialog = (service?: ServiceDto) => {
     if (service) {
       setEditingId(service.serviceId);
+      setEditingService(service);
       setFormData({
         serviceName: service.serviceName,
         description: service.description || "",
@@ -148,6 +155,7 @@ export default function ServicesManagementPage() {
       });
     } else {
       setEditingId(null);
+      setEditingService(null);
       setFormData({
         serviceName: "",
         description: "",
@@ -160,17 +168,21 @@ export default function ServicesManagementPage() {
 
   // Validate form before save
   const validateForm = (): string | null => {
-    if (!formData.serviceName.trim()) {
-      return "Vui lòng nhập tên dịch vụ";
-    }
-    if (formData.serviceName.trim().length < 2) {
-      return "Tên dịch vụ phải có ít nhất 2 ký tự";
-    }
-    if (formData.serviceName.trim().length > 150) {
-      return "Tên dịch vụ không được vượt quá 150 ký tự";
-    }
-    if (formData.description && formData.description.trim().length > 500) {
-      return "Mô tả không được vượt quá 500 ký tự";
+    const isPriceOnly = isPriceOnlyCategory(editingService?.category);
+
+    if (!isPriceOnly) {
+      if (!formData.serviceName.trim()) {
+        return "Vui lòng nhập tên dịch vụ";
+      }
+      if (formData.serviceName.trim().length < 2) {
+        return "Tên dịch vụ phải có ít nhất 2 ký tự";
+      }
+      if (formData.serviceName.trim().length > 150) {
+        return "Tên dịch vụ không được vượt quá 150 ký tự";
+      }
+      if (formData.description && formData.description.trim().length > 500) {
+        return "Mô tả không được vượt quá 500 ký tự";
+      }
     }
     if (formData.price !== null && formData.price < 0) {
       return "Giá dịch vụ không được âm";
@@ -184,6 +196,7 @@ export default function ServicesManagementPage() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingId(null);
+    setEditingService(null);
     setFormData({ serviceName: "", description: "", price: null, isActive: true });
   };
 
@@ -198,6 +211,7 @@ export default function ServicesManagementPage() {
   };
 
   const handleSave = async () => {
+    const isPriceOnly = isPriceOnlyCategory(editingService?.category);
     // Validate form
     const validationError = validateForm();
     if (validationError) {
@@ -209,11 +223,17 @@ export default function ServicesManagementPage() {
       setSaving(true);
 
       if (editingId) {
+        const safeName = isPriceOnly ? editingService?.serviceName || "" : formData.serviceName.trim();
+        const safeDescription = isPriceOnly
+          ? editingService?.description || null
+          : formData.description.trim() || null;
+        const safeIsActive = isPriceOnly ? editingService?.isActive ?? true : formData.isActive;
+
         const updateData: UpdateServiceRequest = {
-          serviceName: formData.serviceName.trim(),
-          description: formData.description.trim() || null,
+          serviceName: safeName,
+          description: safeDescription,
           price: formData.price,
-          isActive: formData.isActive,
+          isActive: safeIsActive,
         };
         await serviceService.update(editingId, updateData);
         await loadServices(pageNumber, pageSize, isActiveFilter);
@@ -347,7 +367,11 @@ export default function ServicesManagementPage() {
               <DialogHeader>
                 <DialogTitle>{editingId ? "Chỉnh sửa" : "Thêm"} dịch vụ</DialogTitle>
                 <DialogDescription>
-                  {editingId ? "Cập nhật thông tin dịch vụ" : "Tạo dịch vụ mới (Category sẽ tự động là 'Test')"}
+                  {editingId
+                    ? isPriceOnly
+                      ? "Chỉ được phép cập nhật giá cho dịch vụ thuộc nhóm chuyên khoa"
+                      : "Cập nhật thông tin dịch vụ"
+                    : "Tạo dịch vụ mới (Category sẽ tự động là 'Test')"}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -358,6 +382,7 @@ export default function ServicesManagementPage() {
                     value={formData.serviceName}
                     onChange={(e) => setFormData({ ...formData, serviceName: e.target.value })}
                     className="mt-1"
+                    disabled={isPriceOnly}
                   />
                 </div>
                 <div>
@@ -368,6 +393,7 @@ export default function ServicesManagementPage() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="mt-1"
                     rows={3}
+                    disabled={isPriceOnly}
                   />
                 </div>
                 <div>
@@ -397,10 +423,16 @@ export default function ServicesManagementPage() {
                     value={formData.isActive ? "true" : "false"}
                     onChange={(e) => setFormData({ ...formData, isActive: e.target.value === "true" })}
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={isPriceOnly}
                   >
                     <option value="true">Hoạt động</option>
                     <option value="false">Không hoạt động</option>
                   </select>
+                  {isPriceOnly && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Dịch vụ chuyên khoa (Dermatology/InternalMed/Pediatric) chỉ được phép chỉnh sửa giá.
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" onClick={handleCloseDialog} disabled={saving}>
