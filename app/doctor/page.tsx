@@ -100,32 +100,6 @@ export default function DoctorDashboard() {
           <DoctorRecentRecords />
         </div>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Thao tác nhanh</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Button
-                variant="outline"
-                className="h-auto flex-col gap-2 py-4 bg-transparent"
-                onClick={() => router.push("/doctor/patients")}
-              >
-                <Users className="h-6 w-6" />
-                <span>Tìm bệnh nhân</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto flex-col gap-2 py-4 bg-transparent"
-                onClick={() => router.push("/doctor/appointments")}
-              >
-                <Calendar className="h-6 w-6" />
-                <span>Xem lịch hẹn</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   )
