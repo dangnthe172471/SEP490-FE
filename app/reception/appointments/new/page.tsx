@@ -275,7 +275,7 @@ export default function NewAppointmentPage() {
                                     <PatientSearch
                                         value={formData.patientId}
                                         onChange={handlePatientSelect}
-                                        placeholder="Tìm kiếm bệnh nhân theo tên, ID, SĐT..."
+                                        placeholder="Tìm kiếm bệnh nhân theo tên"
                                         label="Bệnh nhân"
                                         required
                                     />

@@ -1,6 +1,6 @@
 import { ServiceDto, CreateServiceRequest, UpdateServiceRequest, PagedResponse } from '@/lib/types/service'
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.https://api.diamondhealth.io.vn'
 const API_BASE_URL = `${API_ORIGIN}/api/Services`
 
 class ServiceService {

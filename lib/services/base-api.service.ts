@@ -18,12 +18,11 @@ export class BaseApiService {
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
-        // Refresh token from localStorage before each request
+        // Luôn lấy token mới nhất từ localStorage trước mỗi request
+        let currentToken: string | null = null
         if (typeof window !== 'undefined') {
-            const storedToken = localStorage.getItem('auth_token')
-            if (storedToken !== this.token) {
-                this.token = storedToken
-            }
+            currentToken = localStorage.getItem('auth_token')
+            this.token = currentToken // Cập nhật token trong instance
         }
 
         const url = `${this.baseURL}${endpoint}`
@@ -32,7 +31,8 @@ export class BaseApiService {
             headers: {
                 // Only set Content-Type for non-FormData requests
                 ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-                ...(this.token && { Authorization: `Bearer ${this.token}` }),
+                // Luôn dùng token mới nhất từ localStorage
+                ...(currentToken && { Authorization: `Bearer ${currentToken}` }),
                 ...options.headers,
             },
             ...options,
@@ -41,27 +41,24 @@ export class BaseApiService {
         try {
             const response = await fetch(url, config)
 
+            // Đọc response body một lần duy nhất
+            const text = await response.text()
+
             if (!response.ok) {
                 // Handle 401 Unauthorized - token might be expired
                 if (response.status === 401) {
                     this.clearToken()
-                    // Không redirect tự động, để component xử lý
                 }
 
                 let errorMessage = `HTTP ${response.status}`
-                try {
-                    const errorText = await response.text()
-                    if (errorText) {
-                        // Try to parse as JSON first (for structured error responses)
-                        try {
-                            const errorJson = JSON.parse(errorText)
-                            errorMessage = errorJson.message || errorJson.error || errorText
-                        } catch {
-                            // If not JSON, use as string
-                            errorMessage = errorText
-                        }
+                if (text) {
+                    try {
+                        const errorJson = JSON.parse(text)
+                        errorMessage = errorJson.message || errorJson.error || errorJson.title || text
+                    } catch {
+                        errorMessage = text
                     }
-                } catch {
+                } else {
                     errorMessage = `HTTP ${response.status} - ${response.statusText}`
                 }
 
@@ -73,12 +70,19 @@ export class BaseApiService {
             }
 
             // Handle empty responses
-            const text = await response.text()
             if (!text) {
                 return {} as T
             }
 
-            return JSON.parse(text)
+            try {
+                return JSON.parse(text)
+            } catch (parseError) {
+                throw new ApiError(
+                    'Invalid JSON response from server',
+                    response.status,
+                    response.statusText
+                )
+            }
         } catch (error) {
             if (error instanceof ApiError) {
                 throw error
