@@ -37,6 +37,14 @@ const toPositiveOrNull = (raw: string): number | null => {
   return num
 }
 
+const isFormFilled = (data: ReadPediatricRecordDto) =>
+  !!(
+    data.weightKg &&
+    data.heightCm &&
+    data.heartRate &&
+    data.temperatureC
+  )
+
 export function PediatricDialog({
   open,
   onOpenChange,
@@ -81,7 +89,21 @@ export function PediatricDialog({
     }
   }, [open, recordId])
 
+  const set = <K extends keyof ReadPediatricRecordDto>(
+    k: K,
+    v: ReadPediatricRecordDto[K]
+  ) => setForm((prev) => ({ ...prev, [k]: v }))
+
   const save = async () => {
+    if (!isFormFilled(form)) {
+      showToast(
+        "destructive",
+        "Thiếu dữ liệu",
+        "Vui lòng nhập đầy đủ Cân nặng, Chiều cao, Nhịp tim và Nhiệt độ."
+      )
+      return
+    }
+
     try {
       setSaving(true)
       const existed = await getPediatric(recordId)
@@ -112,15 +134,12 @@ export function PediatricDialog({
     }
   }
 
-  const set = <K extends keyof ReadPediatricRecordDto>(
-    k: K,
-    v: ReadPediatricRecordDto[K]
-  ) => setForm((prev) => ({ ...prev, [k]: v }))
+  const canSave = !saving && !loading && isFormFilled(form)
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="w-full sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>Khám Nhi khoa</DialogTitle>
           </DialogHeader>
@@ -191,7 +210,7 @@ export function PediatricDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Đóng
             </Button>
-            <Button onClick={save} disabled={saving || loading}>
+            <Button onClick={save} disabled={!canSave}>
               {saving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

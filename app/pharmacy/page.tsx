@@ -40,6 +40,7 @@ import {
   ChevronRight,
   ChevronsRight,
   X,
+  Eye,
 } from "lucide-react";
 import { medicineService } from "@/lib/services/medicine-service";
 import type {
@@ -98,10 +99,10 @@ function normalizeStatus(raw?: string): "Providing" | "Stopped" {
   return (raw || "").toLowerCase() === "providing" ? "Providing" : "Stopped";
 }
 
-/** Validate form giống rule BE */
 function validateForm(data: FormData): Partial<Record<keyof FormData, string>> {
   const e: Partial<Record<keyof FormData, string>> = {};
 
+  // Required fields (giống ValidateCreateDto)
   const required: (keyof FormData)[] = [
     "medicineName",
     "activeIngredient",
@@ -121,6 +122,7 @@ function validateForm(data: FormData): Partial<Record<keyof FormData, string>> {
 
   const len = (v: string) => (v || "").length;
 
+  // Giới hạn độ dài – đồng bộ với BE
   if (len(data.medicineName) > 200) e.medicineName = "Tối đa 200 ký tự.";
   if (len(data.activeIngredient) > 200)
     e.activeIngredient = "Tối đa 200 ký tự.";
@@ -133,10 +135,85 @@ function validateForm(data: FormData): Partial<Record<keyof FormData, string>> {
     e.therapeuticClass = "Tối đa 100 ký tự.";
   if (len(data.packSize) > 100) e.packSize = "Tối đa 100 ký tự.";
   if (len(data.noteForDoctor) > 500) e.noteForDoctor = "Tối đa 500 ký tự.";
-  if (len(data.commonSideEffects) > 2000)
-    e.commonSideEffects = "Tối đa 2000 ký tự.";
+  if (len(data.commonSideEffects) > 1000)
+    e.commonSideEffects = "Tối đa 1000 ký tự.";
 
   return e;
+}
+
+/**
+ * ✅ Map lỗi 400 từ BE (ASP.NET ModelState hoặc { message }) sang errors của form
+ * Hỗ trợ cả:
+ * {
+ *   errors: {
+ *     MedicineName: ["..."],
+ *     ActiveIngredient: ["..."]
+ *   }
+ * }
+ */
+function mapBackendErrorsToFormErrors(
+  data: any
+): Partial<Record<keyof FormData, string>> {
+  const fieldErrors: Partial<Record<keyof FormData, string>> = {};
+  if (!data || typeof data !== "object") return fieldErrors;
+
+  const errors = data.errors;
+  if (!errors || typeof errors !== "object") return fieldErrors;
+
+  // Map key BE -> key FormData
+  const mapping: Record<string, keyof FormData> = {
+    // name
+    MedicineName: "medicineName",
+    medicineName: "medicineName",
+
+    ActiveIngredient: "activeIngredient",
+    activeIngredient: "activeIngredient",
+
+    Strength: "strength",
+    strength: "strength",
+
+    DosageForm: "dosageForm",
+    dosageForm: "dosageForm",
+
+    Route: "route",
+    route: "route",
+
+    PrescriptionUnit: "prescriptionUnit",
+    prescriptionUnit: "prescriptionUnit",
+
+    TherapeuticClass: "therapeuticClass",
+    therapeuticClass: "therapeuticClass",
+
+    PackSize: "packSize",
+    packSize: "packSize",
+
+    CommonSideEffects: "commonSideEffects",
+    commonSideEffects: "commonSideEffects",
+
+    NoteForDoctor: "noteForDoctor",
+    noteForDoctor: "noteForDoctor",
+
+    Status: "status",
+    status: "status",
+  };
+
+  Object.entries<any>(errors).forEach(([key, value]) => {
+    const formKey = mapping[key];
+    if (!formKey) return;
+
+    const msg =
+      Array.isArray(value) && value.length
+        ? String(value[0])
+        : typeof value === "string"
+        ? value
+        : "";
+
+    if (msg) {
+      fieldErrors[formKey] = msg;
+    }
+  });
+
+  return fieldErrors;
 }
 
 export default function MedicinesManagementPage() {
@@ -200,6 +277,10 @@ export default function MedicinesManagementPage() {
   // Thống kê toàn bộ (không phụ thuộc filter)
   const [globalTotal, setGlobalTotal] = useState(0);
   const [globalProviding, setGlobalProviding] = useState(0);
+
+  // View chi tiết
+  const [viewingMedicine, setViewingMedicine] =
+    useState<ReadMedicineDto | null>(null);
 
   // Lấy token + kiểm tra role + load data
   useEffect(() => {
@@ -456,9 +537,37 @@ export default function MedicinesManagementPage() {
       handleCloseDialog();
     } catch (error: any) {
       console.error("Failed to save medicine:", error);
+
+      // 💥 Parse lỗi 400 từ BE để hiển thị dưới từng field
+      const status =
+        error?.status ?? error?.response?.status ?? error?.statusCode;
+      const data =
+        error?.data ?? error?.response?.data ?? error?.body ?? error?.error;
+
+      if (status === 400 && data) {
+        const fieldErrors = mapBackendErrorsToFormErrors(data);
+
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors(fieldErrors);
+          toast({
+            title: "Dữ liệu không hợp lệ",
+            description:
+              data?.title ||
+              data?.message ||
+              "Vui lòng kiểm tra lại các trường bị tô đỏ.",
+            variant: "destructive",
+          });
+          return; // ⛔ Không toast thêm nữa
+        }
+      }
+
+      // Fallback: chỉ có message chung
+      const fallbackMessage =
+        data?.message || error?.message || "Không thể lưu thuốc";
+
       toast({
         title: "Lỗi",
-        description: error?.message || "Không thể lưu thuốc",
+        description: fallbackMessage,
         variant: "destructive",
       });
     } finally {
@@ -582,6 +691,13 @@ export default function MedicinesManagementPage() {
     }
   };
 
+  // Edit từ dialog xem chi tiết
+  const handleEditFromView = () => {
+    if (!viewingMedicine) return;
+    handleOpenDialog(viewingMedicine);
+    setViewingMedicine(null);
+  };
+
   // ⛔ Nếu chưa check xong quyền thì không render UI
   if (!authChecked) {
     return null;
@@ -609,7 +725,16 @@ export default function MedicinesManagementPage() {
                 Thêm thuốc
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
+
+            {/* ✅ Giới hạn dialog & bắt buộc text bên trong phải xuống dòng */}
+            <DialogContent
+              className="max-h-[90vh] w-full max-w-[min(900px,100vw-2rem)] overflow-y-auto"
+              style={{
+                overflowX: "hidden",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
+              }}
+            >
               <DialogHeader>
                 <DialogTitle>
                   {editingId ? "Chỉnh sửa" : "Thêm"} thuốc
@@ -808,7 +933,13 @@ export default function MedicinesManagementPage() {
                         commonSideEffects: e.target.value,
                       })
                     }
-                    className="mt-1"
+                    wrap="hard"
+                    className="mt-1 w-full resize-none max-h-40 overflow-y-auto whitespace-pre-wrap break-words"
+                    style={{
+                      overflowX: "hidden",
+                      wordBreak: "break-all",
+                      overflowWrap: "anywhere",
+                    }}
                     rows={3}
                   />
                   {errors.commonSideEffects && (
@@ -832,7 +963,13 @@ export default function MedicinesManagementPage() {
                         noteForDoctor: e.target.value,
                       })
                     }
-                    className="mt-1"
+                    wrap="hard"
+                    className="mt-1 w-full resize-none max-h-40 overflow-y-auto whitespace-pre-wrap break-words"
+                    style={{
+                      overflowX: "hidden",
+                      wordBreak: "break-all",
+                      overflowWrap: "anywhere",
+                    }}
                     rows={3}
                   />
                   {errors.noteForDoctor && (
@@ -1097,16 +1234,30 @@ export default function MedicinesManagementPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Tên thuốc</TableHead>
-                        <TableHead>Hoạt chất</TableHead>
-                        <TableHead>Hàm lượng</TableHead>
-                        <TableHead>Dạng / Đường dùng</TableHead>
-                        <TableHead>Đơn vị</TableHead>
-                        <TableHead>Nhóm điều trị</TableHead>
-                        <TableHead>Quy cách</TableHead>
+                        <TableHead className="w-10 text-center">Xem</TableHead>
+                        <TableHead className="max-w-[180px]">
+                          Tên thuốc
+                        </TableHead>
+                        <TableHead className="max-w-[180px]">
+                          Hoạt chất
+                        </TableHead>
+                        <TableHead className="max-w-[120px]">
+                          Hàm lượng
+                        </TableHead>
+                        <TableHead className="max-w-[200px]">
+                          Dạng / Đường dùng
+                        </TableHead>
+                        <TableHead className="max-w-[120px]">Đơn vị</TableHead>
+                        <TableHead className="max-w-[160px]">
+                          Nhóm điều trị
+                        </TableHead>
+                        <TableHead className="max-w-[200px]">
+                          Quy cách
+                        </TableHead>
                         <TableHead>Trạng thái</TableHead>
-                        <TableHead>Nhà cung cấp</TableHead>
+                        <TableHead className="max-w-[180px]">
+                          Nhà cung cấp
+                        </TableHead>
                         <TableHead className="max-w-xs">
                           Tác dụng phụ thường gặp
                         </TableHead>
@@ -1120,31 +1271,65 @@ export default function MedicinesManagementPage() {
                       {filteredMedicines.length > 0 ? (
                         filteredMedicines.map((medicine) => (
                           <TableRow key={medicine.medicineId}>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {medicine.medicineId}
-                              </Badge>
+                            {/* Eye view */}
+                            <TableCell className="text-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setViewingMedicine(medicine)}
+                                aria-label="Xem chi tiết thuốc"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                             </TableCell>
-                            <TableCell className="font-medium">
+
+                            <TableCell
+                              className="max-w-[180px] truncate font-medium"
+                              title={medicine.medicineName}
+                            >
                               {medicine.medicineName}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell
+                              className="max-w-[180px] truncate text-sm"
+                              title={medicine.activeIngredient || "-"}
+                            >
                               {medicine.activeIngredient || "-"}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell
+                              className="max-w-[120px] truncate text-sm"
+                              title={medicine.strength || "-"}
+                            >
                               {medicine.strength || "-"}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell
+                              className="max-w-[200px] truncate text-sm"
+                              title={
+                                (medicine.dosageForm || "-") +
+                                (medicine.route
+                                  ? ` (${medicine.route})`
+                                  : "")
+                              }
+                            >
                               {medicine.dosageForm || "-"}{" "}
                               {medicine.route ? `(${medicine.route})` : ""}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell
+                              className="max-w-[120px] truncate text-sm"
+                              title={medicine.prescriptionUnit || "-"}
+                            >
                               {medicine.prescriptionUnit || "-"}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell
+                              className="max-w-[160px] truncate text-sm"
+                              title={medicine.therapeuticClass || "-"}
+                            >
                               {medicine.therapeuticClass || "-"}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell
+                              className="max-w-[200px] truncate text-sm"
+                              title={medicine.packSize || "-"}
+                            >
                               {medicine.packSize || "-"}
                             </TableCell>
                             <TableCell>
@@ -1154,13 +1339,22 @@ export default function MedicinesManagementPage() {
                                 {getStatusLabel(medicine.status)}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell
+                              className="max-w-[180px] truncate text-sm"
+                              title={medicine.providerName || "-"}
+                            >
                               {medicine.providerName || "-"}
                             </TableCell>
-                            <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                            <TableCell
+                              className="max-w-xs truncate text-sm text-muted-foreground"
+                              title={medicine.commonSideEffects || "-"}
+                            >
                               {medicine.commonSideEffects || "-"}
                             </TableCell>
-                            <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                            <TableCell
+                              className="max-w-xs truncate text-sm text-muted-foreground"
+                              title={medicine.noteForDoctor || "-"}
+                            >
                               {medicine.noteForDoctor || "-"}
                             </TableCell>
                             <TableCell className="text-right">
@@ -1180,7 +1374,7 @@ export default function MedicinesManagementPage() {
                       ) : (
                         <TableRow>
                           <TableCell
-                            colSpan={13}
+                            colSpan={14}
                             className="py-8 text-center text-muted-foreground"
                           >
                             {searchTerm
@@ -1279,6 +1473,149 @@ export default function MedicinesManagementPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Dialog xem chi tiết */}
+        <Dialog
+          open={!!viewingMedicine}
+          onOpenChange={(open) => {
+            if (!open) setViewingMedicine(null);
+          }}
+        >
+          <DialogContent
+            className="max-h-[90vh] w-full max-w-[min(800px,100vw-2rem)] overflow-y-auto"
+            style={{
+              overflowX: "hidden",
+              wordBreak: "break-word",
+              overflowWrap: "anywhere",
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                Chi tiết thuốc{" "}
+                {viewingMedicine ? `- ${viewingMedicine.medicineName}` : ""}
+              </DialogTitle>
+              <DialogDescription>
+                Xem đầy đủ thông tin thuốc, tác dụng phụ và ghi chú bác sĩ.
+              </DialogDescription>
+            </DialogHeader>
+
+            {viewingMedicine && (
+              <div className="space-y-3 text-sm">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <div className="font-medium">Tên thuốc</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.medicineName}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Trạng thái</div>
+                    <Badge
+                      variant={getStatusBadgeVariant(viewingMedicine.status)}
+                    >
+                      {getStatusLabel(viewingMedicine.status)}
+                    </Badge>
+                  </div>
+
+                  <div>
+                    <div className="font-medium">Hoạt chất chính</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.activeIngredient || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Hàm lượng</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.strength || "-"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="font-medium">Dạng bào chế</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.dosageForm || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Đường dùng</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.route || "-"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="font-medium">Đơn vị kê đơn</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.prescriptionUnit || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Nhóm điều trị</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.therapeuticClass || "-"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="font-medium">Quy cách đóng gói</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.packSize || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Nhà cung cấp</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      {viewingMedicine.providerName || "-"}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-medium">Tác dụng phụ thường gặp</div>
+                  <div
+                    className="mt-1 whitespace-pre-wrap break-words text-muted-foreground"
+                    style={{
+                      wordBreak: "break-all",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {viewingMedicine.commonSideEffects || "-"}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-medium">Ghi chú nội bộ cho bác sĩ</div>
+                  <div
+                    className="mt-1 whitespace-pre-wrap break-words text-muted-foreground"
+                    style={{
+                      wordBreak: "break-all",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {viewingMedicine.noteForDoctor || "-"}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewingMedicine(null)}
+                  >
+                    Đóng
+                  </Button>
+                  <Button
+                    onClick={handleEditFromView}
+                    disabled={!isProvider}
+                    className="gap-1 bg-amber-500 text-white hover:bg-amber-600"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Sửa
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

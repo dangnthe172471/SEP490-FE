@@ -221,8 +221,10 @@ export function DermatologyDialog({
       showToast("destructive", "Không thể lưu", msg)
       return
     }
-    if (!resultSummary.trim()) {
-      const msg = "Vui lòng nhập 'Kết quả da liễu'."
+
+    if (!procedureNotes.trim() || !resultSummary.trim()) {
+      const msg =
+        "Vui lòng nhập đầy đủ 'Ghi chú thủ thuật' và 'Kết quả da liễu'."
       setError(msg)
       showToast("destructive", "Thiếu dữ liệu", msg)
       return
@@ -247,7 +249,7 @@ export function DermatologyDialog({
         requestedProcedure: derm.requestedProcedure ?? undefined,
         bodyArea: derm.bodyArea ?? undefined,
 
-        procedureNotes: procedureNotes.trim() || null,
+        procedureNotes: procedureNotes.trim(),
         resultSummary: resultSummary.trim(),
         attachment: finalAttachment || null,
 
@@ -267,6 +269,9 @@ export function DermatologyDialog({
     }
   }
 
+  const canSave =
+    !!derm && !!procedureNotes.trim() && !!resultSummary.trim() && !saving
+
   const previewUrl = pendingFile
     ? localPreviewUrl
     : attachmentPath
@@ -282,7 +287,7 @@ export function DermatologyDialog({
           else onOpenChange(v)
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-full sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle>Điền kết quả khám da liễu</DialogTitle>
           </DialogHeader>
@@ -320,6 +325,9 @@ export function DermatologyDialog({
               <div className="space-y-1">
                 <Label>Ghi chú thủ thuật (y tá thực hiện)</Label>
                 <Textarea
+                  className="resize-y whitespace-pre-wrap break-words"
+                  style={{ overflowWrap: "anywhere" }}
+                  wrap="soft"
                   value={procedureNotes}
                   onChange={(e) => setProcedureNotes(e.target.value)}
                   rows={2}
@@ -330,6 +338,9 @@ export function DermatologyDialog({
               <div className="space-y-1">
                 <Label>Kết quả da liễu</Label>
                 <Textarea
+                  className="resize-y whitespace-pre-wrap break-words"
+                  style={{ overflowWrap: "anywhere" }}
+                  wrap="soft"
                   value={resultSummary}
                   onChange={(e) => setResultSummary(e.target.value)}
                   rows={3}
@@ -381,10 +392,7 @@ export function DermatologyDialog({
             <Button variant="outline" onClick={handleClose}>
               Đóng
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || !derm}
-            >
+            <Button onClick={handleSave} disabled={!canSave}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -398,9 +406,9 @@ export function DermatologyDialog({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog phóng to ảnh – 2/3 màn hình, căn giữa, có DialogTitle ẩn cho a11y */}
+      {/* Dialog phóng to ảnh */}
       <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
-        <DialogContent className="max-w-[70vw] max-h-[70vh] p-0 border-none bg-transparent shadow-none">
+        <DialogContent className="max-w-[70vw] max-h-[70vh] border-none bg-transparent p-0 shadow-none">
           <DialogHeader className="sr-only">
             <DialogTitle>Ảnh đính kèm da liễu</DialogTitle>
           </DialogHeader>
@@ -409,7 +417,7 @@ export function DermatologyDialog({
               <img
                 src={previewUrl}
                 alt="Ảnh da liễu"
-                className="max-h-[66vh] max-w-[66vw] object-contain rounded-lg shadow-lg"
+                className="max-h-[66vh] max-w-[66vw] rounded-lg object-contain shadow-lg"
               />
             </div>
           )}
@@ -418,7 +426,7 @@ export function DermatologyDialog({
 
       {toastOpen && (
         <div
-          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${
+          className={`fixed bottom-6 right-6 z-[210] flex max-w-sm flex-col gap-1 rounded-md px-4 py-3 shadow-md ${
             toastVariant === "destructive"
               ? "border border-red-200 bg-red-50 text-red-900"
               : "border border-emerald-200 bg-emerald-50 text-emerald-900"

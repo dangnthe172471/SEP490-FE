@@ -37,6 +37,15 @@ const toPositiveOrNull = (raw: string): number | null => {
   return num
 }
 
+const isFormFilled = (data: ReadInternalMedRecordDto) =>
+  !!(
+    data.bloodPressure &&
+    data.heartRate &&
+    data.bloodSugar &&
+    data.notes &&
+    data.notes.toString().trim()
+  )
+
 export function InternalMedDialog({
   open,
   onOpenChange,
@@ -72,8 +81,8 @@ export function InternalMedDialog({
         showToast(
           "destructive",
           "Lỗi tải dữ liệu",
-          e?.message ?? "Không tải được hồ sơ Nội khoa."
-        )
+          e?.message ?? "Không tải được hồ sơ Nội khoa.",
+        ),
       )
       .finally(() => setLoading(false))
     return () => {
@@ -81,7 +90,21 @@ export function InternalMedDialog({
     }
   }, [open, recordId])
 
+  const set = <K extends keyof ReadInternalMedRecordDto>(
+    k: K,
+    v: ReadInternalMedRecordDto[K],
+  ) => setForm((prev) => ({ ...prev, [k]: v }))
+
   const save = async () => {
+    if (!isFormFilled(form)) {
+      showToast(
+        "destructive",
+        "Thiếu dữ liệu",
+        "Vui lòng nhập đầy đủ Huyết áp, Nhịp tim, Đường huyết và Ghi chú.",
+      )
+      return
+    }
+
     try {
       setSaving(true)
       const existed = await getInternalMed(recordId)
@@ -90,7 +113,7 @@ export function InternalMedDialog({
         bloodPressure: form.bloodPressure ?? null,
         heartRate: form.heartRate ?? null,
         bloodSugar: form.bloodSugar ?? null,
-        notes: form.notes ?? null,
+        notes: form.notes?.toString().trim() ?? null,
       }
       if (existed) {
         await updateInternalMed(recordId, payload)
@@ -105,22 +128,19 @@ export function InternalMedDialog({
       showToast(
         "destructive",
         "Lỗi khi lưu",
-        e?.message ?? "Không thể lưu hồ sơ Nội khoa."
+        e?.message ?? "Không thể lưu hồ sơ Nội khoa.",
       )
     } finally {
       setSaving(false)
     }
   }
 
-  const set = <K extends keyof ReadInternalMedRecordDto>(
-    k: K,
-    v: ReadInternalMedRecordDto[K]
-  ) => setForm((prev) => ({ ...prev, [k]: v }))
+  const canSave = !saving && !loading && isFormFilled(form)
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="w-full sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>Khám Nội khoa</DialogTitle>
           </DialogHeader>
@@ -173,6 +193,9 @@ export function InternalMedDialog({
               <div className="space-y-1">
                 <Label>Ghi chú</Label>
                 <Textarea
+                  className="resize-y whitespace-pre-wrap break-words"
+                  style={{ overflowWrap: "anywhere" }}
+                  wrap="soft"
                   value={form.notes ?? ""}
                   onChange={(e) => set("notes", e.target.value)}
                   placeholder="Ví dụ: bệnh nhân hơi mệt, cần theo dõi thêm..."
@@ -184,7 +207,7 @@ export function InternalMedDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Đóng
             </Button>
-            <Button onClick={save} disabled={saving || loading}>
+            <Button onClick={save} disabled={!canSave}>
               {saving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -214,7 +237,7 @@ export function InternalMedDialog({
   function showToast(
     variant: "default" | "destructive",
     title: string,
-    desc?: string
+    desc?: string,
   ) {
     setToastVariant(variant)
     setToastTitle(title)
