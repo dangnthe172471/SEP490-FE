@@ -1,6 +1,6 @@
 import { ApiError, ApiResponse } from '@/lib/types/api'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7168'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
 
 export class BaseApiService {
     protected baseURL: string

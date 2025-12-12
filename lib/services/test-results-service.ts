@@ -6,8 +6,7 @@ import type {
   TestTypeLite,
 } from "@/lib/types/test-results"
 
-// const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:7168"
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api.diamondhealth.io.vn"
 
 function getAccessToken(): string | null {
   if (typeof window === "undefined") return null

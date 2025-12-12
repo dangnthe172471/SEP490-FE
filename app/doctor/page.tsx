@@ -1,12 +1,11 @@
 "use client"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { DoctorStats } from "@/components/doctor-stats"
 import { DoctorAppointments } from "@/components/doctor-appointments"
 import { DoctorRecentRecords } from "@/components/doctor-recent-records"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, FileText, Users, Activity } from "lucide-react"
+import { Calendar, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
@@ -92,9 +91,6 @@ export default function DoctorDashboard() {
           </p>
         </div>
 
-        {/* Statistics Cards - Sử dụng component thực tế với API */}
-        <DoctorStats />
-
         {/* Main Content Grid */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Today's Appointments - Sử dụng component thực tế với API */}
@@ -110,11 +106,7 @@ export default function DoctorDashboard() {
             <CardTitle>Thao tác nhanh</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Button className="h-auto flex-col gap-2 py-4" onClick={() => router.push("/doctor/records/new")}>
-                <FileText className="h-6 w-6" />
-                <span>Tạo hồ sơ mới</span>
-              </Button>
+            <div className="grid gap-4 md:grid-cols-2">
               <Button
                 variant="outline"
                 className="h-auto flex-col gap-2 py-4 bg-transparent"

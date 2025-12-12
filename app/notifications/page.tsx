@@ -28,6 +28,36 @@ interface Notification {
     notificationId: number
 }
 
+function formatNotificationContent(content: string): { summary: string; details?: string } {
+    if (!content) return { summary: "" }
+
+    try {
+        const parsed = JSON.parse(content)
+        // Trường hợp nội dung là yêu cầu tái khám / lịch hẹn
+        if (parsed.AppointmentId || parsed.PatientId || parsed.DoctorId) {
+            const preferred = parsed.PreferredDate ? new Date(parsed.PreferredDate).toLocaleString("vi-VN") : "Đang cập nhật"
+            const note = parsed.Notes ?? "Không có ghi chú"
+            const status = parsed.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành"
+            const summary = `Yêu cầu tái khám #${parsed.AppointmentId ?? "N/A"} - BN ${parsed.PatientId ?? "?"}, BS ${parsed.DoctorId ?? "?"}, lịch: ${preferred}`
+            const details = [
+                `Mã lịch hẹn: ${parsed.AppointmentId ?? "N/A"}`,
+                `Bệnh nhân: ${parsed.PatientId ?? "?"}`,
+                `Bác sĩ: ${parsed.DoctorId ?? "?"}`,
+                `Thời gian mong muốn: ${preferred}`,
+                `Ghi chú: ${note}`,
+                `Trạng thái: ${status}`,
+            ].join("\n")
+            return { summary, details }
+        }
+
+        // Nếu là JSON khác, stringify gọn hơn
+        return { summary: Object.entries(parsed).map(([k, v]) => `${k}: ${v ?? ""}`).join(" • ") || content, details: JSON.stringify(parsed, null, 2) }
+    } catch {
+        // Không phải JSON
+        return { summary: content }
+    }
+}
+
 export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [activeFilter, setActiveFilter] = useState<NotificationType>("all")
@@ -71,12 +101,14 @@ export default function NotificationsPage() {
                         normalizedType = "other"
                 }
 
+                const { summary, details } = formatNotificationContent(n.content)
+
                 return {
                     id: n.notificationId.toString(),
                     type: normalizedType,
                     title: n.title,
-                    description: n.content,
-                    fullDetails: n.content,
+                    description: summary,
+                    fullDetails: details || summary,
                     timestamp: new Date(n.createdDate).toLocaleString("vi-VN"),
                     isRead: n.isRead,
                     icon: getIcon(normalizedType),

@@ -1,6 +1,6 @@
 import type { ReadInternalMedRecordDto, ReadPediatricRecordDto, ReadDermatologyRecordDto } from "@/lib/types/specialties"
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7168'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.https://api.diamondhealth.io.vn'
 const API_BASE_URL = `${API_ORIGIN}/api/MedicalRecord`
 
 export interface AppointmentLiteDto {

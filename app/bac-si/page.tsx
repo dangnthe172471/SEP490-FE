@@ -12,6 +12,35 @@ import { useEffect, useState } from "react"
 export default function BacSiPage() {
   const [doctors, setDoctors] = useState<DoctorHomeDto[]>([])
   const [loading, setLoading] = useState(true)
+const [currentPage, setCurrentPage] = useState(1)
+const pageSize = 6 
+const indexOfLast = currentPage * pageSize
+const indexOfFirst = indexOfLast - pageSize
+
+const [searchTerm, setSearchTerm] = useState("")
+
+function removeVietnameseTones(str: string) {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+}
+const filteredDoctors = doctors.filter((d) => {
+  const name = removeVietnameseTones(d.fullName)
+  const specialty = removeVietnameseTones(d.specialty)
+  const key = removeVietnameseTones(searchTerm)
+
+  return name.includes(key) || specialty.includes(key)
+})
+
+const totalPages = Math.ceil(filteredDoctors.length / pageSize)
+const currentDoctors = filteredDoctors.slice(indexOfFirst, indexOfLast)
+useEffect(() => {
+  setCurrentPage(1)
+}, [searchTerm])
+
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -51,15 +80,28 @@ export default function BacSiPage() {
         </section>
 
         {/* Doctors Grid */}
+
         <section className="bg-white py-24 md:py-32">
+          <div className="max-w-md mx-auto mb-10">
+  <input
+    type="text"
+    placeholder="Tìm bác sĩ theo tên hoặc chuyên khoa..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    className="w-full rounded-lg border  px-6 py-3"
+  />
+</div>
+
           <div className="container mx-auto px-4">
             {loading ? (
               <p className="text-center text-muted-foreground">Đang tải danh sách bác sĩ...</p>
             ) : doctors.length === 0 ? (
               <p className="text-center text-muted-foreground">Chưa có bác sĩ nào.</p>
             ) : (
+              
               <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                {doctors.map((doctor, index) => (
+                {currentDoctors.map((doctor, index) => (
+
                   <Card
                     key={index}
                     className="group overflow-hidden border-none bg-white shadow-xl ring-1 ring-black/5 transition-all hover:-translate-y-2 hover:shadow-2xl"
@@ -112,7 +154,35 @@ export default function BacSiPage() {
                 ))}
               </div>)}
           </div>
+          <div className="flex justify-center mt-10 gap-2">
+  <Button
+    variant="outline"
+    disabled={currentPage === 1}
+    onClick={() => setCurrentPage(p => p - 1)}
+  >
+   Trang Trước
+  </Button>
+
+  {Array.from({ length: totalPages }, (_, i) => (
+    <Button
+      key={i}
+      variant={currentPage === i + 1 ? "default" : "outline"}
+      onClick={() => setCurrentPage(i + 1)}
+    >
+      {i + 1}
+    </Button>
+  ))}
+
+  <Button
+    variant="outline"
+    disabled={currentPage === totalPages}
+    onClick={() => setCurrentPage(p => p + 1)}
+  >
+    Trang sau
+  </Button>
+</div>
         </section>
+
 
         {/* CTA Section */}
         <section className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-primary to-blue-600 py-20 text-primary-foreground md:py-24">

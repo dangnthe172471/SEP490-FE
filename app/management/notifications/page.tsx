@@ -176,6 +176,37 @@ export default function NotificationsPage() {
         }
     }
 
+const formatNotificationContent = (content: string): { summary: string; details?: string } => {
+    if (!content) return { summary: "" }
+    try {
+        const parsed = JSON.parse(content)
+        // Lịch hẹn / tái khám
+        if (parsed.AppointmentId || parsed.PatientId || parsed.DoctorId) {
+            const preferred = parsed.PreferredDate ? new Date(parsed.PreferredDate).toLocaleString("vi-VN") : "Đang cập nhật"
+            const note = parsed.Notes ?? "Không có ghi chú"
+            const status = parsed.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành"
+            const summary = `Yêu cầu tái khám #${parsed.AppointmentId ?? "N/A"} - BN ${parsed.PatientId ?? "?"}, BS ${parsed.DoctorId ?? "?"}, lịch: ${preferred}`
+            const details = [
+                `Mã lịch hẹn: ${parsed.AppointmentId ?? "N/A"}`,
+                `Bệnh nhân: ${parsed.PatientId ?? "?"}`,
+                `Bác sĩ: ${parsed.DoctorId ?? "?"}`,
+                `Thời gian mong muốn: ${preferred}`,
+                `Ghi chú: ${note}`,
+                `Trạng thái: ${status}`,
+            ].join("\n")
+            return { summary, details }
+        }
+        // JSON khác: gom key-value ngắn gọn
+        const summary =
+            Object.entries(parsed)
+                .map(([k, v]) => `${k}: ${v ?? ""}`)
+                .join(" • ") || content
+        return { summary, details: JSON.stringify(parsed, null, 2) }
+    } catch {
+        return { summary: content }
+    }
+}
+
     return (
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
@@ -378,26 +409,36 @@ export default function NotificationsPage() {
                                     <div className="text-center py-6 text-muted-foreground">Chưa có thông báo nào.</div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {notifications.map((n) => (
-                                            <div
-                                                key={n.notificationId}
-                                                className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50"
-                                            >
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <h3 className="font-semibold">{n.title}</h3>
-                                                        <Badge className={getNotificationTypeColor(n.type)}>
-                                                            {getNotificationTypeLabel(n.type)}
-                                                        </Badge>
-                                                    </div>
-                                                    <p className="text-sm text-muted-foreground mb-2">{n.content}</p>
-                                                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                                        <span>Ngày tạo: {new Date(n.createdDate).toLocaleString()}</span>
-                                                        <span>{n.isRead ? "Đã đọc" : "Chưa đọc"}</span>
+                                        {notifications.map((n) => {
+                                            const { summary, details } = formatNotificationContent(n.content)
+                                            return (
+                                                <div
+                                                    key={n.notificationId}
+                                                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50"
+                                                >
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <h3 className="font-semibold">{n.title}</h3>
+                                                            <Badge className={getNotificationTypeColor(n.type)}>
+                                                                {getNotificationTypeLabel(n.type)}
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-sm text-muted-foreground mb-1">
+                                                            {summary || "Không có nội dung"}
+                                                        </p>
+                                                        {details && details !== summary && (
+                                                            <pre className="text-xs text-muted-foreground/80 whitespace-pre-wrap mb-2">
+                                                                {details}
+                                                            </pre>
+                                                        )}
+                                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                                            <span>Ngày tạo: {new Date(n.createdDate).toLocaleString()}</span>
+                                                            <span>{n.isRead ? "Đã đọc" : "Chưa đọc"}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 )}
 
