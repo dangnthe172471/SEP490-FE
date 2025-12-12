@@ -1,12 +1,11 @@
 "use client"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { ReceptionStats } from "@/components/reception-stats"
 import { ReceptionAppointments } from "@/components/reception-appointments"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Users, Clock, UserPlus, CalendarPlus, Activity, MessageCircle, FileText } from "lucide-react"
+import { Calendar, Users, CalendarPlus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { useEffect, useState } from "react"
@@ -90,9 +89,6 @@ export default function ReceptionDashboard() {
           <p className="text-muted-foreground">Quản lý tiếp nhận và lịch hẹn bệnh nhân</p>
         </div>
 
-        {/* Statistics - Sử dụng component thực tế với API */}
-        <ReceptionStats />
-
         <div className="grid gap-6 md:grid-cols-2">
           {/* Today's Appointments - Sử dụng component thực tế với API */}
           <ReceptionAppointments limit={5} />
@@ -105,14 +101,6 @@ export default function ReceptionDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-3">
-                <Button className="w-full justify-start h-auto py-4" onClick={() => router.push("/reception/register")}>
-                  <UserPlus className="mr-3 h-5 w-5" />
-                  <div className="text-left">
-                    <p className="font-semibold">Đăng ký bệnh nhân mới</p>
-                    <p className="text-xs text-primary-foreground/80">Tạo hồ sơ bệnh nhân mới</p>
-                  </div>
-                </Button>
-
                 <Button
                   variant="outline"
                   className="w-full justify-start h-auto py-4 bg-transparent"

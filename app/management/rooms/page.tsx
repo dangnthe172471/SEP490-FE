@@ -333,10 +333,6 @@ export default function RoomsManagementPage() {
                                                                     <Edit2 className="h-4 w-4" />
                                                                     Sửa
                                                                 </Button>
-                                                                <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(room.roomId)} className="gap-1" disabled={saving || deleting}>
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                    Xóa
-                                                                </Button>
                                                             </div>
                                                         </TableCell>
                                                     </TableRow>
@@ -393,23 +389,6 @@ export default function RoomsManagementPage() {
                 </Card>
             </div>
 
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Bạn có chắc chắn muốn xóa phòng này? Hành động này không thể hoàn tác.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className="flex gap-2 justify-end">
-                        <AlertDialogCancel disabled={deleting}>Hủy</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Xóa
-                        </AlertDialogAction>
-                    </div>
-                </AlertDialogContent>
-            </AlertDialog>
         </DashboardLayout>
     )
 }

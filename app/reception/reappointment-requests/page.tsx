@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { CalendarDays, Clock, Mail, Phone, Stethoscope, User } from "lucide-react"
+import { CalendarDays, Clock, Mail, Phone, Stethoscope, User, Zap } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
@@ -17,13 +17,17 @@ import { useToast } from "@/hooks/use-toast"
 function formatDateTime(value?: string | null) {
     if (!value) return "Chưa xác định"
     const date = new Date(value)
-    return date.toLocaleString("vi-VN", {
+    const dateStr = date.toLocaleDateString("vi-VN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
+    })
+    const timeStr = date.toLocaleTimeString("vi-VN", {
         hour: "2-digit",
         minute: "2-digit",
+        hour12: false,
     })
+    return `${dateStr} ${timeStr}`
 }
 
 export default function ReappointmentRequestsPage() {
@@ -46,6 +50,7 @@ export default function ReappointmentRequestsPage() {
     const [appointmentDate, setAppointmentDate] = useState<string>("")
     const [reason, setReason] = useState<string>("")
     const [submitting, setSubmitting] = useState(false)
+    const [quickBookingId, setQuickBookingId] = useState<number | null>(null)
 
     const selectedRequest = useMemo(
         () => requests.find((r) => r.notificationId === selectedId) ?? null,
@@ -121,6 +126,59 @@ export default function ReappointmentRequestsPage() {
             })
         } finally {
             setSubmitting(false)
+        }
+    }
+
+    const handleQuickBook = async (req: ReappointmentRequestDto) => {
+        if (!req.preferredDate) {
+            toast({
+                title: "Thiếu thông tin",
+                description: "Yêu cầu này chưa có ngày giờ mong muốn. Vui lòng đặt lịch thủ công.",
+                variant: "destructive",
+            })
+            return
+        }
+
+        try {
+            setQuickBookingId(req.notificationId)
+
+            // Format datetime để giữ nguyên giờ local, không bị convert timezone
+            // Lấy các thành phần local time từ preferredDate
+            const date = new Date(req.preferredDate)
+
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            const hours = String(date.getHours()).padStart(2, '0')
+            const minutes = String(date.getMinutes()).padStart(2, '0')
+            const seconds = String(date.getSeconds()).padStart(2, '0')
+
+            // Format thành ISO-like string nhưng giữ nguyên local time: "YYYY-MM-DDTHH:mm:ss"
+            // Không thêm Z để backend parse như local time
+            const appointmentDateISO = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+
+            const reasonForVisit = req.notes?.trim() || "Tái khám theo yêu cầu của bác sĩ"
+
+            await reappointmentRequestService.completeReappointmentRequest({
+                notificationId: req.notificationId,
+                appointmentDate: appointmentDateISO,
+                reasonForVisit,
+            })
+
+            toast({
+                title: "Đã đặt lịch nhanh",
+                description: `Đã đặt lịch tái khám cho ${req.patientName} vào ${formatDateTime(req.preferredDate)}.`,
+            })
+
+            loadRequests()
+        } catch (err: any) {
+            toast({
+                title: "Không thể đặt lịch nhanh",
+                description: err?.message ?? "Vui lòng thử lại sau.",
+                variant: "destructive",
+            })
+        } finally {
+            setQuickBookingId(null)
         }
     }
 
@@ -311,7 +369,25 @@ export default function ReappointmentRequestsPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex justify-end">
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => handleQuickBook(req)}
+                                                disabled={quickBookingId === req.notificationId || !req.preferredDate}
+                                                className="gap-2"
+                                            >
+                                                {quickBookingId === req.notificationId ? (
+                                                    <>
+                                                        <Clock className="h-4 w-4 animate-spin" />
+                                                        Đang xử lý...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Zap className="h-4 w-4" />
+                                                        Đặt lịch nhanh
+                                                    </>
+                                                )}
+                                            </Button>
                                             <Button onClick={() => handleSelect(req)}>Đặt lịch tái khám</Button>
                                         </div>
                                     )}
