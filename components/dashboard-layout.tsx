@@ -130,7 +130,8 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
           <nav className="flex-1 space-y-1 p-4" suppressHydrationWarning>
             {navigation.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              // Check if pathname matches exactly or is a sub-path
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
               return (
                 <Button
                   key={item.href}
