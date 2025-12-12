@@ -1269,7 +1269,7 @@ export default function MedicinesManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredMedicines.length > 0 ? (
-                        filteredMedicines.map((medicine) => (
+                        filteredMedicines.map((medicine, index) => (
                           <TableRow key={medicine.medicineId}>
                             {/* Eye view */}
                             <TableCell className="text-center">

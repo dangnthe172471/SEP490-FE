@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Tabs,
   TabsContent,
@@ -39,6 +40,8 @@ import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { DateFormatter } from "@/components/date-formatter"
 import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
+import { managerService } from "@/lib/services/manager-service"
+import type { DoctorDto } from "@/lib/types/manager-type"
 
 type User = UserDto & {
   id: string
@@ -46,6 +49,7 @@ type User = UserDto & {
   status: string
   department: string
   joinDate: string
+  specialty?: string // Chuyên khoa (chỉ cho bác sĩ)
 }
 
 export default function AdminUsersPage() {
@@ -57,6 +61,37 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>("all")
+  const [specialties, setSpecialties] = useState<string[]>([])
+  const [doctorsMap, setDoctorsMap] = useState<Record<number, string>>({}) // userId -> specialty
+
+  // Load doctors để lấy specialty
+  useEffect(() => {
+    const loadDoctors = async () => {
+      try {
+        // Dùng appointmentService để lấy doctors với userId
+        const { appointmentService } = await import("@/lib/services/appointment-service")
+        const doctorsWithUserId = await appointmentService.getPagedDoctors(1, 1000)
+        
+        // Tạo map userId -> specialty
+        const map: Record<number, string> = {}
+        const specialtySet = new Set<string>()
+        
+        doctorsWithUserId.data.forEach((doctor) => {
+          if (doctor.userId && doctor.specialty) {
+            map[doctor.userId] = doctor.specialty
+            specialtySet.add(doctor.specialty)
+          }
+        })
+        
+        setDoctorsMap(map)
+        setSpecialties(Array.from(specialtySet).sort())
+      } catch (err) {
+        console.error("Lỗi khi load danh sách bác sĩ:", err)
+      }
+    }
+    loadDoctors()
+  }, [])
 
   // Gọi API lấy danh sách người dùng
   const fetchUsers = useCallback(async () => {
@@ -74,6 +109,7 @@ export default function AdminUsersPage() {
           status: user.isActive ? "active" : "inactive",
           department: getDepartmentByRole(user.role),
           joinDate: "2025-01-01T00:00:00.000Z",
+          specialty: doctorsMap[user.userId] || undefined, // Thêm specialty từ map
         }))
 
       setUsers(processedUsers)
@@ -84,7 +120,19 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [doctorsMap])
+
+  // Update users when doctorsMap changes
+  useEffect(() => {
+    if (Object.keys(doctorsMap).length > 0 && users.length > 0) {
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => ({
+          ...user,
+          specialty: doctorsMap[user.userId] || user.specialty,
+        }))
+      )
+    }
+  }, [doctorsMap])
 
   // Helper lấy phòng ban theo role
   const getDepartmentByRole = (role?: string) => {
@@ -112,6 +160,11 @@ export default function AdminUsersPage() {
     fetchUsers()
   }, [fetchUsers])
 
+  // Reset page when specialty filter changes
+  useEffect(() => {
+    setPageDoctor(1)
+  }, [selectedSpecialty])
+
   // Lọc người dùng theo search
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return users
@@ -128,7 +181,13 @@ export default function AdminUsersPage() {
   // Phân loại theo role
   const activeUsers = filteredUsers.filter((u) => u.status === "active")
   const inActiveUsers = filteredUsers.filter((u) => u.status === "inactive")
-  const doctorUsers = filteredUsers.filter((u) => u.role === "Doctor")
+  let doctorUsers = filteredUsers.filter((u) => u.role === "Doctor")
+  
+  // Filter doctors by specialty
+  if (selectedSpecialty !== "all") {
+    doctorUsers = doctorUsers.filter((u) => u.specialty === selectedSpecialty)
+  }
+  
   const patientUsers = filteredUsers.filter((u) => u.role === "Patient")
   const receptionistUsers = filteredUsers.filter((u) => u.role === "Receptionist")
   const pharmacyProviderUsers = filteredUsers.filter((u) => u.role === "Pharmacy Provider")
@@ -221,9 +280,14 @@ export default function AdminUsersPage() {
                   <h3 className="text-lg font-semibold">{user.name || "N/A"}</h3>
                   <Badge variant="outline">{user.id || "N/A"}</Badge>
                 </div>
-                <div className="flex gap-2 mb-2">
+                <div className="flex gap-2 mb-2 flex-wrap">
                   <Badge variant="secondary">{user.role || "N/A"}</Badge>
                   <Badge variant="outline">{user.department || "N/A"}</Badge>
+                  {user.role === "Doctor" && user.specialty && (
+                    <Badge variant="default" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                      {user.specialty}
+                    </Badge>
+                  )}
                   <Badge
                     variant={user.status === "active" ? "default" : "destructive"}
                   >
@@ -417,10 +481,36 @@ export default function AdminUsersPage() {
 
               {/* DOCTORS */}
               <TabsContent value="doctors" className="space-y-4">
+                {/* Filter by Specialty */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Lọc theo chuyên khoa</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
+                      <SelectTrigger className="w-full md:w-[300px]">
+                        <SelectValue placeholder="Chọn chuyên khoa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả chuyên khoa</SelectItem>
+                        {specialties.map((specialty) => (
+                          <SelectItem key={specialty} value={specialty}>
+                            {specialty}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
+
                 {paginatedDoctor.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
-                      <p className="text-muted-foreground">Không có bác sĩ nào</p>
+                      <p className="text-muted-foreground">
+                        {selectedSpecialty !== "all"
+                          ? `Không có bác sĩ nào thuộc chuyên khoa "${selectedSpecialty}"`
+                          : "Không có bác sĩ nào"}
+                      </p>
                     </CardContent>
                   </Card>
                 ) : (
@@ -429,9 +519,10 @@ export default function AdminUsersPage() {
                 <PaginationControls
                   currentPage={pageDoctor}
                   totalItems={doctorUsers.length}
-                  onChange={(p) =>
+                  onChange={(p) => {
+                    setPageDoctor(1)
                     handlePageChange(setPageDoctor, p, Math.ceil(doctorUsers.length / usersPerPage))
-                  }
+                  }}
                 />
               </TabsContent>
 

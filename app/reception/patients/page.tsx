@@ -54,6 +54,11 @@ export default function ReceptionPatientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  
+  // Pagination states
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [activeTab, setActiveTab] = useState("all");
 
   // Gọi API lấy danh sách bệnh nhân
   const fetchUsers = useCallback(async () => {
@@ -138,6 +143,39 @@ export default function ReceptionPatientsPage() {
   }, [patients, searchQuery]);
 
   const activeUsers = filteredUsers.filter((u) => u.status === "active");
+
+  // Pagination logic
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredUsers.length / pageSize)),
+    [filteredUsers.length, pageSize]
+  );
+
+  const totalPagesActive = useMemo(
+    () => Math.max(1, Math.ceil(activeUsers.length / pageSize)),
+    [activeUsers.length, pageSize]
+  );
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (pageNumber - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, pageNumber, pageSize]);
+
+  const paginatedActiveUsers = useMemo(() => {
+    const startIndex = (pageNumber - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return activeUsers.slice(startIndex, endIndex);
+  }, [activeUsers, pageNumber, pageSize]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPageNumber(1);
+  }, [searchQuery]);
+
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    setPageNumber(1);
+  }, [activeTab]);
 
   // Component hiển thị bệnh nhân
   const PatientCard = ({ patient }: { patient: User }) => {
@@ -326,48 +364,154 @@ export default function ReceptionPatientsPage() {
           )}
           {/* Danh sách bệnh nhân */}
           {!loading && !error && (
-            <Tabs defaultValue="all" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="all">
-                  Tất cả ({filteredUsers.length})
-                </TabsTrigger>
-                <TabsTrigger value="active">
-                  Đang hoạt động ({activeUsers.length})
-                </TabsTrigger>
-              </TabsList>
+            <Card>
+              <CardHeader>
+                <CardTitle>Danh sách bệnh nhân</CardTitle>
+                <CardDescription>
+                  Tổng: {filteredUsers.length} bệnh nhân
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="space-y-4"
+                >
+                  {/* <TabsList>
+                    <TabsTrigger value="all">
+                      Tất cả ({filteredUsers.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="active">
+                      Đang hoạt động ({activeUsers.length})
+                    </TabsTrigger>
+                  </TabsList> */}
 
-              <TabsContent value="all" className="space-y-4">
-                {filteredUsers.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <p className="text-muted-foreground">
-                        Không tìm thấy bệnh nhân nào
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  filteredUsers.map((patient) => (
-                    <PatientCard key={patient.id} patient={patient} />
-                  ))
-                )}
-              </TabsContent>
+                  <TabsContent value="all" className="space-y-4">
+                    {filteredUsers.length === 0 ? (
+                      <div className="text-center py-12">
+                        <p className="text-muted-foreground">
+                          Không tìm thấy bệnh nhân nào
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-4">
+                          {paginatedUsers.map((patient) => (
+                            <PatientCard key={patient.id} patient={patient} />
+                          ))}
+                        </div>
+                        {/* Pagination */}
+                        {filteredUsers.length > 0 && (
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="text-sm text-muted-foreground">
+                              Trang {pageNumber}/{totalPages} • Mỗi trang{" "}
+                              <select
+                                className="ml-1 border rounded px-2 py-1 text-sm"
+                                value={pageSize}
+                                onChange={(e) => {
+                                  setPageSize(Number(e.target.value));
+                                  setPageNumber(1);
+                                }}
+                              >
+                                {[6, 12, 18, 24].map((n) => (
+                                  <option key={n} value={n}>
+                                    {n}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  setPageNumber((p) => Math.max(1, p - 1))
+                                }
+                                disabled={pageNumber <= 1}
+                              >
+                                Trước
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  setPageNumber((p) =>
+                                    Math.min(totalPages, p + 1)
+                                  )
+                                }
+                                disabled={pageNumber >= totalPages}
+                              >
+                                Sau
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </TabsContent>
 
-              <TabsContent value="active" className="space-y-4">
-                {activeUsers.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <p className="text-muted-foreground">
-                        Không có bệnh nhân hoạt động
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  activeUsers.map((patient) => (
-                    <PatientCard key={patient.id} patient={patient} />
-                  ))
-                )}
-              </TabsContent>
-            </Tabs>
+                  <TabsContent value="active" className="space-y-4">
+                    {activeUsers.length === 0 ? (
+                      <div className="text-center py-12">
+                        <p className="text-muted-foreground">
+                          Không có bệnh nhân hoạt động
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-4">
+                          {paginatedActiveUsers.map((patient) => (
+                            <PatientCard key={patient.id} patient={patient} />
+                          ))}
+                        </div>
+                        {/* Pagination */}
+                        {activeUsers.length > 0 && (
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="text-sm text-muted-foreground">
+                              Trang {pageNumber}/{totalPagesActive} • Mỗi trang{" "}
+                              <select
+                                className="ml-1 border rounded px-2 py-1 text-sm"
+                                value={pageSize}
+                                onChange={(e) => {
+                                  setPageSize(Number(e.target.value));
+                                  setPageNumber(1);
+                                }}
+                              >
+                                {[6, 12, 18, 24].map((n) => (
+                                  <option key={n} value={n}>
+                                    {n}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  setPageNumber((p) => Math.max(1, p - 1))
+                                }
+                                disabled={pageNumber <= 1}
+                              >
+                                Trước
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  setPageNumber((p) =>
+                                    Math.min(totalPagesActive, p + 1)
+                                  )
+                                }
+                                disabled={pageNumber >= totalPagesActive}
+                              >
+                                Sau
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
           )}
         </div>
       </ClientOnly>

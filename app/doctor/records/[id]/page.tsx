@@ -33,6 +33,9 @@ import type {
 import { createDermatology } from "@/lib/services/dermatology-service";
 import PrescriptionModal from "@/components/doctor/prescription-modal";
 import type { RecordListItemDto } from "@/lib/types/doctor-record";
+import { appointmentService } from "@/lib/services/appointment-service";
+import { patientService } from "@/lib/services/patient-service";
+import { userService } from "@/lib/services/user.service";
 
 import {
   Popover,
@@ -158,13 +161,7 @@ export default function MedicalRecordDetailPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(
-          `${
-            process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168"
-          }/api/MedicalRecord/${id}`
-        );
-        if (!res.ok) throw new Error("Không thể tải dữ liệu hồ sơ");
-        const data: MedicalRecordDto = await res.json();
+        const data = await MedicalRecordService.getById(Number(id));
         setRecord(data);
 
         // LẤY THÊM TẤT CẢ TESTRESULT CHO RECORD NÀY
@@ -181,23 +178,22 @@ export default function MedicalRecordDetailPage() {
 
           if (!patientData) {
             try {
-              const origin =
-                process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168";
-              const pRes = await fetch(`${origin}/api/Patient/${patientId}`);
-              if (!pRes.ok) throw new Error("Không thể lấy dữ liệu Patient");
-
-              const patient = await pRes.json();
-
+              const patient = await patientService.getById(patientId);
               const userId = patient?.userId;
               if (!userId)
                 throw new Error("Không tìm thấy userId trong Patient");
 
-              const uRes = await fetch(`${origin}/api/Users/${userId}`);
-              if (!uRes.ok) throw new Error("Không thể lấy dữ liệu User");
+              const userData = await userService.fetchUserById(userId);
 
-              const userData = await uRes.json();
-
-              patientData = { ...patient, ...userData };
+              patientData = {
+                fullName: userData.fullName ?? "",
+                gender: userData.gender ?? "",
+                dob: userData.dob ?? "",
+                phone: userData.phone ?? "",
+                email: userData.email ?? "",
+                allergies: patient.allergies ?? "",
+                medicalHistory: patient.medicalHistory ?? "",
+              };
 
               if (patientData) {
                 setPatientCache((prev) => ({
@@ -261,13 +257,7 @@ export default function MedicalRecordDetailPage() {
   const reloadRecord = async () => {
     if (!id) return;
     try {
-      const res = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168"
-        }/api/MedicalRecord/${id}`
-      );
-      if (!res.ok) throw new Error("Không thể tải lại hồ sơ sau khi kê đơn");
-      const data: MedicalRecordDto = await res.json();
+      const data = await MedicalRecordService.getById(Number(id));
       setRecord(data);
 
       // reload luôn testResults cho chắc
@@ -994,7 +984,13 @@ export default function MedicalRecordDetailPage() {
                     Xem đơn thuốc
                   </Button>
                 ) : (
-                  <Button size="sm" onClick={handleOpenPrescription}>
+                  <Button
+                    size="sm"
+                    onClick={handleOpenPrescription}
+                    disabled={!record.diagnosis || record.diagnosis.trim() === ""} // disable nếu chẩn đoán rỗng
+                    title={!record.diagnosis ? "Vui lòng điền chẩn đoán trước khi kê đơn" : ""}
+    
+                  >
                     Kê đơn thuốc
                   </Button>
                 )}

@@ -90,6 +90,7 @@ export default function HomePage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-4">
+                  <Link href="/lien-he">
                   <Button
                     size="lg"
                     className="h-14 bg-primary px-8 text-base font-semibold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
@@ -97,14 +98,17 @@ export default function HomePage() {
                     <Calendar className="mr-2 h-5 w-5" />
                     Đặt lịch khám ngay
                   </Button>
+                  </Link>
+                  <Link href="tel:19009999">
                   <Button
                     size="lg"
                     variant="outline"
                     className="h-14 border-2 border-primary/20 bg-white px-8 text-base font-semibold hover:border-primary/40 hover:bg-primary/5"
                   >
                     <Phone className="mr-2 h-5 w-5" />
-                    Hotline: 1900-xxxx
+                    Hotline: 1900-9999
                   </Button>
+                  </Link>
                 </div>
 
                 {/* Stats */}
@@ -363,21 +367,26 @@ export default function HomePage() {
                 Đặt lịch khám ngay hôm nay để được tư vấn và chăm sóc bởi đội ngũ bác sĩ chuyên nghiệp
               </p>
               <div className="flex flex-wrap justify-center gap-4">
+                <Link href="/lien-he">
                 <Button
                   size="lg"
                   className="h-14 bg-secondary px-8 text-base font-semibold shadow-xl shadow-secondary/30 hover:bg-secondary/90 hover:shadow-2xl hover:shadow-secondary/40"
+              
                 >
                   <Calendar className="mr-2 h-5 w-5" />
                   Đặt lịch khám ngay
                 </Button>
+                </Link>
+                <Link href="tel:19009999">
                 <Button
                   size="lg"
                   variant="outline"
                   className="h-14 border-2 border-primary-foreground/30 bg-primary-foreground/10 px-8 text-base font-semibold text-primary-foreground hover:bg-primary-foreground/20"
                 >
                   <Phone className="mr-2 h-5 w-5" />
-                  Gọi ngay: 1900-xxxx
+                  Gọi ngay: 1900-9999
                 </Button>
+                </Link>
               </div>
             </div>
           </div>

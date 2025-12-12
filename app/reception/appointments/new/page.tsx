@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar, Users, UserPlus, Activity, ArrowLeft, Save, Loader2, AlertCircle, FileText, MessageCircle } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { useEffect, useMemo, useState } from "react"
 import { DoctorInfoDto, AppointmentDto } from "@/lib/types/appointment"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { toast } from "react-hot-toast"
+import { patientService, PatientInfoDto } from "@/lib/services/patient-service"
 import { PatientSearch } from "@/components/patient-search"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 
@@ -22,11 +23,13 @@ export default function NewAppointmentPage() {
     const navigation = getReceptionNavigation()
 
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [user, setUser] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [doctors, setDoctors] = useState<DoctorInfoDto[]>([])
     const [isLoadingDoctors, setIsLoadingDoctors] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [isLoadingPatient, setIsLoadingPatient] = useState(false)
 
     const VIETNAM_TIME_SLOTS = useMemo(() => {
         const slots: { value: string; label: string }[] = []
@@ -63,6 +66,7 @@ export default function NewAppointmentPage() {
         setUser(currentUser)
     }, [])
 
+
     useEffect(() => {
         const fetchDoctors = async () => {
             try {
@@ -95,6 +99,36 @@ export default function NewAppointmentPage() {
             patientName
         }))
     }
+
+    // Load patient from URL query param
+    useEffect(() => {
+        const patientIdParam = searchParams.get('patientId')
+        if (patientIdParam && !formData.patientId) {
+            const loadPatient = async () => {
+                try {
+                    setIsLoadingPatient(true)
+                    // patientId in URL is actually userId (from patients page)
+                    const userId = parseInt(patientIdParam)
+                    if (isNaN(userId)) {
+                        console.error('Invalid patientId in URL:', patientIdParam)
+                        return
+                    }
+
+                    // Load patient info by userId
+                    const patientInfo = await patientService.getPatientByUserId(userId)
+                    
+                    // Set patient in form
+                    handlePatientSelect(patientInfo.patientId.toString(), patientInfo.fullName)
+                } catch (err: any) {
+                    console.error('❌ [ERROR] Failed to load patient from URL:', err)
+                    toast.error('Không thể tải thông tin bệnh nhân từ URL')
+                } finally {
+                    setIsLoadingPatient(false)
+                }
+            }
+            loadPatient()
+        }
+    }, [searchParams, formData.patientId])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -241,7 +275,7 @@ export default function NewAppointmentPage() {
                                     <PatientSearch
                                         value={formData.patientId}
                                         onChange={handlePatientSelect}
-                                        placeholder="Tìm kiếm bệnh nhân theo tên, ID, SĐT..."
+                                        placeholder="Tìm kiếm bệnh nhân theo tên"
                                         label="Bệnh nhân"
                                         required
                                     />

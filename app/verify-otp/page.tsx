@@ -9,11 +9,12 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
+import { authService } from "@/lib/services/auth.service"
 
 export default function VerifyEmailOtpPage() {
   const [otp, setOtp] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(120) // 5 phút
+  const [timeLeft, setTimeLeft] = useState(120) // 2 phút
   const [canResend, setCanResend] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -59,22 +60,15 @@ export default function VerifyEmailOtpPage() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`https://localhost:7168/api/auth/verify-email-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email, otpCode: otp }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast.success(data.message)
+      const data = await authService.verifyEmailOtp(email!, otp)
+      toast.success(data.message)
+      if (data.resetToken) {
         router.push(`/reset-password?email=${encodeURIComponent(email!)}&token=${encodeURIComponent(data.resetToken)}`)
       } else {
-        toast.error(data.message || "Mã OTP không đúng hoặc đã hết hạn")
+        toast.error("Không nhận được reset token")
       }
-    } catch {
-      toast.error("Có lỗi xảy ra khi xác thực mã OTP")
+    } catch (error: any) {
+      toast.error(error.message || "Mã OTP không đúng hoặc đã hết hạn")
     } finally {
       setIsLoading(false)
     }
@@ -85,24 +79,13 @@ export default function VerifyEmailOtpPage() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`https://localhost:7168/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast.success("Mã OTP mới đã được gửi qua email")
-        setTimeLeft(300)
-        setCanResend(false)
-        setOtp("")
-      } else {
-        toast.error(data.message || "Không thể gửi lại mã OTP")
-      }
-    } catch {
-      toast.error("Có lỗi xảy ra khi gửi lại mã OTP")
+      const data = await authService.forgotPassword(email!)
+      toast.success(data.message || "Mã OTP mới đã được gửi qua email")
+      setTimeLeft(300)
+      setCanResend(false)
+      setOtp("")
+    } catch (error: any) {
+      toast.error(error.message || "Không thể gửi lại mã OTP")
     } finally {
       setIsLoading(false)
     }
@@ -197,7 +180,7 @@ export default function VerifyEmailOtpPage() {
           </Card>
 
           <p className="text-center text-sm leading-relaxed text-muted-foreground">
-            Mã OTP có hiệu lực trong 5 phút. Vui lòng kiểm tra email của bạn.
+            Mã OTP có hiệu lực trong 2 phút. Vui lòng kiểm tra email của bạn.
           </p>
         </div>
       </div>

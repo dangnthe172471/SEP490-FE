@@ -7,6 +7,8 @@ import { appointmentService } from "@/lib/services/appointment-service"
 import { AppointmentDto } from "@/lib/types/appointment"
 import { Button } from "@/components/ui/button"
 import { CancelAppointmentModal } from "@/components/cancel-appointment-modal"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 
 export default function PatientAppointmentsPage() {
     const router = useRouter()
@@ -138,20 +140,23 @@ export default function PatientAppointmentsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 py-8">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+                <Header />
+                <div className="container mx-auto px-4 py-8">
                     <div className="flex items-center justify-center h-64">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     </div>
                 </div>
+                <Footer />
             </div>
         )
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gray-50 py-8">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+                <Header />
+                <div className="container mx-auto px-4 py-8">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                         <div className="flex items-center">
                             <XCircle className="h-5 w-5 text-red-400 mr-2" />
@@ -166,13 +171,15 @@ export default function PatientAppointmentsPage() {
                         </button>
                     </div>
                 </div>
+                <Footer />
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+            <Header />
+            <div className="container mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center justify-between">
@@ -353,17 +360,18 @@ export default function PatientAppointmentsPage() {
                         })}
                     </div>
                 )}
-            </div>
 
-            {/* Cancel Modal */}
-            {cancelModal.appointment && (
-                <CancelAppointmentModal
-                    isOpen={cancelModal.isOpen}
-                    onClose={() => setCancelModal({ isOpen: false, appointment: null })}
-                    appointment={cancelModal.appointment}
-                    onSuccess={handleCancelSuccess}
-                />
-            )}
+                {/* Cancel Modal */}
+                {cancelModal.appointment && (
+                    <CancelAppointmentModal
+                        isOpen={cancelModal.isOpen}
+                        onClose={() => setCancelModal({ isOpen: false, appointment: null })}
+                        appointment={cancelModal.appointment}
+                        onSuccess={handleCancelSuccess}
+                    />
+                )}
+            </div>
+            <Footer />
         </div>
     )
 }

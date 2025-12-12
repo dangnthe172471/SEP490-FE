@@ -29,8 +29,11 @@ export interface PaymentDetailsResponse {
 }
 
 export interface CreatePaymentResponse {
-    paymentId: number;
+  paymentId: number;
+  checkoutUrl: string;
 }
+
+
 export type PaymentChartDto = {
     paymentDate: string
     amount: number

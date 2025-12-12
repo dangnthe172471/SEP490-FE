@@ -155,6 +155,14 @@ class PatientService {
     }
 
     /**
+     * ✅ Lấy thông tin bệnh nhân theo PatientID (endpoint /api/Patient/{id})
+     * GET /api/Patient/{id}
+     */
+    async getById(patientId: number): Promise<any> {
+        return this.request<any>(`/api/Patient/${patientId}`)
+    }
+
+    /**
      * ✅ Lấy thông tin bệnh nhân theo UserID
      * GET /api/Appointments/patients/user/{userId}
      */

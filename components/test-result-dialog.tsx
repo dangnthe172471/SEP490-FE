@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils"
 import { UnitSelect } from "@/components/unit-select"
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:7168"
+  process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168"
 
 function buildAttachmentUrl(path: string): string {
   if (!path) return ""
@@ -258,8 +258,8 @@ export function TestResultDialog({
       method: "POST",
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined,
       body: formData,
     })
@@ -395,8 +395,8 @@ export function TestResultDialog({
   const previewUrl = pendingFile
     ? localPreviewUrl
     : form.attachment
-    ? buildAttachmentUrl(form.attachment)
-    : ""
+      ? buildAttachmentUrl(form.attachment)
+      : ""
 
   const canSave =
     !loading &&
@@ -607,11 +607,10 @@ export function TestResultDialog({
 
       {toastOpen && (
         <div
-          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${
-            toastVariant === "destructive"
-              ? "border border-red-200 bg-red-50 text-red-900"
-              : "border border-emerald-200 bg-emerald-50 text-emerald-900"
-          }`}
+          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${toastVariant === "destructive"
+            ? "border border-red-200 bg-red-50 text-red-900"
+            : "border border-emerald-200 bg-emerald-50 text-emerald-900"
+            }`}
         >
           <span className="font-semibold">{toastTitle}</span>
           {toastDesc && <span className="text-sm">{toastDesc}</span>}

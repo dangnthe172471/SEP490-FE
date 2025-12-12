@@ -110,6 +110,15 @@ export const MedicalRecordService = {
       throw e
     }
   },
+  async getById(recordId: number): Promise<MedicalRecordDto> {
+    return request<MedicalRecordDto>(`/${recordId}`)
+  },
+  async getByDoctorId(doctorId: number): Promise<MedicalRecordDto[]> {
+    return request<MedicalRecordDto[]>(`/by-doctor/${doctorId}`)
+  },
+  async getAll(): Promise<MedicalRecordDto[]> {
+    return request<MedicalRecordDto[]>('')
+  },
   async create(req: CreateMedicalRecordRequest): Promise<MedicalRecordDto> {
     // After creating, refetch by appointment to get the fully populated object
     const created = await request<MedicalRecordDto>('', { method: 'POST', body: JSON.stringify(req) })

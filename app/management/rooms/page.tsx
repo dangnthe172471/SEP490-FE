@@ -314,17 +314,17 @@ export default function RoomsManagementPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>ID</TableHead>
+                                                <TableHead>STT</TableHead>
                                                 <TableHead>Tên phòng</TableHead>
                                                 <TableHead className="text-right">Thao tác</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {filteredRooms.length > 0 ? (
-                                                filteredRooms.map((room) => (
+                                                filteredRooms.map((room, index) => (
                                                     <TableRow key={room.roomId}>
                                                         <TableCell>
-                                                            <Badge variant="outline">{room.roomId}</Badge>
+                                                            <Badge variant="outline">{(pageNumber - 1) * pageSize + index + 1}</Badge>
                                                         </TableCell>
                                                         <TableCell className="font-medium">{room.roomName}</TableCell>
                                                         <TableCell className="text-right">

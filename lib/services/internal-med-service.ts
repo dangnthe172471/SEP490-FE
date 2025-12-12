@@ -5,7 +5,7 @@ import type {
   SpecialtyStatus,
 } from "@/lib/types/specialties"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://localhost:7168"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:7168"
 
 function api(path: string) {
   return `${API_BASE}${path}`
@@ -30,7 +30,7 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
     Accept: "application/json",
   }
   if (token) {
-    ;(base as any).Authorization = `Bearer ${token}`
+    ; (base as any).Authorization = `Bearer ${token}`
   }
   return { ...base, ...extra }
 }

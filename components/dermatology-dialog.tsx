@@ -22,7 +22,7 @@ import type { ReadDermatologyRecordDto } from "@/lib/types/specialties"
 
 // base URL API
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:7168"
+  process.env.NEXT_PUBLIC_API_URL || "https://localhost:7168"
 
 // Lấy userId hiện tại từ localStorage / JWT
 function getCurrentUserId(): number | null {
@@ -183,8 +183,8 @@ export function DermatologyDialog({
       method: "POST",
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined,
       body: formData,
     })
@@ -275,8 +275,8 @@ export function DermatologyDialog({
   const previewUrl = pendingFile
     ? localPreviewUrl
     : attachmentPath
-    ? buildAttachmentUrl(attachmentPath)
-    : ""
+      ? buildAttachmentUrl(attachmentPath)
+      : ""
 
   return (
     <>

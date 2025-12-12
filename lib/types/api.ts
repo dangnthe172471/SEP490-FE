@@ -38,6 +38,9 @@ export interface CreateUserRequest {
     roleId: number
     allergies?: string
     medicalHistory?: string
+    specialty?: string // Chuyên khoa (chỉ cho bác sĩ)
+    experienceYears?: number // Số năm kinh nghiệm (chỉ cho bác sĩ)
+    roomId?: number // Phòng làm việc (chỉ cho bác sĩ)
 }
 
 export interface UpdateUserRequest {
@@ -68,6 +71,7 @@ export interface UserDto {
     allergies?: string
     medicalHistory?: string
     avatar?: string
+    specialty?: string
 }
 
 export interface ApiResponse<T = any> {

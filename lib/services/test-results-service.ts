@@ -6,7 +6,8 @@ import type {
   TestTypeLite,
 } from "@/lib/types/test-results"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://localhost:7168"
+// const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:7168"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL
 
 function getAccessToken(): string | null {
   if (typeof window === "undefined") return null
@@ -27,7 +28,7 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
     Accept: "application/json",
   }
   if (token) {
-    ;(base as any).Authorization = `Bearer ${token}`
+    ; (base as any).Authorization = `Bearer ${token}`
   }
   return { ...base, ...extra }
 }
