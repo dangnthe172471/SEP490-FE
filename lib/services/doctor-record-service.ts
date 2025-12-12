@@ -2,12 +2,12 @@
 import type { PagedResult, RecordListItemDto } from "@/lib/types/doctor-record"
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   ""
 
 const ENV_MISSING_MSG =
-  "Thiếu biến môi trường: hãy đặt NEXT_PUBLIC_API_BASE_URL (hoặc NEXT_PUBLIC_API_URL) trong .env.local."
+  "Thiếu biến môi trường: hãy đặt NEXT_PUBLIC_API_URL_URL (hoặc NEXT_PUBLIC_API_URL) trong .env.local."
 
 function getAccessTokenFromClient(): string | undefined {
   if (typeof window === "undefined") return undefined
