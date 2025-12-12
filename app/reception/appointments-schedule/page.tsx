@@ -23,13 +23,10 @@ import {
 import { appointmentService } from "@/lib/services/appointment-service"
 import { AppointmentDto } from "@/lib/types/appointment"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
-
-type ShiftKey = "morning" | "afternoon" | "evening"
-const SHIFTS: Record<ShiftKey, { label: string; timeWindow: string; startHour: number; endHour: number }> = {
-    morning: { label: "Sáng", timeWindow: "07:00 – 12:00", startHour: 7, endHour: 12 },
-    afternoon: { label: "Chiều", timeWindow: "13:00 – 17:00", startHour: 13, endHour: 17 },
-    evening: { label: "Tối", timeWindow: "17:00 – 21:00", startHour: 17, endHour: 21 },
-}
+import {
+    shiftService,
+    type ShiftResponseDTO,
+} from "@/lib/services/shift-service"
 
 /* ===== Date helpers ===== */
 const toISO = (d: Date) => {
@@ -43,13 +40,6 @@ const startOfWeekMonday = (iso: string) => {
     const d = new Date(iso + "T00:00:00"); const day = d.getDay() === 0 ? 7 : d.getDay(); d.setDate(d.getDate() - (day - 1)); return toISO(d)
 }
 const generate7Days = (startISO: string) => Array.from({ length: 7 }, (_, i) => addDays(startISO, i))
-const getShiftForTime = (time: string): ShiftKey | null => {
-    const [h, m] = time.split(":"); const hm = parseInt(h, 10) + (parseInt(m ?? "0", 10) / 60)
-    if (hm >= 7 && hm < 12) return "morning"
-    if (hm >= 13 && hm < 17) return "afternoon"
-    if (hm >= 17 && hm < 21) return "evening"
-    return null
-}
 const formatDM = (iso: string) => {
     const d = new Date(iso + "T00:00:00")
     const dd = String(d.getDate()).padStart(2, "0")
@@ -57,6 +47,50 @@ const formatDM = (iso: string) => {
     return `${dd}/${mm}`
 }
 const weekLabel = (startISO: string) => `${formatDM(startISO)} To ${formatDM(addDays(startISO, 6))}`
+
+/** Tạo danh sách tuần (bắt đầu Thứ Hai) của năm */
+const weeksOfYear = (year: number) => {
+    const jan1 = new Date(year, 0, 1)
+    const dec31 = new Date(year, 11, 31)
+    const firstISO = startOfWeekMonday(toISO(jan1))
+    const list: string[] = []
+    let cur = firstISO
+    while (new Date(cur + "T00:00:00") <= dec31) {
+        list.push(cur)
+        cur = addDays(cur, 7)
+    }
+    return list
+}
+
+/* ===== Helpers cho shift/time ===== */
+const timeToMinutes = (t: string) => {
+    // hỗ trợ "HH:mm" hoặc "HH:mm:ss"
+    const [hRaw, mRaw] = t.split(":")
+    const h = parseInt(hRaw ?? "0", 10)
+    const m = parseInt(mRaw ?? "0", 10)
+    return h * 60 + m
+}
+
+const getShiftIdForTime = (
+    appointmentTime: string,
+    shifts: ShiftResponseDTO[]
+): number | null => {
+    const aptMinutes = timeToMinutes(appointmentTime)
+    for (const s of shifts) {
+        const start = timeToMinutes(s.startTime)
+        const end = timeToMinutes(s.endTime)
+        if (aptMinutes >= start && aptMinutes < end) {
+            return s.shiftID
+        }
+    }
+    return null
+}
+
+const formatShiftTimeWindow = (shift: ShiftResponseDTO) => {
+    const start = shift.startTime.slice(0, 5) // HH:mm
+    const end = shift.endTime.slice(0, 5)
+    return `${start} – ${end}`
+}
 
 interface AppointmentDisplay {
     appointmentId: number
@@ -78,16 +112,27 @@ export default function ReceptionAppointmentsSchedulePage() {
 
     const router = useRouter()
 
-    // ---- Week select (mặc định: tuần hiện tại)
-    const todayISO = toISO(new Date())
+    // ---- Khởi tạo theo hôm nay ----
+    const today = new Date()
+    const todayISO = toISO(today)
     const currentWeekStart = startOfWeekMonday(todayISO)
+
+    // ---- YEAR + WEEK (2 dropdown)
+    const [year, setYear] = useState<number>(today.getFullYear())
     const [weekStart, setWeekStart] = useState<string>(currentWeekStart)
 
-    // Tạo danh sách tuần: 2 tuần trước → 6 tuần sau (tuỳ ý tăng/giảm)
-    const weekOptions = useMemo(() => {
-        const base = currentWeekStart
-        return Array.from({ length: 9 }, (_, i) => addDays(base, (i - 2) * 7))
-    }, [currentWeekStart])
+    // cửa sổ năm động 10 năm quanh năm hiện tại
+    const yearOptions = useMemo(
+        () => Array.from({ length: 10 }, (_, i) => year - 5 + i),
+        [year]
+    )
+
+    const weekOptions = useMemo(() => weeksOfYear(year), [year])
+
+    useEffect(() => {
+        const wsYear = new Date(weekStart + "T00:00:00").getFullYear()
+        if (wsYear !== year && weekOptions.length) setWeekStart(weekOptions[0])
+    }, [year, weekOptions, weekStart])
 
     // ---- Data
     const [appointments, setAppointments] = useState<AppointmentDto[]>([])
@@ -96,7 +141,11 @@ export default function ReceptionAppointmentsSchedulePage() {
 
     const [selected, setSelected] = useState<AppointmentDisplay | null>(null)
 
-    // ---- Load list
+    const [shifts, setShifts] = useState<ShiftResponseDTO[]>([])
+    const [shiftsLoading, setShiftsLoading] = useState(true)
+    const [shiftsError, setShiftsError] = useState<string | null>(null)
+
+    // ---- Load appointments
     useEffect(() => {
         let mounted = true
             ; (async () => {
@@ -119,6 +168,32 @@ export default function ReceptionAppointmentsSchedulePage() {
             })()
         return () => { mounted = false }
     }, [router])
+
+    // ---- Load shifts
+    useEffect(() => {
+        let mounted = true
+            ; (async () => {
+                try {
+                    setShiftsLoading(true)
+                    setShiftsError(null)
+                    const data = await shiftService.getAllShifts()
+                    if (mounted) {
+                        const sorted = [...data].sort((a, b) =>
+                            a.startTime.localeCompare(b.startTime)
+                        )
+                        setShifts(sorted)
+                    }
+                } catch (e: any) {
+                    if (mounted)
+                        setShiftsError(e?.message ?? "Không thể tải ca làm việc")
+                } finally {
+                    if (mounted) setShiftsLoading(false)
+                }
+            })()
+        return () => {
+            mounted = false
+        }
+    }, [])
 
     // Convert AppointmentDto to AppointmentDisplay
     const items: AppointmentDisplay[] = useMemo(() => {
@@ -154,22 +229,47 @@ export default function ReceptionAppointmentsSchedulePage() {
         [items, weekDates]
     )
 
+    /**
+     * grouped: Map<dateISO, Record<shiftID, AppointmentDisplay[]>>
+     */
     const grouped = useMemo(() => {
-        const map = new Map<string, { morning: AppointmentDisplay[]; afternoon: AppointmentDisplay[]; evening: AppointmentDisplay[] }>()
-        for (const d of weekDates) map.set(d, { morning: [], afternoon: [], evening: [] })
-        for (const apt of filteredAppointments) {
-            const s = getShiftForTime(apt.appointmentTime)
-            if (!s) continue
-            map.get(apt.appointmentDateISO)![s].push(apt)
-        }
+        const map = new Map<string, Record<number, AppointmentDisplay[]>>()
+
         for (const d of weekDates) {
-            const b = map.get(d); if (!b) continue
-            b.morning.sort((a, b) => a.appointmentTime.localeCompare(b.appointmentTime))
-            b.afternoon.sort((a, b) => a.appointmentTime.localeCompare(b.appointmentTime))
-            b.evening.sort((a, b) => a.appointmentTime.localeCompare(b.appointmentTime))
+            map.set(d, {})
         }
+
+        if (!shifts.length) return map
+
+        for (const apt of filteredAppointments) {
+            const shiftId = getShiftIdForTime(apt.appointmentTime, shifts)
+            if (!shiftId) continue
+
+            const dayBucket = map.get(apt.appointmentDateISO)
+            if (!dayBucket) continue
+
+            if (!dayBucket[shiftId]) {
+                dayBucket[shiftId] = []
+            }
+            dayBucket[shiftId].push(apt)
+        }
+
+        // sort trong từng ca theo giờ
+        for (const d of weekDates) {
+            const dayBucket = map.get(d)
+            if (!dayBucket) continue
+            for (const s of shifts) {
+                const list = dayBucket[s.shiftID]
+                if (list) {
+                    list.sort((a, b) =>
+                        a.appointmentTime.localeCompare(b.appointmentTime)
+                    )
+                }
+            }
+        }
+
         return map
-    }, [filteredAppointments, weekDates])
+    }, [filteredAppointments, weekDates, shifts])
 
     const total = filteredAppointments.length
 
@@ -224,39 +324,73 @@ export default function ReceptionAppointmentsSchedulePage() {
                         <p className="text-muted-foreground">Xem lịch của TẤT CẢ bệnh nhân và bác sĩ theo ca (Sáng/Chiều/Tối) trong 7 ngày</p>
                     </div>
 
-                    {/* Chỉ 1 ô chọn tuần */}
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Week</span>
-                        <select
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[200px]"
-                            value={weekStart}
-                            onChange={(e) => setWeekStart(e.target.value)}
-                        >
-                            {weekOptions.map((ws) => (
-                                <option key={ws} value={ws}>
-                                    {weekLabel(ws)}
-                                </option>
-                            ))}
-                        </select>
+                    {/* 2 dropdown: YEAR + WEEK */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold uppercase tracking-wide text-red-600 underline">
+                                Year
+                            </span>
+                            <select
+                                className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[110px]"
+                                value={year}
+                                onChange={(e) => setYear(parseInt(e.target.value, 10))}
+                            >
+                                {yearOptions.map((y) => (
+                                    <option key={y} value={y}>
+                                        {y}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                                Week
+                            </span>
+                            <select
+                                className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[200px]"
+                                value={weekStart}
+                                onChange={(e) => setWeekStart(e.target.value)}
+                            >
+                                {weekOptions.map((ws) => (
+                                    <option key={ws} value={ws}>
+                                        {weekLabel(ws)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
                 {/* Thống kê nhỏ */}
                 <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="tabular-nums">Tổng: {total}</Badge>
+                    <Badge variant="outline" className="tabular-nums">
+                        Tổng: {total}
+                    </Badge>
                     <Button
                         variant="outline"
                         size="sm"
-                        className="ml-auto"
-                        onClick={() => setWeekStart(currentWeekStart)}
+                        className="ml-auto border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-200 hover:text-blue-900 transition-colors"
+                        onClick={() => {
+                            setYear(today.getFullYear())
+                            setWeekStart(currentWeekStart)
+                        }}
                     >
                         Tuần hiện tại
                     </Button>
                 </div>
 
                 {/* Báo trạng thái fetch */}
-                {loading && <p className="text-sm text-muted-foreground">Đang tải danh sách…</p>}
+                {loading && (
+                    <p className="text-sm text-muted-foreground">Đang tải danh sách…</p>
+                )}
                 {error && <p className="text-sm text-red-600">{error}</p>}
+                {shiftsLoading && (
+                    <p className="text-sm text-muted-foreground">Đang tải ca làm việc…</p>
+                )}
+                {shiftsError && (
+                    <p className="text-sm text-red-600">{shiftsError}</p>
+                )}
 
                 {/* Bảng lịch */}
                 <div className="overflow-x-auto rounded-lg shadow-lg border border-slate-200 bg-white font-sans">
@@ -281,16 +415,27 @@ export default function ReceptionAppointmentsSchedulePage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {(["morning", "afternoon", "evening"] as ShiftKey[]).map((shiftKey) => (
-                                <tr key={shiftKey} className="align-top hover:bg-slate-50 transition-colors">
+                            {shifts.map((shift) => (
+                                <tr
+                                    key={shift.shiftID}
+                                    className="align-top hover:bg-slate-50 transition-colors"
+                                >
                                     <td className="border border-slate-300 p-5 font-semibold bg-slate-50 sticky left-0">
-                                        <div className="text-slate-900 text-base">{SHIFTS[shiftKey].label}</div>
-                                        <div className="text-xs text-slate-600 leading-tight mt-0.5">{SHIFTS[shiftKey].timeWindow}</div>
+                                        <div className="text-slate-900 text-base">
+                                            {shift.shiftType}
+                                        </div>
+                                        <div className="text-xs text-slate-600 leading-tight mt-0.5">
+                                            {formatShiftTimeWindow(shift)}
+                                        </div>
                                     </td>
                                     {weekDates.map((iso) => {
-                                        const items = grouped.get(iso)?.[shiftKey] ?? []
+                                        const dayBucket = grouped.get(iso) ?? {}
+                                        const items = dayBucket[shift.shiftID] ?? []
                                         return (
-                                            <td key={`${shiftKey}-${iso}`} className="border border-slate-300 p-4 align-top">
+                                            <td
+                                                key={`${shift.shiftID}-${iso}`}
+                                                className="border border-slate-300 p-4 align-top"
+                                            >
                                                 {items.length ? (
                                                     <div className="space-y-3">
                                                         {items.map((apt) => {
@@ -299,7 +444,7 @@ export default function ReceptionAppointmentsSchedulePage() {
                                                                 <button
                                                                     key={apt.appointmentId}
                                                                     onClick={() => openDetail(apt)}
-                                                                    className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer ${cardColor} hover:shadow-md`}
+                                                                    className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer border hover:shadow-md ${cardColor}`}
                                                                     title={`${apt.patientName} (${apt.appointmentTime}) - ${apt.doctorName} - ${apt.status || 'Chưa xác nhận'}`}
                                                                 >
                                                                     <div className="flex items-center gap-3 leading-none">
@@ -321,13 +466,25 @@ export default function ReceptionAppointmentsSchedulePage() {
                                                         })}
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center justify-center h-20 text-slate-300 text-sm font-medium">—</div>
+                                                    <div className="flex items-center justify-center h-20 text-slate-300 text-sm font-medium">
+                                                        —
+                                                    </div>
                                                 )}
                                             </td>
                                         )
                                     })}
                                 </tr>
                             ))}
+                            {!shifts.length && !shiftsLoading && (
+                                <tr>
+                                    <td
+                                        colSpan={1 + weekDates.length}
+                                        className="p-4 text-center text-sm text-slate-500"
+                                    >
+                                        Không có cấu hình ca làm việc.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
