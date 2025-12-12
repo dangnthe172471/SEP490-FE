@@ -128,27 +128,48 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
         {/* Sidebar */}
         <aside className="hidden md:flex w-64 flex-col border-r bg-card" suppressHydrationWarning>
           <nav className="flex-1 space-y-1 p-4" suppressHydrationWarning>
-            {navigation.map((item) => {
-              const Icon = item.icon
-              // Check if pathname matches exactly or is a sub-path
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-              return (
-                <Button
-                  key={item.href}
-                  asChild
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start transition-colors",
-                    isActive && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
-                  )}
-                >
-                  <Link href={item.href} prefetch aria-current={isActive ? "page" : undefined}>
-                    <Icon className="mr-3 h-5 w-5" />
-                    {item.name}
-                  </Link>
-                </Button>
-              )
-            })}
+            {(() => {
+              // Find the active navigation item
+              // Priority: exact match > longest parent path match
+              let activeHref: string | null = null
+
+              // First, check for exact match
+              const exactMatch = navigation.find(item => pathname === item.href)
+              if (exactMatch) {
+                activeHref = exactMatch.href
+              } else {
+                // If no exact match, find the longest parent path that matches
+                const matchingParents = navigation.filter(item =>
+                  pathname.startsWith(item.href + '/')
+                )
+                if (matchingParents.length > 0) {
+                  // Sort by href length (longest first) and take the first one
+                  activeHref = matchingParents.sort((a, b) => b.href.length - a.href.length)[0].href
+                }
+              }
+
+              return navigation.map((item) => {
+                const Icon = item.icon
+                const isActive = item.href === activeHref
+
+                return (
+                  <Button
+                    key={item.href}
+                    asChild
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start transition-colors",
+                      isActive && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                    )}
+                  >
+                    <Link href={item.href} prefetch aria-current={isActive ? "page" : undefined}>
+                      <Icon className="mr-3 h-5 w-5" />
+                      {item.name}
+                    </Link>
+                  </Button>
+                )
+              })
+            })()}
           </nav>
         </aside>
 
