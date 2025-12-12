@@ -110,7 +110,6 @@ export function Header() {
       { href: "/chuyen-khoa", label: "Chuyên khoa" },
       { href: "/dich-vu", label: "Dịch vụ" },
       { href: "/bac-si", label: "Đội ngũ bác sĩ" },
-      { href: "/danh-gia", label: "Đánh giá" },
       { href: "/lien-he", label: "Liên hệ" },
     ]
 
