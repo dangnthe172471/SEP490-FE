@@ -90,13 +90,16 @@ export default function ServicesPage() {
                 setLoading(true)
                 const data = await serviceService.getAll()
                 if (!isMounted) return
-                setServices(data)
+
+                // Chỉ lấy các dịch vụ có trạng thái hoạt động (isActive = true)
+                const activeServices = data.filter((s) => s.isActive === true)
+                setServices(activeServices)
 
                 // Nếu specialty hiện tại không có dịch vụ, chuyển sang chuyên khoa đầu tiên có dữ liệu
-                const hasServicesForActive = data.some((s) => s.category === SPECIALTIES[activeSpecialty]?.category)
+                const hasServicesForActive = activeServices.some((s) => s.category === SPECIALTIES[activeSpecialty]?.category)
                 if (!hasServicesForActive) {
                     const firstWithData = (Object.keys(SPECIALTIES) as SpecialtyKey[]).find((key) =>
-                        data.some((s) => s.category === SPECIALTIES[key].category)
+                        activeServices.some((s) => s.category === SPECIALTIES[key].category)
                     )
                     if (firstWithData) setActiveSpecialty(firstWithData)
                 }
