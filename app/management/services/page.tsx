@@ -598,16 +598,6 @@ export default function ServicesManagementPage() {
                                   <Edit2 className="h-4 w-4" />
                                   Sửa
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => handleOpenDeleteDialog(service)}
-                                  className="gap-1"
-                                  disabled={deleting}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Xóa
-                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -652,26 +642,6 @@ export default function ServicesManagementPage() {
           </CardContent>
         </Card>
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Xác nhận xóa</DialogTitle>
-              <DialogDescription>
-                Bạn có chắc chắn muốn xóa dịch vụ này? Hành động này không thể hoàn tác.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleCloseDeleteDialog} disabled={deleting}>
-                Hủy
-              </Button>
-              <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Xóa
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );
