@@ -351,7 +351,10 @@ export default function DoctorAppointmentsPage() {
   const weekDates = useMemo(() => generate7Days(weekStart), [weekStart]);
 
   const filteredAppointments = useMemo(
-    () => items.filter((a) => weekDates.includes(a.appointmentDateISO)),
+    () => items.filter((a) => 
+      weekDates.includes(a.appointmentDateISO) && 
+      a.status !== "Cancelled"
+    ),
     [items, weekDates]
   );
 

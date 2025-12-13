@@ -90,8 +90,12 @@ QUAN TRỌNG:
             ],
         }
 
-        // Call Gemini API - using gemini-1.5-flash (faster and more cost-effective)
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+        // Call Gemini API - use gemini-pro as default (most stable)
+        // Available models: gemini-pro, gemini-1.5-pro, gemini-1.5-flash-002, gemini-2.0-flash-exp
+        const model = process.env.NEXT_PUBLIC_AI_MODEL || "gemini-pro"
+        // Use v1 API for stable models, v1beta for experimental models
+        const apiVersion = model.includes("exp") || model.includes("2.0") ? "v1beta" : "v1"
+        const apiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`
 
         console.log("Calling Gemini API with URL:", apiUrl.replace(apiKey, "***"))
         console.log("Request body:", JSON.stringify(requestBody, null, 2))
@@ -110,17 +114,44 @@ QUAN TRỌNG:
 
         if (!response.ok) {
             let errorMessage = "Failed to get AI response"
+            let userFriendlyMessage = "Không thể lấy phản hồi từ AI. Vui lòng thử lại sau."
+
             try {
                 const errorData = JSON.parse(responseText)
                 errorMessage = errorData.error?.message || errorData.error || responseText
                 console.error("Gemini API error details:", errorData)
+
+                // Xử lý các lỗi cụ thể
+                if (errorMessage.includes("not found") || errorMessage.includes("is not found")) {
+                    userFriendlyMessage = "Model AI không khả dụng. Vui lòng liên hệ quản trị viên để cấu hình lại."
+                } else if (errorMessage.includes("quota") || errorMessage.includes("Quota exceeded")) {
+                    userFriendlyMessage = "Đã vượt quá giới hạn sử dụng API. Vui lòng kiểm tra gói dịch vụ và thử lại sau. Xem thêm tại: https://ai.google.dev/gemini-api/docs/rate-limits"
+                } else if (errorMessage.includes("rate limit") || errorMessage.includes("rate_limit")) {
+                    userFriendlyMessage = "Quá nhiều yêu cầu. Vui lòng đợi một chút và thử lại sau."
+                } else if (errorMessage.includes("API key") || errorMessage.includes("API_KEY")) {
+                    userFriendlyMessage = "API key không hợp lệ hoặc đã hết hạn. Vui lòng liên hệ quản trị viên."
+                } else if (errorMessage.includes("429")) {
+                    userFriendlyMessage = "Quá nhiều yêu cầu. Vui lòng đợi và thử lại sau."
+                } else if (errorData.error?.message) {
+                    // Giữ nguyên message nếu có thể hiểu được
+                    userFriendlyMessage = errorData.error.message
+                }
             } catch {
                 console.error("Gemini API error (raw):", responseText)
                 errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`
+
+                // Kiểm tra quota trong raw text
+                if (responseText.includes("quota") || responseText.includes("Quota exceeded")) {
+                    userFriendlyMessage = "Đã vượt quá giới hạn sử dụng API. Vui lòng kiểm tra gói dịch vụ và thử lại sau."
+                }
             }
 
             return NextResponse.json(
-                { error: errorMessage },
+                {
+                    error: userFriendlyMessage,
+                    details: errorMessage,
+                    statusCode: response.status
+                },
                 { status: response.status }
             )
         }
