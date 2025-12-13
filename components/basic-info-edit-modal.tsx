@@ -52,7 +52,36 @@ export function BasicInfoEditModal({ isOpen, onClose, basicInfo, onSave }: Basic
             // Validate required fields
             if (!formData.fullName?.trim()) {
                 toast.error("Vui lòng nhập họ và tên")
+                setIsLoading(false)
                 return
+            }
+
+            // Validate email is required
+            if (!formData.email?.trim()) {
+                toast.error("Vui lòng nhập email")
+                setIsLoading(false)
+                return
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(formData.email.trim())) {
+                toast.error("Email không hợp lệ")
+                setIsLoading(false)
+                return
+            }
+
+            // Validate date of birth must be before today
+            if (formData.dob) {
+                const dobDate = new Date(formData.dob)
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                
+                if (dobDate >= today) {
+                    toast.error("Ngày sinh phải trước ngày hôm nay")
+                    setIsLoading(false)
+                    return
+                }
             }
 
             // Phone is disabled, so no need to validate
@@ -133,7 +162,7 @@ export function BasicInfoEditModal({ isOpen, onClose, basicInfo, onSave }: Basic
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">Email *</Label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
@@ -143,6 +172,7 @@ export function BasicInfoEditModal({ isOpen, onClose, basicInfo, onSave }: Basic
                                         onChange={(e) => handleInputChange('email', e.target.value)}
                                         className="pl-10"
                                         placeholder="Nhập email"
+                                        required
                                     />
                                 </div>
                             </div>
@@ -157,6 +187,7 @@ export function BasicInfoEditModal({ isOpen, onClose, basicInfo, onSave }: Basic
                                         value={formData.dob}
                                         onChange={(e) => handleInputChange('dob', e.target.value)}
                                         className="pl-10"
+                                        max={new Date().toISOString().split('T')[0]}
                                     />
                                 </div>
                             </div>
