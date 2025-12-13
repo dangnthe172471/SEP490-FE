@@ -1,200 +1,312 @@
 import { NextRequest, NextResponse } from "next/server"
 
+// Constants
+const SYSTEM_INSTRUCTION = `Bạn là trợ lý AI hỗ trợ bác sĩ chẩn đoán và tư vấn y khoa. Nhiệm vụ: gợi ý chẩn đoán phân biệt, đề xuất xét nghiệm, cung cấp phác đồ điều trị, cảnh báo tương tác thuốc. QUAN TRỌNG: Đây chỉ là công cụ hỗ trợ, không thay thế chẩn đoán chuyên môn. Trả lời bằng tiếng Việt, chi tiết, có cấu trúc rõ ràng.`
+
+// Prioritize fastest models first
+const FALLBACK_MODELS = [
+    "gemini-2.5-flash",  // Fastest, try first
+    "gemini-2.0-flash",  // Second fastest
+    "gemini-1.5-flash"   // Fallback
+]
+
+// Optimized generation config for speed
+const GENERATION_CONFIG = {
+    temperature: 0.7,
+    topK: 32,           // Reduced from 40 for faster generation
+    topP: 0.9,          // Reduced from 0.95 for faster generation
+    maxOutputTokens: 4096, // Reduced from 8192 for faster response (still enough for detailed answers)
+}
+
+const SAFETY_SETTINGS = [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+]
+
+// Types
+interface GeminiResponse {
+    candidates?: Array<{
+        content?: {
+            parts?: Array<{ text?: string }>
+        }
+        finishReason?: string
+    }>
+    promptFeedback?: {
+        blockReason?: string
+    }
+    error?: {
+        message?: string
+    }
+}
+
+interface ApiCallResult {
+    response: Response
+    responseText: string
+    model: string
+}
+
+// Helper functions
+function getApiVersion(model: string): string {
+    return model.includes("2.5") || model.includes("2.0") || model.includes("exp") ? "v1beta" : "v1"
+}
+
+function buildContents(conversationHistory: any[], message: string) {
+    const contents = conversationHistory?.map((msg: any) => ({
+        role: msg.role === "user" ? "user" : "model",
+        parts: [{ text: msg.content }],
+    })) || []
+
+    if (contents.length === 0) {
+        contents.push({
+            role: "user",
+            parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nCâu hỏi: ${message}` }],
+        })
+    } else {
+        contents.push({
+            role: "user",
+            parts: [{ text: message }],
+        })
+    }
+
+    return contents
+}
+
+function buildRequestBody(contents: any[]) {
+    return {
+        contents,
+        generationConfig: GENERATION_CONFIG,
+        safetySettings: SAFETY_SETTINGS,
+    }
+}
+
+async function callGeminiAPI(
+    model: string,
+    apiKey: string,
+    requestBody: any
+): Promise<ApiCallResult> {
+    const apiVersion = getApiVersion(model)
+    const apiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`
+
+    // Minimal logging for performance
+    const startTime = Date.now()
+
+    const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+    })
+
+    const responseText = await response.text()
+    const duration = Date.now() - startTime
+
+    // Only log if there's an error or if it's slow
+    if (!response.ok || duration > 3000) {
+        console.log(`[Gemini API] ${model} - Status: ${response.status}, Duration: ${duration}ms`)
+    }
+
+    return { response, responseText, model }
+}
+
+function extractTextFromCandidate(candidate: any): string {
+    if (!candidate.content?.parts || candidate.content.parts.length === 0) {
+        return ""
+    }
+
+    return candidate.content.parts
+        .map((part: any) => part.text || "")
+        .filter((text: string) => text.length > 0)
+        .join("")
+}
+
+function logResponseDetails(model: string, aiResponse: string, finishReason?: string, partsCount?: number) {
+    // Only log essential info for performance
+    const isDevelopment = process.env.NODE_ENV === "development"
+
+    if (isDevelopment) {
+        console.log(`[Gemini API] Success: ${model} - ${aiResponse.length} chars - ${finishReason || "NONE"}`)
+    }
+
+    // Only log detailed info if there's an issue
+    if (finishReason === "MAX_TOKENS" || finishReason === "SAFETY") {
+        console.warn(`[Gemini API] ${model} - Finish reason: ${finishReason}, Length: ${aiResponse.length} chars`)
+    }
+}
+
+function checkTruncation(aiResponse: string, finishReason?: string): boolean {
+    if (finishReason === "MAX_TOKENS") {
+        const lastChar = aiResponse.trim().slice(-1)
+        const endsWithPunctuation = /[.!?。！？]/.test(lastChar)
+        if (!endsWithPunctuation) {
+            console.warn(`[Gemini API] Response appears to be cut off mid-sentence`)
+            return true
+        }
+    }
+    return false
+}
+
+function parseErrorResponse(responseText: string): string {
+    try {
+        const errorData = JSON.parse(responseText)
+        return errorData.error?.message || errorData.error || responseText
+    } catch {
+        return responseText
+    }
+}
+
+function shouldRetryWithNextModel(errorMessage: string): boolean {
+    return (
+        errorMessage.includes("not found") ||
+        errorMessage.includes("is not found") ||
+        errorMessage.includes("quota") ||
+        errorMessage.includes("Quota exceeded")
+    )
+}
+
+function getUserFriendlyErrorMessage(errorMessage: string): string {
+    if (errorMessage.includes("not found") || errorMessage.includes("is not found")) {
+        return "Tất cả các model AI đều không khả dụng. Vui lòng liên hệ quản trị viên."
+    }
+    if (errorMessage.includes("quota") || errorMessage.includes("Quota exceeded")) {
+        return "Đã vượt quá giới hạn sử dụng API. Vui lòng kiểm tra gói dịch vụ và thử lại sau. Xem thêm tại: https://ai.google.dev/gemini-api/docs/rate-limits"
+    }
+    if (errorMessage.includes("rate limit") || errorMessage.includes("rate_limit")) {
+        return "Quá nhiều yêu cầu. Vui lòng đợi một chút và thử lại sau."
+    }
+    if (errorMessage.includes("API key") || errorMessage.includes("API_KEY")) {
+        return "API key không hợp lệ hoặc đã hết hạn. Vui lòng liên hệ quản trị viên."
+    }
+    if (errorMessage.includes("429")) {
+        return "Quá nhiều yêu cầu. Vui lòng đợi và thử lại sau."
+    }
+    return "Không thể lấy phản hồi từ AI. Vui lòng thử lại sau."
+}
+
+function validateRequest(message: string, apiKey: string | undefined) {
+    if (!message) {
+        return NextResponse.json(
+            { error: "Message is required" },
+            { status: 400 }
+        )
+    }
+
+    if (!apiKey) {
+        console.error("NEXT_PUBLIC_AI_KEY is not set")
+        return NextResponse.json(
+            { error: "AI service is not configured" },
+            { status: 500 }
+        )
+    }
+
+    return null
+}
+
+function processSuccessfulResponse(
+    data: GeminiResponse,
+    model: string
+): NextResponse | null {
+    // Check for blocked content
+    if (data.promptFeedback?.blockReason) {
+        console.error(`[Gemini API] Content blocked by ${model}:`, data.promptFeedback)
+        return null
+    }
+
+    if (!data.candidates || data.candidates.length === 0) {
+        console.error(`[Gemini API] No candidates from ${model}`)
+        return null
+    }
+
+    const candidate = data.candidates[0]
+
+    // Check if content was blocked by safety filters
+    if (candidate.finishReason === "SAFETY") {
+        console.error(`[Gemini API] Response blocked by safety filters for ${model}`)
+        return null
+    }
+
+    // Extract text from candidate
+    const aiResponse = extractTextFromCandidate(candidate)
+
+    if (!aiResponse || aiResponse.trim().length === 0) {
+        console.error(`[Gemini API] Empty response from ${model}`)
+        return null
+    }
+
+    // Log response details (minimal for performance)
+    logResponseDetails(
+        model,
+        aiResponse,
+        candidate.finishReason,
+        candidate.content?.parts?.length
+    )
+
+    // Only check truncation if finishReason indicates it
+    if (candidate.finishReason === "MAX_TOKENS") {
+        checkTruncation(aiResponse, candidate.finishReason)
+    }
+
+    return NextResponse.json({
+        response: aiResponse,
+        model,
+        finishReason: candidate.finishReason,
+    })
+}
+
+// Main handler
 export async function POST(request: NextRequest) {
     try {
         const { message, conversationHistory } = await request.json()
-
-        if (!message) {
-            return NextResponse.json(
-                { error: "Message is required" },
-                { status: 400 }
-            )
-        }
-
-        // Use NEXT_PUBLIC_AI_KEY from environment variables
         const apiKey = process.env.NEXT_PUBLIC_AI_KEY
 
-        if (!apiKey) {
-            console.error("NEXT_PUBLIC_AI_KEY is not set")
-            return NextResponse.json(
-                { error: "AI service is not configured" },
-                { status: 500 }
-            )
+        // Validate request
+        const validationError = validateRequest(message, apiKey)
+        if (validationError) {
+            return validationError
         }
 
-        // System instruction for medical assistant
-        const systemInstruction =
-            `Bạn là một trợ lý AI chuyên hỗ trợ bác sĩ trong việc chẩn đoán và tư vấn y khoa. 
-Nhiệm vụ của bạn:
-- Hỗ trợ bác sĩ bằng cách cung cấp thông tin y khoa có giá trị tham khảo
-- Gợi ý các chẩn đoán phân biệt dựa trên triệu chứng
-- Đề xuất các xét nghiệm cần thiết
-- Cung cấp thông tin về phác đồ điều trị phổ biến
-- Cảnh báo về tương tác thuốc tiềm ẩn
-- Bỏ qua chào hỏi và lặp lại thông tin bác sĩ đã cung cấp.
+        // Build request
+        const contents = buildContents(conversationHistory, message)
+        const requestBody = buildRequestBody(contents)
 
-QUAN TRỌNG:
-- Đây chỉ là công cụ hỗ trợ, không thay thế chẩn đoán chuyên môn của bác sĩ
-- Luôn nhấn mạnh rằng quyết định cuối cùng thuộc về bác sĩ
-- Không đưa ra chẩn đoán chắc chắn, chỉ gợi ý và tham khảo
-- Trả lời bằng tiếng Việt, chuyên nghiệp và dễ hiểu
-- Sử dụng thuật ngữ y khoa chính xác nhưng giải thích rõ ràng`
-
-        // Prepare conversation history for Gemini
-        let contents = conversationHistory?.map((msg: any) => ({
-            role: msg.role === "user" ? "user" : "model",
-            parts: [{ text: msg.content }],
-        })) || []
-
-        // If no conversation history, add system instruction as first message
-        if (contents.length === 0) {
-            contents.push({
-                role: "user",
-                parts: [{ text: systemInstruction + "\n\nCâu hỏi: " + message }],
-            })
-        } else {
-            // Add current message to history
-            contents.push({
-                role: "user",
-                parts: [{ text: message }],
-            })
-        }
-
-        // Prepare request body
-        const requestBody: any = {
-            contents: contents,
-            generationConfig: {
-                temperature: 0.5,
-                topK: 40,
-                topP: 0.8,
-                maxOutputTokens: 512,
-            },
-            safetySettings: [
-                {
-                    category: "HARM_CATEGORY_HARASSMENT",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE",
-                },
-                {
-                    category: "HARM_CATEGORY_HATE_SPEECH",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE",
-                },
-                {
-                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE",
-                },
-                {
-                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE",
-                },
-            ],
-        }
-
-        // Fallback models: try 2.0 -> 2.5 -> 1.5
-        const fallbackModels = [
-            "gemini-2.0-flash",
-            "gemini-2.5-flash",
-            "gemini-1.5-flash"
-        ]
-
-        // Use custom model from env or fallback list
+        // Determine models to try
         const customModel = process.env.NEXT_PUBLIC_AI_MODEL
-        const modelsToTry = customModel ? [customModel] : fallbackModels
+        const modelsToTry = customModel ? [customModel] : FALLBACK_MODELS
 
-        // Helper function to get API version for a model
-        const getApiVersion = (model: string): string => {
-            return model.includes("2.5") || model.includes("2.0") || model.includes("exp") ? "v1beta" : "v1"
-        }
-
-        // Helper function to call Gemini API with a specific model
-        const callGeminiAPI = async (model: string) => {
-            const apiVersion = getApiVersion(model)
-            const apiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`
-
-            console.log(`[Gemini API] Trying model: ${model} (${apiVersion})`)
-            console.log("Calling Gemini API with URL:", apiUrl.replace(apiKey, "***"))
-
-            const response = await fetch(apiUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(requestBody),
-            })
-
-            const responseText = await response.text()
-            console.log(`[Gemini API] Response status: ${response.status} for model ${model}`)
-
-            return { response, responseText, model }
-        }
-
-        // Try each model in order until one succeeds
+        // Try each model until one succeeds
         let lastError: any = null
+
         for (const model of modelsToTry) {
             try {
-                const { response, responseText } = await callGeminiAPI(model)
+                const { response, responseText } = await callGeminiAPI(model, apiKey!, requestBody)
 
                 if (response.ok) {
-                    let data
+                    let data: GeminiResponse
                     try {
                         data = JSON.parse(responseText)
                     } catch (error) {
                         console.error(`[Gemini API] Failed to parse response from ${model}:`, error)
-                        continue // Try next model
+                        continue
                     }
 
-                    // Check for blocked content or other issues
-                    if (data.promptFeedback?.blockReason) {
-                        console.error(`[Gemini API] Content blocked by ${model}:`, data.promptFeedback)
-                        continue // Try next model
+                    const result = processSuccessfulResponse(data, model)
+                    if (result) {
+                        return result
                     }
 
-                    if (!data.candidates || data.candidates.length === 0) {
-                        console.error(`[Gemini API] No candidates from ${model}:`, data)
-                        continue // Try next model
-                    }
-
-                    const candidate = data.candidates[0]
-
-                    // Check if content was blocked
-                    if (candidate.finishReason === "SAFETY") {
-                        console.error(`[Gemini API] Response blocked by safety filters for ${model}`)
-                        continue // Try next model
-                    }
-
-                    if (!candidate.content?.parts?.[0]?.text) {
-                        console.error(`[Gemini API] Invalid candidate structure from ${model}:`, candidate)
-                        continue // Try next model
-                    }
-
-                    const aiResponse = candidate.content.parts[0].text
-                    console.log(`[Gemini API] Successfully got response from ${model}`)
-
-                    return NextResponse.json({
-                        response: aiResponse,
-                        model: model, // Include which model was used
-                    })
+                    // If processing failed, try next model
+                    continue
                 } else {
-                    // Parse error to check if we should try next model
-                    let errorMessage = ""
-                    try {
-                        const errorData = JSON.parse(responseText)
-                        errorMessage = errorData.error?.message || errorData.error || responseText
-                    } catch {
-                        errorMessage = responseText
-                    }
+                    // Handle error response
+                    const errorMessage = parseErrorResponse(responseText)
+                    const shouldRetry = shouldRetryWithNextModel(errorMessage)
+                    const isLastModel = modelsToTry.indexOf(model) === modelsToTry.length - 1
 
-                    // If model not found or quota exceeded, try next model
-                    const shouldRetry = errorMessage.includes("not found") ||
-                        errorMessage.includes("is not found") ||
-                        errorMessage.includes("quota") ||
-                        errorMessage.includes("Quota exceeded")
-
-                    if (shouldRetry && modelsToTry.indexOf(model) < modelsToTry.length - 1) {
+                    if (shouldRetry && !isLastModel) {
                         console.log(`[Gemini API] Model ${model} failed, trying next model...`)
                         lastError = { response, responseText, errorMessage }
-                        continue // Try next model
+                        continue
                     } else {
-                        // Last model failed or non-retryable error
                         lastError = { response, responseText, errorMessage }
                         break
                     }
@@ -211,32 +323,15 @@ QUAN TRỌNG:
         let userFriendlyMessage = "Không thể lấy phản hồi từ AI. Vui lòng thử lại sau."
 
         if (lastError?.responseText) {
-            try {
-                const errorData = JSON.parse(lastError.responseText)
-                errorMessage = errorData.error?.message || errorData.error || lastError.responseText
-
-                // Xử lý các lỗi cụ thể
-                if (errorMessage.includes("not found") || errorMessage.includes("is not found")) {
-                    userFriendlyMessage = "Tất cả các model AI đều không khả dụng. Vui lòng liên hệ quản trị viên."
-                } else if (errorMessage.includes("quota") || errorMessage.includes("Quota exceeded")) {
-                    userFriendlyMessage = "Đã vượt quá giới hạn sử dụng API. Vui lòng kiểm tra gói dịch vụ và thử lại sau. Xem thêm tại: https://ai.google.dev/gemini-api/docs/rate-limits"
-                } else if (errorMessage.includes("rate limit") || errorMessage.includes("rate_limit")) {
-                    userFriendlyMessage = "Quá nhiều yêu cầu. Vui lòng đợi một chút và thử lại sau."
-                } else if (errorMessage.includes("API key") || errorMessage.includes("API_KEY")) {
-                    userFriendlyMessage = "API key không hợp lệ hoặc đã hết hạn. Vui lòng liên hệ quản trị viên."
-                } else if (errorMessage.includes("429")) {
-                    userFriendlyMessage = "Quá nhiều yêu cầu. Vui lòng đợi và thử lại sau."
-                }
-            } catch {
-                errorMessage = lastError.responseText || errorMessage
-            }
+            errorMessage = parseErrorResponse(lastError.responseText)
+            userFriendlyMessage = getUserFriendlyErrorMessage(errorMessage)
         }
 
         return NextResponse.json(
             {
                 error: userFriendlyMessage,
                 details: errorMessage,
-                statusCode: lastError?.response?.status || 500
+                statusCode: lastError?.response?.status || 500,
             },
             { status: lastError?.response?.status || 500 }
         )
