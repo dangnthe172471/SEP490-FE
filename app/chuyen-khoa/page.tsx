@@ -65,7 +65,7 @@ export default function ChuyenKhoaPage() {
                     </div>
                   </div>
                    <Link href="/lien-he">
-                  <Button className="mt-8 p-0 text-base font-semibold text-primary hover:gap-2">
+                  <Button variant="link" className="mt-8 p-0 text-base font-semibold text-secondary hover:gap-2">
                     Đặt lịch khám
                     <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                   </Button>
@@ -146,7 +146,7 @@ export default function ChuyenKhoaPage() {
                     </div>
                   </div>
                   <Link href="/lien-he">
-                  <Button variant="link" className="mt-8 p-0 text-base font-semibold text-primary hover:gap-2">
+                  <Button variant="link" className="mt-8 p-0 text-base font-semibold text-secondary hover:gap-2">
                     Đặt lịch khám
                     <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                   </Button>
