@@ -195,6 +195,7 @@ useEffect(() => {
                 Đặt lịch khám với bác sĩ chuyên khoa phù hợp để được tư vấn và chăm sóc tốt nhất
               </p>
               <div className="flex flex-wrap justify-center gap-4">
+                 <Link href="/lien-he">
                 <Button
                   size="lg"
                   className="h-14 bg-secondary px-8 text-base font-semibold shadow-xl shadow-secondary/30 hover:bg-secondary/90 hover:shadow-2xl hover:shadow-secondary/40"
@@ -202,6 +203,7 @@ useEffect(() => {
                   <Calendar className="mr-2 h-5 w-5" />
                   Đặt lịch khám ngay
                 </Button>
+                </Link>
               </div>
             </div>
           </div>

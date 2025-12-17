@@ -3,7 +3,7 @@ import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Stethoscope, Baby, UserRound, CheckCircle2, ArrowRight, Calendar } from "lucide-react"
-
+import Link from "next/link"
 export default function ChuyenKhoaPage() {
   return (
     <div className="flex min-h-screen flex-col">
@@ -64,10 +64,12 @@ export default function ChuyenKhoaPage() {
                       <span className="leading-relaxed">Tư vấn dinh dưỡng và lối sống</span>
                     </div>
                   </div>
-                  <Button variant="link" className="mt-8 p-0 text-base font-semibold text-primary hover:gap-2">
+                   <Link href="/lien-he">
+                  <Button className="mt-8 p-0 text-base font-semibold text-primary hover:gap-2">
                     Đặt lịch khám
                     <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                   </Button>
+                   </Link>
                 </CardContent>
               </Card>
 
@@ -103,10 +105,12 @@ export default function ChuyenKhoaPage() {
                       <span className="leading-relaxed">Khám sức khỏe định kỳ cho trẻ</span>
                     </div>
                   </div>
+                  <Link href="/lien-he">
                   <Button variant="link" className="mt-8 p-0 text-base font-semibold text-secondary hover:gap-2">
                     Đặt lịch khám
                     <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                   </Button>
+                  </Link>
                 </CardContent>
               </Card>
 
@@ -141,10 +145,12 @@ export default function ChuyenKhoaPage() {
                       <span className="leading-relaxed">Điều trị nấm da, vảy nến, rụng tóc</span>
                     </div>
                   </div>
+                  <Link href="/lien-he">
                   <Button variant="link" className="mt-8 p-0 text-base font-semibold text-primary hover:gap-2">
                     Đặt lịch khám
                     <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                   </Button>
+                  </Link>
                 </CardContent>
               </Card>
 
@@ -163,6 +169,7 @@ export default function ChuyenKhoaPage() {
                 Liên hệ với chúng tôi ngay hôm nay để được tư vấn và chăm sóc bởi đội ngũ bác sĩ chuyên nghiệp
               </p>
               <div className="flex flex-wrap justify-center gap-4">
+                  <Link href="/lien-he">
                 <Button
                   size="lg"
                   className="h-14 bg-secondary px-8 text-base font-semibold shadow-xl shadow-secondary/30 hover:bg-secondary/90 hover:shadow-2xl hover:shadow-secondary/40"
@@ -170,6 +177,7 @@ export default function ChuyenKhoaPage() {
                   <Calendar className="mr-2 h-5 w-5" />
                   Đặt lịch khám ngay
                 </Button>
+                </Link>
               </div>
             </div>
           </div>

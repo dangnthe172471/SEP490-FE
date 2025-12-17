@@ -154,11 +154,11 @@ export function Header() {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
-                <span className="font-medium">Hotline: 1900-xxxx</span>
+                <span className="font-medium">Hotline: 1900-9999</span>
               </div>
               <div className="hidden items-center gap-2 sm:flex">
                 <Clock className="h-4 w-4" />
-                <span>Thứ 2 - Chủ nhật: 7:00 - 20:00</span>
+                <span>Thứ 2 - Chủ nhật: 7:00 - 22:00</span>
               </div>
             </div>
             {!isClient ? null : currentUser ? (

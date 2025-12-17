@@ -181,7 +181,9 @@ export default function ServiceDetailPage() {
                                     <Wallet className="h-5 w-5 text-primary" />
                                 </div>
                                 <p className="text-3xl font-bold text-primary">{formatPrice(service.price)}</p>
+                                <Link href="/lien-he">
                                 <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-base">Đặt lịch khám</Button>
+                                </Link>
                                 <Button variant="outline" className="w-full h-12 bg-transparent">
                                     Liên hệ tư vấn
                                 </Button>

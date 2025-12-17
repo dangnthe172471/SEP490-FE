@@ -3,7 +3,7 @@ import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Star, Quote, Calendar } from "lucide-react"
-
+import Link from "next/link"
 export default function DanhGiaPage() {
   return (
     <div className="flex min-h-screen flex-col">
@@ -159,6 +159,7 @@ export default function DanhGiaPage() {
                 Hãy để chúng tôi chăm sóc sức khỏe của bạn với đội ngũ bác sĩ chuyên nghiệp và tận tâm
               </p>
               <div className="flex flex-wrap justify-center gap-4">
+                <Link href="/lien-he">
                 <Button
                   size="lg"
                   className="h-14 bg-secondary px-8 text-base font-semibold shadow-xl shadow-secondary/30 hover:bg-secondary/90 hover:shadow-2xl hover:shadow-secondary/40"
@@ -166,6 +167,7 @@ export default function DanhGiaPage() {
                   <Calendar className="mr-2 h-5 w-5" />
                   Đặt lịch khám ngay
                 </Button>
+                </Link>
               </div>
             </div>
           </div>

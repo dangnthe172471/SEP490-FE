@@ -257,7 +257,7 @@ export default function LienHePage() {
                       </div>
                       <div>
                         <h3 className="mb-2 text-lg font-bold">Hotline</h3>
-                        <p className="text-sm text-muted-foreground">1900-xxxx</p>
+                        <p className="text-sm text-muted-foreground">1900-9999</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -280,7 +280,7 @@ export default function LienHePage() {
                       <div>
                         <h3 className="mb-2 text-lg font-bold">Giờ làm việc</h3>
                         <p className="text-sm text-muted-foreground">
-                          T2-T7: 8:00 - 20:00
+                          T2-T7: 8:00 - 22:00
                         </p>
                       </div>
                     </CardContent>

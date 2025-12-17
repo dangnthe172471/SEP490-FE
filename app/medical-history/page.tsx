@@ -31,6 +31,12 @@ import { toast } from "sonner"
 import { Breadcrumb } from "@/components/breadcrumb"
 import { medicalHistoryService, MedicalRecord } from "@/lib/services/medical-history.service"
 import { getPaymentStatus } from "@/lib/services/payment-service";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
 
 interface PatientProfile {
     userId: number
@@ -63,9 +69,27 @@ function PaymentStatusButton({ recordId }: { recordId: number }) {
         <Badge className="bg-yellow-100 text-yellow-700">Đang kiểm tra...</Badge>
     );
 
-    if (status === "paid") return (
-        <Badge className="bg-green-100 text-green-700">✓ Đã thanh toán</Badge>
+   if (status === "paid") {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <span className="text-green-700 font-medium cursor-pointer hover:underline">
+                    ✓ Đã thanh toán
+                </span>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                    onClick={() =>
+                        router.push(`/thanh-toan?medicalRecordId=${recordId}`)
+                    }
+                >
+                    Chi tiết thanh toán
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
+}
 
     return (
         <Button
