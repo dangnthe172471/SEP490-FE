@@ -199,7 +199,7 @@ export default function ServicesPage() {
                                         <div className="space-y-3">
                                             <div className="flex items-center gap-2 text-sm">
                                                 <Phone className="h-4 w-4 text-primary" />
-                                                <span className="text-muted-foreground">1900-9999</span>
+                                                <span className="text-muted-foreground">0978-468-063</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm">
                                                 <Calendar className="h-4 w-4 text-primary" />

@@ -113,10 +113,23 @@ export class ShiftSwapService extends BaseApiService {
     }
 
     async getDoctorIdByUserId(userId: number): Promise<number> {
-        // This method should get doctor ID from user ID
-        // For now, we'll assume userId is the same as doctorId
-        // In a real app, you'd need an API endpoint to get doctor ID from user ID
-        return userId;
+        const response = await this.request<ApiResponse<number>>(`/api/DoctorShiftExchange/doctor-id/user/${userId}`);
+
+        if (!response.success || !response.data) {
+            throw new Error(response.message || "Failed to get doctor ID from user ID");
+        }
+
+        return response.data;
+    }
+
+    async getDoctorByUserId(userId: number): Promise<Doctor> {
+        const response = await this.request<ApiResponse<Doctor>>(`/api/DoctorShiftExchange/doctor/user/${userId}`);
+
+        if (!response.success || !response.data) {
+            throw new Error(response.message || "Failed to get doctor info from user ID");
+        }
+
+        return response.data;
     }
 }
 

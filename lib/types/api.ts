@@ -41,6 +41,7 @@ export interface CreateUserRequest {
     specialty?: string // Chuyên khoa (chỉ cho bác sĩ)
     experienceYears?: number // Số năm kinh nghiệm (chỉ cho bác sĩ)
     roomId?: number // Phòng làm việc (chỉ cho bác sĩ)
+    avatar?: string // URL ảnh đại diện
 }
 
 export interface UpdateUserRequest {

@@ -97,7 +97,23 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new Error(text ? `${prefix}: ${text}` : prefix)
   }
   const text = await res.text()
-  return text ? JSON.parse(text) : ({} as T)
+  if (!text) {
+    return {} as T
+  }
+
+  // Check if response is JSON
+  const contentType = res.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    try {
+      return JSON.parse(text) as T
+    } catch (e) {
+      console.error('Failed to parse JSON response:', text)
+      throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`)
+    }
+  }
+
+  // If not JSON, return empty object
+  return {} as T
 }
 
 export const MedicalRecordService = {
@@ -114,7 +130,9 @@ export const MedicalRecordService = {
     return request<MedicalRecordDto>(`/${recordId}`)
   },
   async getByDoctorId(doctorId: number): Promise<MedicalRecordDto[]> {
-    return request<MedicalRecordDto[]>(`/by-doctor/${doctorId}`)
+    const result = await request<MedicalRecordDto[]>(`/by-doctor/${doctorId}`)
+    // Ensure result is always an array
+    return Array.isArray(result) ? result : []
   },
   async getAll(): Promise<MedicalRecordDto[]> {
     return request<MedicalRecordDto[]>('')

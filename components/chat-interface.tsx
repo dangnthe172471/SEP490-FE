@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     Send,
-    Phone,
-    Video,
     MoreVertical,
     User,
     MessageCircle,
@@ -193,13 +191,46 @@ export function ChatInterface({ currentUser }: ChatInterfaceProps) {
         }
     }
 
-    const formatTime = (timestamp: any) => {
+    const formatTime = (timestamp: any, showDate: boolean = false) => {
         if (!timestamp) return 'Vừa xong'
         const date = new Date(timestamp)
-        return date.toLocaleTimeString('vi-VN', {
+
+        const timeStr = date.toLocaleTimeString('vi-VN', {
             hour: '2-digit',
             minute: '2-digit'
         })
+
+        // Chỉ hiển thị ngày khi showDate = true (cho date separator)
+        if (showDate) {
+            const now = new Date()
+            const isToday = date.toDateString() === now.toDateString()
+            const isYesterday = date.toDateString() === new Date(now.getTime() - 24 * 60 * 60 * 1000).toDateString()
+
+            if (isToday) {
+                return `Hôm nay, ${timeStr}`
+            } else if (isYesterday) {
+                return `Hôm qua, ${timeStr}`
+            } else {
+                const dateStr = date.toLocaleDateString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                })
+                return `${dateStr}, ${timeStr}`
+            }
+        }
+
+        // Luôn chỉ trả về giờ khi showDate = false
+        return timeStr
+    }
+
+    const shouldShowDate = (currentMessage: FirebaseMessage, previousMessage: FirebaseMessage | null) => {
+        if (!previousMessage) return true
+
+        const currentDate = new Date(currentMessage.timestamp)
+        const previousDate = new Date(previousMessage.timestamp)
+
+        return currentDate.toDateString() !== previousDate.toDateString()
     }
 
     const getOtherParticipant = (room: ChatRoom) => {
@@ -320,12 +351,6 @@ export function ChatInterface({ currentUser }: ChatInterfaceProps) {
 
                                 <div className="flex items-center gap-2">
                                     <Button variant="ghost" size="sm">
-                                        <Phone className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm">
-                                        <Video className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm">
                                         <MoreVertical className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -343,43 +368,53 @@ export function ChatInterface({ currentUser }: ChatInterfaceProps) {
                                         </p>
                                     </div>
                                 )}
-                                {messages.map((message) => {
+                                {messages.map((message, index) => {
                                     const isOwn = message.senderId === currentUser.id
-                                    console.log('Rendering message:', message.text, 'Is own:', isOwn, 'Sender:', message.sender)
-                                    return (
-                                        <div
-                                            key={message.id}
-                                            className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            <div className={`flex gap-2 max-w-[70%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                                                {!isOwn && (
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarImage src="" />
-                                                        <AvatarFallback>
-                                                            {message.sender.charAt(0)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                )}
+                                    const previousMessage = index > 0 ? messages[index - 1] : null
+                                    const showDate = shouldShowDate(message, previousMessage)
 
-                                                <div className={`rounded-lg px-3 py-2 shadow-sm ${isOwn
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-muted/80 backdrop-blur-sm'
-                                                    }`}>
-                                                    <p className="text-sm">{message.text}</p>
-                                                    <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'
+                                    return (
+                                        <div key={message.id}>
+                                            {showDate && (
+                                                <div className="flex justify-center my-4">
+                                                    <div className="px-3 py-1 bg-muted/50 rounded-full text-xs text-muted-foreground">
+                                                        {formatTime(message.timestamp, true)}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div
+                                                className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                                            >
+                                                <div className={`flex gap-2 max-w-[70%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                    {!isOwn && (
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src="" />
+                                                            <AvatarFallback>
+                                                                {message.sender.charAt(0)}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    )}
+
+                                                    <div className={`rounded-lg px-3 py-2 shadow-sm ${isOwn
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'bg-muted/80 backdrop-blur-sm'
                                                         }`}>
-                                                        <span className="text-xs opacity-70">
-                                                            {formatTime(message.timestamp)}
-                                                        </span>
-                                                        {isOwn && (
-                                                            <div className="flex items-center">
-                                                                {message.isRead ? (
-                                                                    <CheckCheck className="h-3 w-3" />
-                                                                ) : (
-                                                                    <Check className="h-3 w-3" />
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                        <p className="text-sm">{message.text}</p>
+                                                        <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'
+                                                            }`}>
+                                                            <span className="text-xs opacity-70">
+                                                                {formatTime(message.timestamp)}
+                                                            </span>
+                                                            {isOwn && (
+                                                                <div className="flex items-center">
+                                                                    {message.isRead ? (
+                                                                        <CheckCheck className="h-3 w-3" />
+                                                                    ) : (
+                                                                        <Check className="h-3 w-3" />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

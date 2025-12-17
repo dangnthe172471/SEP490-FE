@@ -96,6 +96,14 @@ export default function DoctorRecordsPage() {
       try {
         const doctorId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id
         const data = await MedicalRecordService.getByDoctorId(doctorId)
+
+        // Ensure data is an array
+        if (!Array.isArray(data)) {
+          console.error('Expected array but got:', data)
+          setAllRecords([])
+          return
+        }
+
         // song song fetch thêm dữ liệu từ appointment và user
         const enriched = await Promise.all(
           data.map(async (r) => {

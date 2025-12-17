@@ -131,15 +131,15 @@ export default function DoctorShiftSwapPage() {
         try {
             setDoctorsLoading(true)
             const doctorId = await shiftSwapService.getDoctorIdByUserId(parseInt(currentUser.id))
-            const { from, to } = getDateRange()
-            const myShifts = await shiftSwapService.getDoctorShifts(doctorId, from, to)
 
-            const specialty = myShifts.find(shift => shift.specialty)?.specialty
-            if (!specialty) {
+            // Lấy thông tin doctor để lấy specialty trực tiếp
+            const doctorInfo = await shiftSwapService.getDoctorByUserId(parseInt(currentUser.id))
+            if (!doctorInfo || !doctorInfo.specialty) {
                 await showErrorAlert("Thông báo", "Không tìm thấy chuyên khoa của bạn")
                 return
             }
 
+            const specialty = doctorInfo.specialty
             const doctorsList = await shiftSwapService.getDoctorsBySpecialty(specialty)
             const otherDoctors = doctorsList.filter(doctor => doctor.doctorID !== doctorId)
             setDoctors(otherDoctors)
@@ -568,7 +568,7 @@ export default function DoctorShiftSwapPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="targetShift">Ca muốn đổi {swapType === "temporary" && formData.exchangeDate && `(ngày ${new Date(formData.exchangeDate).toLocaleDateString('vi-VN')})`}</Label>
+                                    <Label htmlFor="targetShift">Ca của bác sĩ muốn đổi {swapType === "temporary" && formData.exchangeDate && `(ngày ${new Date(formData.exchangeDate).toLocaleDateString('vi-VN')})`}</Label>
                                     <Select
                                         value={formData.targetShiftId}
                                         onValueChange={(value) => setFormData(prev => ({ ...prev, targetShiftId: value }))}
@@ -588,7 +588,7 @@ export default function DoctorShiftSwapPage() {
                                                             ? "Chọn ca của bạn trước"
                                                             : (swapType === "temporary" && !formData.exchangeDate
                                                                 ? "Chọn ngày đổi ca trước"
-                                                                : "Chọn ca muốn đổi")
+                                                                : "Chọn ca của bác sĩ muốn đổi")
                                                 }
                                             />
                                         </SelectTrigger>
@@ -653,12 +653,14 @@ export default function DoctorShiftSwapPage() {
                                     {myRequests.map((request) => (
                                         <div key={request.exchangeId} className="border rounded-lg p-4">
                                             <div className="flex items-center justify-between mb-2">
-                                                <h4 className="font-medium">Đổi ca với {request.doctor2Name}</h4>
+                                                <h4 className="font-medium">
+                                                    {request.doctor1Name} đổi ca với {request.doctor2Name}
+                                                </h4>
                                                 {getStatusBadge(request.status)}
                                             </div>
                                             <div className="text-sm text-muted-foreground space-y-1">
-                                                <p><strong>Ca của tôi: </strong> {request.doctorOld1ShiftName || request.doctor1ShiftName}</p>
-                                                <p><strong>Ca muốn đổi: </strong> {request.doctorOld2ShiftName || request.doctor2ShiftName}</p>
+                                                <p><strong>Ca của {request.doctor1Name}: </strong> {request.doctorOld1ShiftName || request.doctor1ShiftName}</p>
+                                                <p><strong>Ca của {request.doctor2Name}: </strong> {request.doctorOld2ShiftName || request.doctor2ShiftName}</p>
                                                 {request.exchangeDate && (
                                                     <p><strong>Ngày đổi: </strong> {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}</p>
                                                 )}

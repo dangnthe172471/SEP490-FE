@@ -245,7 +245,7 @@ export default function LienHePage() {
                       <div>
                         <h3 className="mb-2 text-lg font-bold">Địa chỉ</h3>
                         <p className="text-sm text-muted-foreground">
-                          123 Đường ABC, Quận 1, TP.HCM
+                          Thôn 1, Thạch Hòa, Thạch Thất, Hà Nội
                         </p>
                       </div>
                     </CardContent>
@@ -257,7 +257,7 @@ export default function LienHePage() {
                       </div>
                       <div>
                         <h3 className="mb-2 text-lg font-bold">Hotline</h3>
-                        <p className="text-sm text-muted-foreground">1900-9999</p>
+                        <p className="text-sm text-muted-foreground">0978-468-063</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -268,7 +268,7 @@ export default function LienHePage() {
                       </div>
                       <div>
                         <h3 className="mb-2 text-lg font-bold">Email</h3>
-                        <p className="text-sm text-muted-foreground">contact@clinic.vn</p>
+                        <p className="text-sm text-muted-foreground">diamondheathclinic@gmail.com</p>
                       </div>
                     </CardContent>
                   </Card>

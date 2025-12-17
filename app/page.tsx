@@ -99,14 +99,14 @@ export default function HomePage() {
                       Đặt lịch khám ngay
                     </Button>
                   </Link>
-                  <Link href="tel:19009999">
+                  <Link href="tel:0978468063">
                     <Button
                       size="lg"
                       variant="outline"
                       className="h-14 border-2 border-primary/20 bg-white px-8 text-base font-semibold hover:border-primary/40 hover:bg-primary/5"
                     >
                       <Phone className="mr-2 h-5 w-5" />
-                      Hotline: 1900-9999
+                      Hotline: 0978-468-063
                     </Button>
                   </Link>
                 </div>
@@ -277,7 +277,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               <Link href="/chuyen-khoa">
                 <Card className="group h-full border-none bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg ring-1 ring-primary/10 transition-all hover:-translate-y-2 hover:shadow-xl hover:ring-primary/20">
                   <CardContent className="flex h-full flex-col items-center p-8 text-center">
@@ -359,14 +359,14 @@ export default function HomePage() {
                     Đặt lịch khám ngay
                   </Button>
                 </Link>
-                <Link href="tel:19009999">
+                <Link href="tel:0978468063">
                   <Button
                     size="lg"
                     variant="outline"
                     className="h-14 border-2 border-primary-foreground/30 bg-primary-foreground/10 px-8 text-base font-semibold text-primary-foreground hover:bg-primary-foreground/20"
                   >
                     <Phone className="mr-2 h-5 w-5" />
-                    Gọi ngay: 1900-9999
+                    Gọi ngay: 0978-468-063
                   </Button>
                 </Link>
               </div>

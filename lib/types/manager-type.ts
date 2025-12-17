@@ -11,6 +11,7 @@ export interface DoctorHomeDto {
     experience: string
     email: string
     avatarUrl: string
+    roomName?: string
 }
 export interface ShiftResponseDto {
     shiftID: number

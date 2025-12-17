@@ -14,9 +14,11 @@ import {
   Shield,
   ArrowLeft,
   Save,
-  Loader2
+  Loader2,
+  User,
+  Image as ImageIcon
 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { adminService } from "@/lib/services/admin-service"
 import { ApiError, CreateUserRequest } from "@/lib/types/api"
@@ -40,6 +42,7 @@ interface CreateUserData {
   specialty: string // Chuyên khoa (chỉ cho bác sĩ)
   experienceYears: string // Số năm kinh nghiệm (chỉ cho bác sĩ)
   roomId: string // Phòng làm việc (chỉ cho bác sĩ)
+  avatar: string // URL ảnh đại diện
 }
 
 const roleOptions = [
@@ -78,10 +81,14 @@ export default function CreateUserPage() {
     medicalHistory: "",
     specialty: "",
     experienceYears: "",
-    roomId: ""
+    roomId: "",
+    avatar: ""
   })
   const [specialties, setSpecialties] = useState<string[]>([])
   const [rooms, setRooms] = useState<{ roomId: number; roomName: string }[]>([])
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load specialties and rooms on mount
   useEffect(() => {
@@ -97,7 +104,7 @@ export default function CreateUserPage() {
             specialtySet.add(doctor.specialty.trim())
           }
         })
-        
+
         // Nếu chưa có specialty nào, thêm một số specialty mặc định
         if (specialtySet.size === 0) {
           specialtySet.add("Nội khoa")
@@ -108,7 +115,7 @@ export default function CreateUserPage() {
           specialtySet.add("Tim mạch")
           specialtySet.add("Thần kinh")
         }
-        
+
         // Lọc bỏ các giá trị rỗng và sort
         const specialtiesList = Array.from(specialtySet)
           .filter(s => s && s.trim().length > 0)
@@ -180,6 +187,72 @@ export default function CreateUserPage() {
     }
   }
 
+  // Handle avatar file change
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Vui lòng chọn file hình ảnh")
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Kích thước file không được vượt quá 5MB")
+      return
+    }
+
+    setAvatarFile(file)
+
+    // Create preview URL
+    const url = URL.createObjectURL(file)
+    setAvatarPreview(url)
+  }
+
+  // Upload avatar file
+  const uploadAvatar = async (file: File): Promise<string> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const token = typeof window !== "undefined"
+      ? localStorage.getItem("auth_token") || localStorage.getItem("token")
+      : null
+
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn"
+    const res = await fetch(`${API_BASE_URL}/api/uploads/attachments`, {
+      method: "POST",
+      headers: token
+        ? {
+          Authorization: `Bearer ${token}`,
+        }
+        : undefined,
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: "Upload thất bại" }))
+      throw new Error(errorData.message || "Upload thất bại")
+    }
+
+    const data = await res.json()
+    return data.relativePath || data.url || ""
+  }
+
+  // Handle remove avatar
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null)
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview)
+      setAvatarPreview(null)
+    }
+    handleInputChange("avatar", "")
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
   // Validate form
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -219,7 +292,7 @@ export default function CreateUserPage() {
 
     if (!formData.gender) {
       newErrors.gender = "Giới tính là bắt buộc"
-    } 
+    }
 
     if (!formData.password) {
       newErrors.password = "Mật khẩu là bắt buộc"
@@ -276,6 +349,18 @@ export default function CreateUserPage() {
     setLoading(true)
 
     try {
+      // Upload avatar if file is selected
+      let avatarUrl = formData.avatar
+      if (avatarFile) {
+        try {
+          avatarUrl = await uploadAvatar(avatarFile)
+        } catch (error: any) {
+          toast.error(error.message || "Không thể tải ảnh đại diện")
+          setLoading(false)
+          return
+        }
+      }
+
       // Prepare create data, only include non-empty fields
       const normalizedPhone = formData.phone.replace(/\D/g, "")
 
@@ -301,6 +386,9 @@ export default function CreateUserPage() {
       }
       if (formData.medicalHistory && formData.medicalHistory.trim()) {
         createData.medicalHistory = formData.medicalHistory.trim()
+      }
+      if (avatarUrl && avatarUrl.trim()) {
+        createData.avatar = avatarUrl.trim()
       }
 
       // Add doctor-specific fields if role is Doctor (required fields)
@@ -560,6 +648,73 @@ export default function CreateUserPage() {
                   <CardDescription>Thông tin đăng nhập và bảo mật</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+
+                  <div className="space-y-2">
+                    <Label htmlFor="avatar">Ảnh đại diện</Label>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          ref={fileInputRef}
+                          id="avatar"
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/gif"
+                          onChange={handleAvatarFileChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={loading}
+                          className="flex items-center gap-2"
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                          Chọn ảnh
+                        </Button>
+                        {avatarFile && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRemoveAvatar}
+                            disabled={loading}
+                          >
+                            Xóa
+                          </Button>
+                        )}
+                      </div>
+
+                      {(avatarPreview || formData.avatar) && (
+                        <div className="flex items-center gap-3 rounded-lg border p-3">
+                          <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-muted">
+                            <img
+                              src={avatarPreview || formData.avatar || "/placeholder-user.jpg"}
+                              alt="Avatar preview"
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "/placeholder-user.jpg"
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">Xem trước ảnh đại diện</p>
+                            {avatarFile && (
+                              <p className="text-xs text-muted-foreground">
+                                {avatarFile.name} ({(avatarFile.size / 1024).toFixed(1)} KB)
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {!avatarPreview && !formData.avatar && (
+                        <div className="flex items-center gap-3 rounded-lg border border-dashed p-3 text-muted-foreground">
+                          <User className="h-8 w-8" />
+                          <p className="text-sm">Chưa có ảnh đại diện</p>
+                        </div>
+                      )}
+                    </div>
+                    {errors.avatar && <p className="text-sm text-red-500">{errors.avatar}</p>}
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Mật khẩu *</Label>
                     <Input

@@ -31,22 +31,17 @@ export function Footer() {
             <h3 className="mb-4 text-sm font-bold">Liên kết nhanh</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="#services" className="text-muted-foreground transition-colors hover:text-primary">
+                <Link href="/dich-vu" className="text-muted-foreground transition-colors hover:text-primary">
                   Dịch vụ khám chữa bệnh
                 </Link>
               </li>
               <li>
-                <Link href="#doctors" className="text-muted-foreground transition-colors hover:text-primary">
+                <Link href="/bac-si" className="text-muted-foreground transition-colors hover:text-primary">
                   Đội ngũ bác sĩ
                 </Link>
               </li>
               <li>
-                <Link href="#about" className="text-muted-foreground transition-colors hover:text-primary">
-                  Về chúng tôi
-                </Link>
-              </li>
-              <li>
-                <Link href="#contact" className="text-muted-foreground transition-colors hover:text-primary">
+                <Link href="/lien-he" className="text-muted-foreground transition-colors hover:text-primary">
                   Liên hệ
                 </Link>
               </li>
@@ -71,41 +66,17 @@ export function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span className="text-muted-foreground">123 Đường ABC, Quận 1, TP.HCM</span>
+                <span className="text-muted-foreground">Thôn 1, Thạch Hòa, Thạch Thất, Hà Nội</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 shrink-0 text-primary" />
-                <span className="text-muted-foreground">1900-9999</span>
+                <span className="text-muted-foreground">0978-468-063</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 shrink-0 text-primary" />
-                <span className="text-muted-foreground">info@diamondhealth.vn</span>
+                <span className="text-muted-foreground">diamondheathclinic@gmail.com</span>
               </li>
             </ul>
-
-            <div className="mt-4 flex gap-3" suppressHydrationWarning>
-              <a
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
-                aria-label="Facebook"
-              >
-                <Facebook className="h-4 w-4" />
-              </a>
-              <a
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
-                aria-label="Instagram"
-              >
-                <Instagram className="h-4 w-4" />
-              </a>
-              <a
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
-                aria-label="Youtube"
-              >
-                <Youtube className="h-4 w-4" />
-              </a>
-            </div>
           </div>
         </div>
 
