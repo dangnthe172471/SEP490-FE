@@ -113,10 +113,10 @@ export function Header() {
       { href: "/lien-he", label: "Liên hệ" },
     ]
 
-    // Quick way back to the user's dashboard when they land on homepage
-    if (dashboardPath && dashboardPath !== "/") {
-      items.unshift({ href: dashboardPath, label: "Trang của tôi" })
-    }
+    // // Quick way back to the user's dashboard when they land on homepage
+    // if (dashboardPath && dashboardPath !== "/") {
+    //   items.unshift({ href: dashboardPath, label: "Trang của tôi" })
+    // }
 
     // Add chat link for patient role only
     if (currentUser && currentUser.role === 'patient') {
