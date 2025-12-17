@@ -91,23 +91,23 @@ export default function HomePage() {
                 </div>
                 <div className="flex flex-wrap gap-4">
                   <Link href="/lien-he">
-                  <Button
-                    size="lg"
-                    className="h-14 bg-primary px-8 text-base font-semibold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
-                  >
-                    <Calendar className="mr-2 h-5 w-5" />
-                    Đặt lịch khám ngay
-                  </Button>
+                    <Button
+                      size="lg"
+                      className="h-14 bg-primary px-8 text-base font-semibold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
+                    >
+                      <Calendar className="mr-2 h-5 w-5" />
+                      Đặt lịch khám ngay
+                    </Button>
                   </Link>
                   <Link href="tel:19009999">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-14 border-2 border-primary/20 bg-white px-8 text-base font-semibold hover:border-primary/40 hover:bg-primary/5"
-                  >
-                    <Phone className="mr-2 h-5 w-5" />
-                    Hotline: 1900-9999
-                  </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="h-14 border-2 border-primary/20 bg-white px-8 text-base font-semibold hover:border-primary/40 hover:bg-primary/5"
+                    >
+                      <Phone className="mr-2 h-5 w-5" />
+                      Hotline: 1900-9999
+                    </Button>
                   </Link>
                 </div>
 
@@ -314,24 +314,6 @@ export default function HomePage() {
                 </Card>
               </Link>
 
-              <Link href="/danh-gia">
-                <Card className="group h-full border-none bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg ring-1 ring-primary/10 transition-all hover:-translate-y-2 hover:shadow-xl hover:ring-primary/20">
-                  <CardContent className="flex h-full flex-col items-center p-8 text-center">
-                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-110">
-                      <Heart className="h-10 w-10" />
-                    </div>
-                    <h3 className="mb-3 text-xl font-bold">Đánh giá</h3>
-                    <p className="mb-4 flex-1 text-sm leading-relaxed text-muted-foreground">
-                      Xem đánh giá và phản hồi từ khách hàng của chúng tôi
-                    </p>
-                    <Button variant="link" className="p-0 text-base font-semibold text-primary hover:gap-2">
-                      Xem chi tiết
-                      <ArrowRight className="ml-1 h-4 w-4 transition-all" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
-
               <Link href="/lien-he">
                 <Card className="group h-full border-none bg-gradient-to-br from-secondary/5 to-secondary/10 shadow-lg ring-1 ring-secondary/10 transition-all hover:-translate-y-2 hover:shadow-xl hover:ring-secondary/20">
                   <CardContent className="flex h-full flex-col items-center p-8 text-center">
@@ -368,24 +350,24 @@ export default function HomePage() {
               </p>
               <div className="flex flex-wrap justify-center gap-4">
                 <Link href="/lien-he">
-                <Button
-                  size="lg"
-                  className="h-14 bg-secondary px-8 text-base font-semibold shadow-xl shadow-secondary/30 hover:bg-secondary/90 hover:shadow-2xl hover:shadow-secondary/40"
-              
-                >
-                  <Calendar className="mr-2 h-5 w-5" />
-                  Đặt lịch khám ngay
-                </Button>
+                  <Button
+                    size="lg"
+                    className="h-14 bg-secondary px-8 text-base font-semibold shadow-xl shadow-secondary/30 hover:bg-secondary/90 hover:shadow-2xl hover:shadow-secondary/40"
+
+                  >
+                    <Calendar className="mr-2 h-5 w-5" />
+                    Đặt lịch khám ngay
+                  </Button>
                 </Link>
                 <Link href="tel:19009999">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-14 border-2 border-primary-foreground/30 bg-primary-foreground/10 px-8 text-base font-semibold text-primary-foreground hover:bg-primary-foreground/20"
-                >
-                  <Phone className="mr-2 h-5 w-5" />
-                  Gọi ngay: 1900-9999
-                </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-14 border-2 border-primary-foreground/30 bg-primary-foreground/10 px-8 text-base font-semibold text-primary-foreground hover:bg-primary-foreground/20"
+                  >
+                    <Phone className="mr-2 h-5 w-5" />
+                    Gọi ngay: 1900-9999
+                  </Button>
                 </Link>
               </div>
             </div>

@@ -79,7 +79,7 @@ export default function DoctorRecordsPage() {
   const [diagnosis, setDiagnosis] = useState("") // Chẩn đoán
   const [from, setFrom] = useState("") // yyyy-MM-dd
   const [to, setTo] = useState("")     // yyyy-MM-dd
-  
+
   // Pagination states
   const [pageNumber, setPageNumber] = useState(1)
   const [pageSize, setPageSize] = useState(12) // Giống các trang khác
@@ -208,6 +208,20 @@ export default function DoctorRecordsPage() {
         return recordDate <= toDate
       })
     }
+
+    // Sort by appointmentDate descending (newest first) - sắp xếp theo ngày khám giảm dần
+    filtered.sort((a, b) => {
+      const dateA = a.appointmentInfo?.appointmentDate
+        ? new Date(a.appointmentInfo.appointmentDate).getTime()
+        : (a.createdAt ? new Date(a.createdAt).getTime() : 0)
+
+      const dateB = b.appointmentInfo?.appointmentDate
+        ? new Date(b.appointmentInfo.appointmentDate).getTime()
+        : (b.createdAt ? new Date(b.createdAt).getTime() : 0)
+
+      // Sort descending (newest first)
+      return dateB - dateA
+    })
 
     return filtered
   }, [allRecords, search, diagnosis, from, to])

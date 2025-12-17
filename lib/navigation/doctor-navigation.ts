@@ -15,11 +15,10 @@ import type { NavigationItem } from "./types"
 // Doctor navigation configuration
 export const DOCTOR_NAVIGATION: NavigationItem[] = [
   { name: "Tổng quan", href: "/doctor", icon: Activity },
-  { name: "Bệnh nhân", href: "/doctor/patients", icon: Users },
   { name: "Hồ sơ bệnh án", href: "/doctor/records", icon: FileText },
   { name: "Lịch hẹn", href: "/doctor/appointments", icon: Calendar },
   { name: "Lịch làm việc", href: "/doctor/schedule", icon: Clock },
-  { name: "Chi tiết khám", href: "/doctor/patient-records", icon: FileText },
+  // { name: "Chi tiết khám", href: "/doctor/patient-records", icon: FileText },
   { name: "Đổi ca", href: "/doctor/shift-swap", icon: LucideTimer },
   { name: "AI Hỗ trợ", href: "/doctor/ai-chat", icon: Bot },
 ]

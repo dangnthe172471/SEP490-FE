@@ -477,9 +477,9 @@ export default function ProfilePage() {
           {/* Right Column - Detailed Info */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="personal" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="personal">Thông tin cá nhân</TabsTrigger>
-                <TabsTrigger value="appointments">Lịch hẹn</TabsTrigger>
+                {/* <TabsTrigger value="appointments">Lịch hẹn</TabsTrigger> */}
                 <TabsTrigger value="medical">Lịch sử khám</TabsTrigger>
               </TabsList>
 

@@ -8,7 +8,7 @@ import {
     PagedResponse,
 } from '@/lib/types/appointment'
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.https://api.diamondhealth.io.vn'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
 const API_BASE_URL = `${API_ORIGIN}/api/Appointments`
 
 class AppointmentService {
@@ -264,7 +264,7 @@ class AppointmentService {
      */
     async getMyDoctorAppointments(): Promise<AppointmentDto[]> {
         // Gọi API chuyên biệt cho bác sĩ
-        const baseOrigin = process.env.NEXT_PUBLIC_API_URL || 'https://api.https://api.diamondhealth.io.vn'
+        const baseOrigin = process.env.NEXT_PUBLIC_API_URL || 'https://api.diamondhealth.io.vn'
         const url = `${baseOrigin}/api/DoctorAppointments/appointments`
 
         // Lấy token
