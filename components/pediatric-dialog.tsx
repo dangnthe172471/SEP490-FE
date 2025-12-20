@@ -23,9 +23,16 @@ import {
 } from "@/lib/services/pediatric-service"
 import type { ReadPediatricRecordDto } from "@/lib/types/specialties"
 
-// chặn nhập -, +, e, E trên input number
+// chặn nhập -, +, e, E trên input number (cho số thập phân)
 const blockInvalidNumberKeys = (e: KeyboardEvent<HTMLInputElement>) => {
   if (["e", "E", "+", "-"].includes(e.key)) {
+    e.preventDefault()
+  }
+}
+
+// chặn nhập -, +, e, E, ., , trên input number (cho số nguyên)
+const blockInvalidIntKeys = (e: KeyboardEvent<HTMLInputElement>) => {
+  if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
     e.preventDefault()
   }
 }
@@ -35,6 +42,13 @@ const toPositiveOrNull = (raw: string): number | null => {
   const num = Number(raw)
   if (!Number.isFinite(num) || num <= 0) return null
   return num
+}
+
+const toPositiveIntOrNull = (raw: string): number | null => {
+  if (!raw) return null
+  const num = Number(raw)
+  if (!Number.isFinite(num) || num <= 0) return null
+  return Math.floor(num)
 }
 
 const isFormFilled = (data: ReadPediatricRecordDto) =>
@@ -182,11 +196,12 @@ export function PediatricDialog({
                 <Input
                   value={form.heartRate ?? ""}
                   onChange={(e) =>
-                    set("heartRate", toPositiveOrNull(e.target.value))
+                    set("heartRate", toPositiveIntOrNull(e.target.value))
                   }
                   type="number"
+                  step="1"
                   min={1}
-                  onKeyDown={blockInvalidNumberKeys}
+                  onKeyDown={blockInvalidIntKeys}
                   placeholder="VD: 90"
                 />
               </div>

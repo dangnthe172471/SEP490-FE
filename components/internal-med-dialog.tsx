@@ -30,11 +30,24 @@ const blockInvalidNumberKeys = (e: KeyboardEvent<HTMLInputElement>) => {
   }
 }
 
+const blockInvalidIntKeys = (e: KeyboardEvent<HTMLInputElement>) => {
+  if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+    e.preventDefault()
+  }
+}
+
 const toPositiveOrNull = (raw: string): number | null => {
   if (!raw) return null
   const num = Number(raw)
   if (!Number.isFinite(num) || num <= 0) return null
   return num
+}
+
+const toPositiveIntOrNull = (raw: string): number | null => {
+  if (!raw) return null
+  const num = Number(raw)
+  if (!Number.isFinite(num) || num <= 0) return null
+  return Math.floor(num)
 }
 
 const isFormFilled = (data: ReadInternalMedRecordDto) =>
@@ -155,12 +168,13 @@ export function InternalMedDialog({
                 <Input
                   value={form.bloodPressure ?? ""}
                   onChange={(e) =>
-                    set("bloodPressure", toPositiveOrNull(e.target.value))
+                    set("bloodPressure", toPositiveIntOrNull(e.target.value))
                   }
                   placeholder="VD: 120"
                   type="number"
+                  step="1"
                   min={1}
-                  onKeyDown={blockInvalidNumberKeys}
+                  onKeyDown={blockInvalidIntKeys}
                 />
               </div>
               <div className="space-y-1">
@@ -168,12 +182,13 @@ export function InternalMedDialog({
                 <Input
                   value={form.heartRate ?? ""}
                   onChange={(e) =>
-                    set("heartRate", toPositiveOrNull(e.target.value))
+                    set("heartRate", toPositiveIntOrNull(e.target.value))
                   }
                   placeholder="VD: 80"
                   type="number"
+                  step="1"
                   min={1}
-                  onKeyDown={blockInvalidNumberKeys}
+                  onKeyDown={blockInvalidIntKeys}
                 />
               </div>
               <div className="space-y-1">
