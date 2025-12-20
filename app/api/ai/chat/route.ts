@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-// Constants
-const SYSTEM_INSTRUCTION = `Bạn là trợ lý AI hỗ trợ bác sĩ chẩn đoán và tư vấn y khoa. Nhiệm vụ: gợi ý chẩn đoán phân biệt, đề xuất xét nghiệm, cung cấp phác đồ điều trị, cảnh báo tương tác thuốc. QUAN TRỌNG: Đây chỉ là công cụ hỗ trợ, không thay thế chẩn đoán chuyên môn. Trả lời bằng tiếng Việt, chi tiết, có cấu trúc rõ ràng.`
+// Constants - Optimized for speed
+const SYSTEM_INSTRUCTION = `Trợ lý AI y khoa. Gợi ý chẩn đoán, xét nghiệm, phác đồ điều trị. Cảnh báo tương tác thuốc. Lưu ý: Chỉ là công cụ hỗ trợ, không thay thế chẩn đoán chuyên môn. Trả lời tiếng Việt, ngắn gọn, có cấu trúc.`
 
 // Prioritize fastest models first
 const FALLBACK_MODELS = [
@@ -10,13 +10,19 @@ const FALLBACK_MODELS = [
     "gemini-1.5-flash"   // Fallback
 ]
 
-// Optimized generation config for speed
+// Optimized generation config for maximum speed
 const GENERATION_CONFIG = {
-    temperature: 0.7,
-    topK: 32,           // Reduced from 40 for faster generation
-    topP: 0.9,          // Reduced from 0.95 for faster generation
-    maxOutputTokens: 4096, // Reduced from 8192 for faster response (still enough for detailed answers)
+    temperature: 0.5,      // Lower temperature = faster, more deterministic
+    topK: 20,              // Reduced for faster generation
+    topP: 0.85,            // Reduced for faster generation
+    maxOutputTokens: 2048, // Reduced significantly for faster response (still sufficient for most answers)
 }
+
+// Limit conversation history to last 10 messages for speed
+const MAX_HISTORY_MESSAGES = 10
+
+// API request timeout (30 seconds)
+const API_TIMEOUT = 30000
 
 const SAFETY_SETTINGS = [
     { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
@@ -53,10 +59,13 @@ function getApiVersion(model: string): string {
 }
 
 function buildContents(conversationHistory: any[], message: string) {
-    const contents = conversationHistory?.map((msg: any) => ({
+    // Limit conversation history to last N messages for speed
+    const limitedHistory = conversationHistory?.slice(-MAX_HISTORY_MESSAGES) || []
+
+    const contents = limitedHistory.map((msg: any) => ({
         role: msg.role === "user" ? "user" : "model",
         parts: [{ text: msg.content }],
-    })) || []
+    }))
 
     if (contents.length === 0) {
         contents.push({
@@ -92,21 +101,35 @@ async function callGeminiAPI(
     // Minimal logging for performance
     const startTime = Date.now()
 
-    const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-    })
+    // Create AbortController for timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT)
 
-    const responseText = await response.text()
-    const duration = Date.now() - startTime
+    try {
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+        })
 
-    // Only log if there's an error or if it's slow
-    if (!response.ok || duration > 3000) {
-        console.log(`[Gemini API] ${model} - Status: ${response.status}, Duration: ${duration}ms`)
+        clearTimeout(timeoutId)
+        const responseText = await response.text()
+        const duration = Date.now() - startTime
+
+        // Only log if there's an error or if it's slow
+        if (!response.ok || duration > 3000) {
+            console.log(`[Gemini API] ${model} - Status: ${response.status}, Duration: ${duration}ms`)
+        }
+
+        return { response, responseText, model }
+    } catch (error: any) {
+        clearTimeout(timeoutId)
+        if (error.name === 'AbortError') {
+            throw new Error(`Request timeout after ${API_TIMEOUT}ms`)
+        }
+        throw error
     }
-
-    return { response, responseText, model }
 }
 
 function extractTextFromCandidate(candidate: any): string {

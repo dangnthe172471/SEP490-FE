@@ -90,7 +90,15 @@ export default function DoctorShiftSwapPage() {
 
     // Tập tên ca mà bác sĩ 1 đã có, dùng để ẩn các ca trùng bên bác sĩ 2
     const myShiftNames = new Set(myShifts.map(shift => shift.shiftName))
+    const targetShiftNames = new Set(targetShifts.map(shift => shift.shiftName))
+
+    // Chỉ hiển thị ca của bác sĩ đích mà bác sĩ hiện tại không có (ca riêng)
     const availableTargetShifts = targetShifts.filter(shift => !myShiftNames.has(shift.shiftName))
+
+    // Chỉ hiển thị ca của bác sĩ hiện tại mà bác sĩ đích không có (ca riêng)
+    const availableMyShifts = formData.targetDoctorId
+        ? myShifts.filter(shift => !targetShiftNames.has(shift.shiftName))
+        : myShifts
 
     useEffect(() => {
         const user = getCurrentUser()
@@ -548,22 +556,29 @@ export default function DoctorShiftSwapPage() {
                                     <Label htmlFor="myShift">Ca của tôi {swapType === "temporary" && formData.exchangeDate && `(ngày ${new Date(formData.exchangeDate).toLocaleDateString('vi-VN')})`}</Label>
                                     <Select
                                         value={formData.myShiftId}
-                                        onValueChange={(value) => setFormData(prev => ({ ...prev, myShiftId: value }))}
+                                        onValueChange={(value) => setFormData(prev => ({ ...prev, myShiftId: value, targetShiftId: "" }))}
                                         disabled={swapType === "temporary" && !formData.exchangeDate}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder={swapType === "temporary" && !formData.exchangeDate ? "Chọn ngày đổi ca trước" : "Chọn ca của bạn"} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {myShifts.map((shift) => (
+                                            {availableMyShifts.map((shift) => (
                                                 <SelectItem key={shift.doctorShiftId} value={shift.doctorShiftId.toString()}>
                                                     {shift.shiftName}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    {swapType === "temporary" && formData.exchangeDate && myShifts.length === 0 && (
-                                        <p className="text-xs text-orange-500">Bạn không có ca làm việc nào trong ngày này</p>
+                                    {swapType === "temporary" && formData.exchangeDate && availableMyShifts.length === 0 && (
+                                        <p className="text-xs text-orange-500">
+                                            {formData.targetDoctorId
+                                                ? "Bạn không có ca riêng nào trong ngày này (tất cả ca đều trùng với bác sĩ đích)"
+                                                : "Bạn không có ca làm việc nào trong ngày này"}
+                                        </p>
+                                    )}
+                                    {swapType === "permanent" && availableMyShifts.length === 0 && formData.targetDoctorId && (
+                                        <p className="text-xs text-orange-500">Bạn không có ca riêng nào trong tháng sau (tất cả ca đều trùng với bác sĩ đích)</p>
                                     )}
                                 </div>
 
@@ -601,7 +616,14 @@ export default function DoctorShiftSwapPage() {
                                         </SelectContent>
                                     </Select>
                                     {swapType === "temporary" && formData.exchangeDate && formData.targetDoctorId && availableTargetShifts.length === 0 && (
-                                        <p className="text-xs text-orange-500">Bác sĩ này không có ca làm việc nào trong ngày này</p>
+                                        <p className="text-xs text-orange-500">
+                                            {formData.myShiftId
+                                                ? "Bác sĩ này không có ca riêng nào trong ngày này (tất cả ca đều trùng với ca của bạn)"
+                                                : "Bác sĩ này không có ca làm việc nào trong ngày này"}
+                                        </p>
+                                    )}
+                                    {swapType === "permanent" && formData.targetDoctorId && formData.myShiftId && availableTargetShifts.length === 0 && (
+                                        <p className="text-xs text-orange-500">Bác sĩ này không có ca riêng nào trong tháng sau (tất cả ca đều trùng với ca của bạn)</p>
                                     )}
                                 </div>
 
