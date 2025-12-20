@@ -239,11 +239,10 @@ export function PediatricDialog({
 
       {toastOpen && (
         <div
-          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${
-            toastVariant === "destructive"
+          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${toastVariant === "destructive"
               ? "border border-red-200 bg-red-50 text-red-900"
               : "border border-emerald-200 bg-emerald-50 text-emerald-900"
-          }`}
+            }`}
         >
           <span className="font-semibold">{toastTitle}</span>
           {toastDesc && <span className="text-sm">{toastDesc}</span>}
