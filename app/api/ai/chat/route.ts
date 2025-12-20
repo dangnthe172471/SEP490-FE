@@ -1,27 +1,43 @@
 import { NextRequest, NextResponse } from "next/server"
 
-// Constants - Optimized for speed
-const SYSTEM_INSTRUCTION = `Trợ lý AI y khoa. Gợi ý chẩn đoán, xét nghiệm, phác đồ điều trị. Cảnh báo tương tác thuốc. Lưu ý: Chỉ là công cụ hỗ trợ, không thay thế chẩn đoán chuyên môn. Trả lời tiếng Việt, ngắn gọn, có cấu trúc.`
+const SYSTEM_INSTRUCTION = `
+Bạn là trợ lý AI hỗ trợ bác sĩ trong tham khảo chẩn đoán y khoa.
 
-// Prioritize fastest models first
-const FALLBACK_MODELS = [
-    "gemini-2.5-flash",  // Fastest, try first
-    "gemini-2.0-flash",  // Second fastest
-    "gemini-1.5-flash"   // Fallback
-]
+QUY TẮC BẮT BUỘC:
+- Không chào hỏi
+- Không xưng hô
+- Không gọi tên bệnh nhân
+- Không hỏi lại
 
-// Optimized generation config for maximum speed
+PHẠM VI:
+- Chỉ mang tính hỗ trợ chuyên môn
+- Không thay thế chẩn đoán bác sĩ
+- Không khẳng định chắc chắn khi thiếu dữ liệu
+
+FORMAT TRẢ LỜI (CHỈ DÙNG FORMAT NÀY):
+1. Nhận định (phân tích chi tiết các triệu chứng và dữ liệu)
+2. Chẩn đoán phân biệt (tối đa 3, giải thích rõ lý do)
+3. Xét nghiệm đề xuất (liệt kê đầy đủ và giải thích mục đích)
+4. Hướng xử trí (phác đồ điều trị chi tiết, liều lượng nếu có)
+5. Cảnh báo (tương tác thuốc, chống chỉ định, lưu ý đặc biệt)
+
+YÊU CẦU:
+- Trả lời đầy đủ, chi tiết, không bỏ sót thông tin quan trọng
+- Mỗi phần phải có nội dung cụ thể, không chỉ liệt kê
+- Dùng bullet points nhưng phải giải thích rõ ràng
+- Kết thúc câu đầy đủ, không dở dang
+`;
+
+const DEFAULT_MODEL = "gemini-2.5-flash"
+
 const GENERATION_CONFIG = {
-    temperature: 0.5,      // Lower temperature = faster, more deterministic
-    topK: 20,              // Reduced for faster generation
-    topP: 0.85,            // Reduced for faster generation
-    maxOutputTokens: 2048, // Reduced significantly for faster response (still sufficient for most answers)
-}
+    temperature: 0.5,      // Cân bằng giữa chính xác và chi tiết
+    topK: 32,              // Nhiều lựa chọn hơn để trả lời đầy đủ
+    topP: 0.9,             // Cho phép nhiều từ vựng hơn
+    maxOutputTokens: 3072  // Tăng để trả lời dài và đầy đủ
+};
 
-// Limit conversation history to last 10 messages for speed
 const MAX_HISTORY_MESSAGES = 10
-
-// API request timeout (30 seconds)
 const API_TIMEOUT = 30000
 
 const SAFETY_SETTINGS = [
@@ -31,7 +47,6 @@ const SAFETY_SETTINGS = [
     { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
 ]
 
-// Types
 interface GeminiResponse {
     candidates?: Array<{
         content?: {
@@ -53,15 +68,12 @@ interface ApiCallResult {
     model: string
 }
 
-// Helper functions
 function getApiVersion(model: string): string {
     return model.includes("2.5") || model.includes("2.0") || model.includes("exp") ? "v1beta" : "v1"
 }
 
 function buildContents(conversationHistory: any[], message: string) {
-    // Limit conversation history to last N messages for speed
     const limitedHistory = conversationHistory?.slice(-MAX_HISTORY_MESSAGES) || []
-
     const contents = limitedHistory.map((msg: any) => ({
         role: msg.role === "user" ? "user" : "model",
         parts: [{ text: msg.content }],
@@ -98,10 +110,7 @@ async function callGeminiAPI(
     const apiVersion = getApiVersion(model)
     const apiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`
 
-    // Minimal logging for performance
     const startTime = Date.now()
-
-    // Create AbortController for timeout
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT)
 
@@ -117,7 +126,6 @@ async function callGeminiAPI(
         const responseText = await response.text()
         const duration = Date.now() - startTime
 
-        // Only log if there's an error or if it's slow
         if (!response.ok || duration > 3000) {
             console.log(`[Gemini API] ${model} - Status: ${response.status}, Duration: ${duration}ms`)
         }
@@ -143,30 +151,16 @@ function extractTextFromCandidate(candidate: any): string {
         .join("")
 }
 
-function logResponseDetails(model: string, aiResponse: string, finishReason?: string, partsCount?: number) {
-    // Only log essential info for performance
+function logResponseDetails(model: string, aiResponse: string, finishReason?: string) {
     const isDevelopment = process.env.NODE_ENV === "development"
 
     if (isDevelopment) {
         console.log(`[Gemini API] Success: ${model} - ${aiResponse.length} chars - ${finishReason || "NONE"}`)
     }
 
-    // Only log detailed info if there's an issue
     if (finishReason === "MAX_TOKENS" || finishReason === "SAFETY") {
         console.warn(`[Gemini API] ${model} - Finish reason: ${finishReason}, Length: ${aiResponse.length} chars`)
     }
-}
-
-function checkTruncation(aiResponse: string, finishReason?: string): boolean {
-    if (finishReason === "MAX_TOKENS") {
-        const lastChar = aiResponse.trim().slice(-1)
-        const endsWithPunctuation = /[.!?。！？]/.test(lastChar)
-        if (!endsWithPunctuation) {
-            console.warn(`[Gemini API] Response appears to be cut off mid-sentence`)
-            return true
-        }
-    }
-    return false
 }
 
 function parseErrorResponse(responseText: string): string {
@@ -176,15 +170,6 @@ function parseErrorResponse(responseText: string): string {
     } catch {
         return responseText
     }
-}
-
-function shouldRetryWithNextModel(errorMessage: string): boolean {
-    return (
-        errorMessage.includes("not found") ||
-        errorMessage.includes("is not found") ||
-        errorMessage.includes("quota") ||
-        errorMessage.includes("Quota exceeded")
-    )
 }
 
 function getUserFriendlyErrorMessage(errorMessage: string): string {
@@ -229,7 +214,6 @@ function processSuccessfulResponse(
     data: GeminiResponse,
     model: string
 ): NextResponse | null {
-    // Check for blocked content
     if (data.promptFeedback?.blockReason) {
         console.error(`[Gemini API] Content blocked by ${model}:`, data.promptFeedback)
         return null
@@ -242,13 +226,11 @@ function processSuccessfulResponse(
 
     const candidate = data.candidates[0]
 
-    // Check if content was blocked by safety filters
     if (candidate.finishReason === "SAFETY") {
         console.error(`[Gemini API] Response blocked by safety filters for ${model}`)
         return null
     }
 
-    // Extract text from candidate
     const aiResponse = extractTextFromCandidate(candidate)
 
     if (!aiResponse || aiResponse.trim().length === 0) {
@@ -256,18 +238,7 @@ function processSuccessfulResponse(
         return null
     }
 
-    // Log response details (minimal for performance)
-    logResponseDetails(
-        model,
-        aiResponse,
-        candidate.finishReason,
-        candidate.content?.parts?.length
-    )
-
-    // Only check truncation if finishReason indicates it
-    if (candidate.finishReason === "MAX_TOKENS") {
-        checkTruncation(aiResponse, candidate.finishReason)
-    }
+    logResponseDetails(model, aiResponse, candidate.finishReason)
 
     return NextResponse.json({
         response: aiResponse,
@@ -276,88 +247,64 @@ function processSuccessfulResponse(
     })
 }
 
-// Main handler
 export async function POST(request: NextRequest) {
     try {
         const { message, conversationHistory } = await request.json()
         const apiKey = process.env.NEXT_PUBLIC_AI_KEY
 
-        // Validate request
         const validationError = validateRequest(message, apiKey)
         if (validationError) {
             return validationError
         }
 
-        // Build request
         const contents = buildContents(conversationHistory, message)
         const requestBody = buildRequestBody(contents)
+        const model = process.env.NEXT_PUBLIC_AI_MODEL || DEFAULT_MODEL
 
-        // Determine models to try
-        const customModel = process.env.NEXT_PUBLIC_AI_MODEL
-        const modelsToTry = customModel ? [customModel] : FALLBACK_MODELS
+        try {
+            const { response, responseText } = await callGeminiAPI(model, apiKey!, requestBody)
 
-        // Try each model until one succeeds
-        let lastError: any = null
-
-        for (const model of modelsToTry) {
-            try {
-                const { response, responseText } = await callGeminiAPI(model, apiKey!, requestBody)
-
-                if (response.ok) {
-                    let data: GeminiResponse
-                    try {
-                        data = JSON.parse(responseText)
-                    } catch (error) {
-                        console.error(`[Gemini API] Failed to parse response from ${model}:`, error)
-                        continue
-                    }
-
-                    const result = processSuccessfulResponse(data, model)
-                    if (result) {
-                        return result
-                    }
-
-                    // If processing failed, try next model
-                    continue
-                } else {
-                    // Handle error response
-                    const errorMessage = parseErrorResponse(responseText)
-                    const shouldRetry = shouldRetryWithNextModel(errorMessage)
-                    const isLastModel = modelsToTry.indexOf(model) === modelsToTry.length - 1
-
-                    if (shouldRetry && !isLastModel) {
-                        console.log(`[Gemini API] Model ${model} failed, trying next model...`)
-                        lastError = { response, responseText, errorMessage }
-                        continue
-                    } else {
-                        lastError = { response, responseText, errorMessage }
-                        break
-                    }
+            if (response.ok) {
+                let data: GeminiResponse
+                try {
+                    data = JSON.parse(responseText)
+                } catch (error) {
+                    console.error(`[Gemini API] Failed to parse response from ${model}:`, error)
+                    return NextResponse.json(
+                        { error: "Không thể xử lý phản hồi từ AI. Vui lòng thử lại sau." },
+                        { status: 500 }
+                    )
                 }
-            } catch (error) {
-                console.error(`[Gemini API] Error calling ${model}:`, error)
-                lastError = error
-                // Continue to next model
+
+                const result = processSuccessfulResponse(data, model)
+                if (result) {
+                    return result
+                }
+
+                return NextResponse.json(
+                    { error: "AI không thể tạo phản hồi. Vui lòng thử lại sau." },
+                    { status: 500 }
+                )
+            } else {
+                const errorMessage = parseErrorResponse(responseText)
+                const userFriendlyMessage = getUserFriendlyErrorMessage(errorMessage)
+
+                return NextResponse.json(
+                    {
+                        error: userFriendlyMessage,
+                        details: errorMessage,
+                        statusCode: response.status,
+                    },
+                    { status: response.status }
+                )
             }
+        } catch (error: any) {
+            console.error(`[Gemini API] Error calling ${model}:`, error)
+            return NextResponse.json(
+                { error: "Không thể kết nối đến AI. Vui lòng thử lại sau." },
+                { status: 500 }
+            )
         }
-
-        // All models failed, return error
-        let errorMessage = "Failed to get AI response"
-        let userFriendlyMessage = "Không thể lấy phản hồi từ AI. Vui lòng thử lại sau."
-
-        if (lastError?.responseText) {
-            errorMessage = parseErrorResponse(lastError.responseText)
-            userFriendlyMessage = getUserFriendlyErrorMessage(errorMessage)
-        }
-
-        return NextResponse.json(
-            {
-                error: userFriendlyMessage,
-                details: errorMessage,
-                statusCode: lastError?.response?.status || 500,
-            },
-            { status: lastError?.response?.status || 500 }
-        )
     } catch (error) {
         console.error("Error in AI chat API:", error)
         return NextResponse.json(
