@@ -153,8 +153,14 @@ export function BookingModal({ isOpen, onClose, onComplete }: BookingModalProps)
                             onSelect={handleServiceSelect}
                         />
                     )}
-                    {/* DateSelection receives YYYY-MM-DD */}
-                    {step === 2 && <DateSelection onSelect={handleDateSelect} onChangeService={handleChangeService} />}
+                    {/* DateSelection receives YYYY-MM-DD and doctorId */}
+                    {step === 2 && (
+                        <DateSelection 
+                            onSelect={handleDateSelect} 
+                            onChangeService={handleChangeService}
+                            doctorId={bookingData.doctorId}
+                        />
+                    )}
                     {/* TimeSelection receives HH:MM */}
                     {step === 3 && (
                         <TimeSelection

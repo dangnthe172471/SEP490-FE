@@ -12,18 +12,48 @@ interface CancelAppointmentModalProps {
     onClose: () => void
     appointment: AppointmentDto
     onSuccess: () => void
+    skipFourHourCheck?: boolean // Use 24-hour validation instead of 4-hour (for reception use)
 }
 
 export function CancelAppointmentModal({
     isOpen,
     onClose,
     appointment,
-    onSuccess
+    onSuccess,
+    skipFourHourCheck = false
 }: CancelAppointmentModalProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     if (!isOpen) return null
+
+    // Helper function to check if appointment can be cancelled based on time
+    const checkCancelEligibility = (): { canCancel: boolean; message?: string } => {
+        const appointmentDate = new Date(appointment.appointmentDate)
+        const now = new Date()
+        const diffMs = appointmentDate.getTime() - now.getTime()
+        const diffHours = diffMs / (1000 * 60 * 60)
+
+        if (skipFourHourCheck) {
+            // Reception mode: 24-hour rule
+            if (diffHours < 24) {
+                return {
+                    canCancel: false,
+                    message: 'Không thể hủy lịch hẹn. Lễ tân chỉ có thể hủy trước tối thiểu 24 giờ so với giờ hẹn.'
+                }
+            }
+        } else {
+            // Patient mode: 4-hour rule
+            if (diffHours < 4) {
+                return {
+                    canCancel: false,
+                    message: 'Không thể hủy lịch hẹn. Bạn chỉ có thể hủy trước tối thiểu 4 giờ so với giờ hẹn. Vui lòng liên hệ trực tiếp với phòng khám để được hỗ trợ.'
+                }
+            }
+        }
+
+        return { canCancel: true }
+    }
 
     const handleCancel = async () => {
         setIsLoading(true)
@@ -33,16 +63,9 @@ export function CancelAppointmentModal({
             console.log('📤 Cancelling appointment:', appointment.appointmentId)
 
             // Kiểm tra xem có thể hủy không trước khi thực hiện
-            try {
-                const canCancelResult = await appointmentService.canCancelAppointment(appointment.appointmentId)
-
-                if (!canCancelResult.canCancel) {
-                    throw new Error('Không thể hủy lịch hẹn. Bạn chỉ có thể hủy trước tối thiểu 4 giờ so với giờ hẹn. Vui lòng liên hệ trực tiếp với phòng khám để được hỗ trợ.')
-                }
-            } catch (error: any) {
-                console.error('Error checking cancel eligibility:', error)
-                // Nếu API can-cancel không hoạt động, bỏ qua check và thử cancel trực tiếp
-                console.log('⚠️ Can-cancel API failed, proceeding with direct cancel attempt')
+            const eligibility = checkCancelEligibility()
+            if (!eligibility.canCancel) {
+                throw new Error(eligibility.message || 'Không thể hủy lịch hẹn.')
             }
 
             // Call API

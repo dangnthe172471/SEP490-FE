@@ -110,18 +110,25 @@ export default function PatientAppointmentsPage() {
         }
     }
 
-    const filteredAppointments = appointments.filter(appointment => {
-        switch (filter) {
-            case 'upcoming':
-                return appointment.status === 'Pending' || appointment.status === 'Confirmed'
-            case 'completed':
-                return appointment.status === 'Completed'
-            case 'cancelled':
-                return appointment.status === 'Cancelled'
-            default:
-                return true
-        }
-    })
+    const filteredAppointments = appointments
+        .filter(appointment => {
+            switch (filter) {
+                case 'upcoming':
+                    return appointment.status === 'Pending' || appointment.status === 'Confirmed'
+                case 'completed':
+                    return appointment.status === 'Completed'
+                case 'cancelled':
+                    return appointment.status === 'Cancelled'
+                default:
+                    return true
+            }
+        })
+        .sort((a, b) => {
+            // Sort by appointmentDate descending (newest first)
+            const dateA = new Date(a.appointmentDate).getTime()
+            const dateB = new Date(b.appointmentDate).getTime()
+            return dateB - dateA // Descending order (newest first)
+        })
 
     const handleCancel = (appointment: AppointmentDto) => {
         setCancelModal({ isOpen: true, appointment })

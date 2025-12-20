@@ -1,22 +1,88 @@
 // components/booking-steps/date-selection.tsx
-// (This version is correct)
+// Updated to show only dates when doctor has schedule
 
 "use client"
 
-import { useState } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { doctorScheduleService } from "@/lib/services/doctor-schedule-service"
+import type { DoctorScheduleDto } from "@/lib/types/doctor-schedule-type"
 
 interface DateSelectionProps {
     onSelect: (date: string) => void // Expects YYYY-MM-DD output
     onChangeService?: () => void
+    doctorId?: number // Doctor ID to filter available dates
 }
 
-export function DateSelection({ onSelect, onChangeService }: DateSelectionProps) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to start of day
+export function DateSelection({ onSelect, onChangeService, doctorId }: DateSelectionProps) {
+    // Memoize today to prevent re-renders
+    const today = useMemo(() => {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        return date;
+    }, []); // Empty dependency - only calculate once
 
     const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1)) // Start at current month
     const [selectedDate, setSelectedDate] = useState<Date | null>(null) // Store full Date object
+    const [availableDates, setAvailableDates] = useState<Set<string>>(new Set()) // Set of available dates (YYYY-MM-DD)
+    const [isLoadingSchedule, setIsLoadingSchedule] = useState(false)
+
+    // Fetch doctor schedule when doctorId changes
+    useEffect(() => {
+        if (!doctorId) {
+            setAvailableDates(new Set()) // Clear if no doctor selected
+            setIsLoadingSchedule(false)
+            return
+        }
+
+        let cancelled = false; // Flag to prevent state updates if component unmounts
+
+        const fetchSchedule = async () => {
+            setIsLoadingSchedule(true)
+            try {
+                // Get schedule for next 3 months
+                const startDate = new Date(today)
+                const endDate = new Date(today)
+                endDate.setMonth(endDate.getMonth() + 3)
+
+                const startDateStr = startDate.toISOString().split('T')[0]
+                const endDateStr = endDate.toISOString().split('T')[0]
+
+                const schedules = await doctorScheduleService.getScheduleByRange(
+                    doctorId,
+                    startDateStr,
+                    endDateStr
+                )
+
+                // Only update state if component is still mounted and doctorId hasn't changed
+                if (!cancelled) {
+                    // Extract unique dates from schedules
+                    const dates = new Set<string>()
+                    schedules.forEach(schedule => {
+                        if (schedule.date) {
+                            dates.add(schedule.date.split('T')[0]) // Extract YYYY-MM-DD
+                        }
+                    })
+
+                    setAvailableDates(dates)
+                    setIsLoadingSchedule(false)
+                }
+            } catch (error) {
+                console.error('Error fetching doctor schedule:', error)
+                if (!cancelled) {
+                    setAvailableDates(new Set()) // Clear on error
+                    setIsLoadingSchedule(false)
+                }
+            }
+        }
+
+        fetchSchedule()
+
+        // Cleanup function
+        return () => {
+            cancelled = true
+        }
+    }, [doctorId]) // Only depend on doctorId, not today
 
     // Helper functions for calendar logic
     const getDaysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -32,6 +98,14 @@ export function DateSelection({ onSelect, onChangeService }: DateSelectionProps)
     const isPastDate = (day: number) => {
         const checkDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
         return checkDate < today;
+    };
+
+    // Check if a day is available (doctor has schedule)
+    const isAvailableDate = (day: number) => {
+        if (!doctorId) return true // If no doctor selected, show all dates
+        const checkDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+        return availableDates.has(dateStr);
     };
 
     // Check if a day is today
@@ -65,6 +139,7 @@ export function DateSelection({ onSelect, onChangeService }: DateSelectionProps)
     // Handler when a date button is clicked
     const handleSelectDate = (day: number) => {
         if (isPastDate(day)) return; // Prevent selecting past dates
+        if (doctorId && !isAvailableDate(day)) return; // Prevent selecting unavailable dates
 
         const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
         setSelectedDate(dateObj); // Update internal state
@@ -119,32 +194,41 @@ export function DateSelection({ onSelect, onChangeService }: DateSelectionProps)
                         const past = isPastDate(day);
                         const selected = isSelected(day);
                         const todayMark = isToday(day);
+                        const available = doctorId ? isAvailableDate(day) : true;
 
                         return (
                             <button
                                 key={day}
                                 onClick={() => handleSelectDate(day)}
-                                disabled={past} // Disable past dates
+                                disabled={past || (doctorId && !available)} // Disable past dates and unavailable dates
                                 className={`aspect-square rounded-lg font-semibold transition-all relative
                                 ${selected
                                         ? "bg-secondary text-white shadow-lg" // Selected style
-                                        : past
-                                            ? "bg-muted/50 text-muted-foreground/50 cursor-not-allowed" // Past date style
+                                        : past || (doctorId && !available)
+                                            ? "bg-muted/50 text-muted-foreground/50 cursor-not-allowed" // Past/unavailable date style
                                             : "border-2 border-border text-foreground hover:border-secondary hover:bg-secondary/10" // Default style
                                     }
-                                ${todayMark && !selected && !past ? "border-primary text-primary" : ""} // Today's style (if not selected/past)
+                                ${todayMark && !selected && !past && available ? "border-primary text-primary" : ""} // Today's style (if not selected/past/unavailable)
                               `}
                             >
                                 {day}
                                 {/* Dot indicator for today */}
-                                {todayMark && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary"></span>}
+                                {todayMark && available && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary"></span>}
                             </button>
                         )
                     })}
                 </div>
             </div>
 
-            <p className="text-center text-sm text-muted-foreground">Tất cả thời gian theo múi giờ Việt Nam GMT +7</p>
+            {isLoadingSchedule && doctorId && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Đang tải lịch làm việc của bác sĩ...</span>
+                </div>
+            )}
+            {doctorId && availableDates.size === 0 && !isLoadingSchedule && (
+                <p className="text-center text-sm text-red-500">Bác sĩ này chưa có lịch làm việc trong thời gian tới.</p>
+            )}
 
             {/* Optional "Change Service" link */}
             {onChangeService && (

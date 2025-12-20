@@ -1,10 +1,12 @@
 // components/booking-steps/time-selection.tsx
-// Updated to use real API data from shifts
+// Updated to show only shifts when doctor has schedule for selected date
 
 "use client"
 
 import { useState, useEffect } from "react"
 import { shiftService, ShiftResponseDTO } from "@/lib/services/shift-service"
+import { doctorScheduleService } from "@/lib/services/doctor-schedule-service"
+import type { DoctorScheduleDto } from "@/lib/types/doctor-schedule-type"
 import { Loader2 } from "lucide-react"
 
 interface TimeSelectionProps {
@@ -19,28 +21,89 @@ export function TimeSelection({ onSelect, onChangeService, doctorId, selectedDat
     const [selectedTime, setSelectedTime] = useState<string | null>(null)
 
     // State for API data
-    const [shifts, setShifts] = useState<ShiftResponseDTO[]>([])
+    const [allShifts, setAllShifts] = useState<ShiftResponseDTO[]>([])
+    const [doctorSchedules, setDoctorSchedules] = useState<DoctorScheduleDto[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Fetch shifts when component mounts
+    // Fetch all shifts and doctor schedule
     useEffect(() => {
-        const fetchShifts = async () => {
+        let cancelled = false; // Flag to prevent state updates if component unmounts or props change
+
+        const fetchData = async () => {
+            if (!doctorId || !selectedDate) {
+                if (!cancelled) {
+                    setIsLoading(false)
+                    setAllShifts([])
+                    setDoctorSchedules([])
+                }
+                return
+            }
+
             setIsLoading(true)
             setError(null)
             try {
-                const data = await shiftService.getAllShifts()
-                setShifts(data)
-                console.log('🕐 Fetched shifts:', data)
+                // Fetch all shifts (only once, can be cached)
+                const shiftsData = await shiftService.getAllShifts()
+                
+                // Fetch doctor schedule for selected date
+                const scheduleData = await doctorScheduleService.getScheduleByRange(
+                    doctorId,
+                    selectedDate,
+                    selectedDate
+                )
+
+                // Only update state if component is still mounted and props haven't changed
+                if (!cancelled) {
+                    setAllShifts(shiftsData)
+                    setDoctorSchedules(scheduleData)
+                    setIsLoading(false)
+
+                    console.log('🕐 Fetched shifts:', shiftsData)
+                    console.log('📅 Fetched doctor schedule:', scheduleData)
+                }
             } catch (err: any) {
-                console.error('Error fetching shifts:', err)
-                setError(err.message || 'Không thể tải danh sách ca làm việc')
-            } finally {
-                setIsLoading(false)
+                console.error('Error fetching data:', err)
+                if (!cancelled) {
+                    setError(err.message || 'Không thể tải dữ liệu')
+                    setIsLoading(false)
+                }
             }
         }
-        fetchShifts()
+        
+        fetchData()
+
+        // Cleanup function
+        return () => {
+            cancelled = true
+        }
     }, [doctorId, selectedDate]) // Re-fetch if doctor or date changes
+
+    // Filter shifts to only show those available for the doctor on selected date
+    const getAvailableShifts = (): ShiftResponseDTO[] => {
+        if (!doctorId || !selectedDate || doctorSchedules.length === 0) {
+            return allShifts // Return all shifts if no doctor/date selected or no schedule
+        }
+
+        // Create a set of shift IDs that doctor has on this date
+        const availableShiftIds = new Set<number>()
+        doctorSchedules.forEach(schedule => {
+            // Match shift by shiftType and time
+            const matchingShift = allShifts.find(shift => 
+                shift.shiftType === schedule.shiftType &&
+                shift.startTime === schedule.startTime &&
+                shift.endTime === schedule.endTime
+            )
+            if (matchingShift) {
+                availableShiftIds.add(matchingShift.shiftID)
+            }
+        })
+
+        // Return only shifts that doctor has on this date
+        return allShifts.filter(shift => availableShiftIds.has(shift.shiftID))
+    }
+
+    const shifts = getAvailableShifts()
 
     // Handler when a time slot button is clicked
     const handleSelectTime = (timeSlot: string) => { // e.g., "09:00 - 10:00"
@@ -101,6 +164,25 @@ export function TimeSelection({ onSelect, onChangeService, doctorId, selectedDat
                 >
                     Thử lại
                 </button>
+            </div>
+        )
+    }
+
+    // Show message if no doctor or date selected
+    if (!doctorId || !selectedDate) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-muted-foreground">Vui lòng chọn bác sĩ và ngày khám trước.</p>
+            </div>
+        )
+    }
+
+    // Show message if doctor has no schedule for selected date
+    if (doctorSchedules.length === 0 && !isLoading) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-red-500 mb-2">Bác sĩ không có lịch làm việc vào ngày này.</p>
+                <p className="text-sm text-muted-foreground">Vui lòng chọn ngày khác.</p>
             </div>
         )
     }
@@ -178,8 +260,6 @@ export function TimeSelection({ onSelect, onChangeService, doctorId, selectedDat
                     <p className="text-muted-foreground">Không có ca làm việc nào khả dụng.</p>
                 </div>
             )}
-
-            <p className="text-center text-sm text-muted-foreground">Tất cả thời gian theo múi giờ Việt Nam GMT +7</p>
 
             {/* Optional "Change Service" link */}
             {onChangeService && (

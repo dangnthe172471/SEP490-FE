@@ -17,6 +17,7 @@ import { toast } from "react-hot-toast"
 import { patientService, PatientInfoDto } from "@/lib/services/patient-service"
 import { PatientSearch } from "@/components/patient-search"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { shiftService, ShiftResponseDTO } from "@/lib/services/shift-service"
 
 export default function NewAppointmentPage() {
     // Get reception navigation from centralized config
@@ -30,6 +31,8 @@ export default function NewAppointmentPage() {
     const [isLoadingDoctors, setIsLoadingDoctors] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [isLoadingPatient, setIsLoadingPatient] = useState(false)
+    const [shifts, setShifts] = useState<ShiftResponseDTO[]>([])
+    const [shiftsLoading, setShiftsLoading] = useState(true)
 
     const VIETNAM_TIME_SLOTS = useMemo(() => {
         const slots: { value: string; label: string }[] = []
@@ -85,6 +88,24 @@ export default function NewAppointmentPage() {
         fetchDoctors()
     }, [])
 
+    useEffect(() => {
+        const fetchShifts = async () => {
+            try {
+                setShiftsLoading(true)
+                const data = await shiftService.getAllShifts()
+                // Sort shifts by start time
+                const sorted = [...data].sort((a, b) => a.startTime.localeCompare(b.startTime))
+                setShifts(sorted)
+            } catch (err: any) {
+                console.error('❌ [ERROR] Failed to fetch shifts:', err)
+                setError(err.message || 'Không thể tải ca làm việc')
+            } finally {
+                setShiftsLoading(false)
+            }
+        }
+        fetchShifts()
+    }, [])
+
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({
             ...prev,
@@ -116,7 +137,7 @@ export default function NewAppointmentPage() {
 
                     // Load patient info by userId
                     const patientInfo = await patientService.getPatientByUserId(userId)
-                    
+
                     // Set patient in form
                     handlePatientSelect(patientInfo.patientId.toString(), patientInfo.fullName)
                 } catch (err: any) {
@@ -130,6 +151,19 @@ export default function NewAppointmentPage() {
         }
     }, [searchParams, formData.patientId])
 
+    // Helper function to determine which shift a time belongs to
+    const getShiftForTime = (time: string): ShiftResponseDTO | undefined => {
+        const [h, m] = time.split(":")
+        const aptMinutes = parseInt(h, 10) * 60 + parseInt(m ?? "0", 10)
+        return shifts.find(s => {
+            const [sh, sm] = s.startTime.split(":")
+            const [eh, em] = s.endTime.split(":")
+            const startMinutes = parseInt(sh, 10) * 60 + parseInt(sm ?? "0", 10)
+            const endMinutes = parseInt(eh, 10) * 60 + parseInt(em ?? "0", 10)
+            return aptMinutes >= startMinutes && aptMinutes < endMinutes
+        })
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
@@ -139,6 +173,42 @@ export default function NewAppointmentPage() {
             // Validate form
             if (!formData.patientId || !formData.doctorId || !formData.appointmentDate || !formData.appointmentTime) {
                 throw new Error('Vui lòng điền đầy đủ thông tin bắt buộc')
+            }
+
+            // Validate shift: Check if patient already has an appointment in the selected shift on the selected date
+            const selectedShift = getShiftForTime(formData.appointmentTime)
+            if (!selectedShift) {
+                throw new Error("Giờ khám không thuộc ca làm việc nào. Vui lòng chọn lại.")
+            }
+
+            // Fetch existing appointments for this patient on this date
+            const existingAppointments = await appointmentService.getAllAppointments()
+            const patientIdNum = parseInt(formData.patientId)
+            const selectedDate = new Date(formData.appointmentDate).toISOString().split('T')[0] // YYYY-MM-DD
+
+            const hasConflict = existingAppointments.some(apt => {
+                // Check if same patient
+                if (apt.patientId !== patientIdNum) return false
+
+                // Check if same date
+                const aptDate = new Date(apt.appointmentDate).toISOString().split('T')[0]
+                if (aptDate !== selectedDate) return false
+
+                // Check if appointment is not cancelled
+                if (apt.status === 'Cancelled') return false
+
+                // Check if same shift - extract time from appointmentDate
+                const aptDateObj = new Date(apt.appointmentDate)
+                // Get local time hours and minutes (avoid timezone issues)
+                const aptHours = aptDateObj.getHours()
+                const aptMinutes = aptDateObj.getMinutes()
+                const aptTimeString = `${String(aptHours).padStart(2, '0')}:${String(aptMinutes).padStart(2, '0')}`
+                const aptShift = getShiftForTime(aptTimeString)
+                return aptShift?.shiftID === selectedShift.shiftID
+            })
+
+            if (hasConflict) {
+                throw new Error(`Bệnh nhân đã có lịch hẹn trong ca ${selectedShift.shiftType} vào ngày này. Mỗi bệnh nhân chỉ được đặt 1 lịch trong mỗi ca.`)
             }
 
             // Combine date and time (fix timezone issue)

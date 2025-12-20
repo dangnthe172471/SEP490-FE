@@ -6,11 +6,23 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Calendar, Award, GraduationCap, Briefcase, MapPin } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { managerService } from "@/lib/services/manager-service"
-import type { DoctorHomeDto, ShiftResponseDto } from "@/lib/types/manager-type"
+import { appointmentService } from "@/lib/services/appointment-service"
+import type { DoctorInfoDto } from "@/lib/types/appointment"
 import { useEffect, useState } from "react"
+
+// Map DoctorInfoDto to match DoctorHomeDto structure for display
+interface DoctorDisplayDto {
+  doctorID: number
+  fullName: string
+  specialty: string
+  experience: string
+  email: string
+  avatarUrl: string
+  roomName?: string
+}
+
 export default function BacSiPage() {
-  const [doctors, setDoctors] = useState<DoctorHomeDto[]>([])
+  const [doctors, setDoctors] = useState<DoctorDisplayDto[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 6
@@ -45,10 +57,25 @@ export default function BacSiPage() {
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const data = await managerService.getAllDoctors2()
-        setDoctors(data)
-      } catch (err) {
+        setLoading(true)
+        // Use appointmentService which uses /api/Appointments/doctors endpoint
+        const response = await appointmentService.getPagedDoctors(1, 100)
+        
+        // Map DoctorInfoDto to DoctorDisplayDto format
+        const mappedDoctors: DoctorDisplayDto[] = response.data.map((doctor: DoctorInfoDto) => ({
+          doctorID: doctor.doctorId,
+          fullName: doctor.fullName,
+          specialty: doctor.specialty,
+          experience: doctor.experienceYears?.toString() || "0",
+          email: doctor.email,
+          avatarUrl: "", // DoctorInfoDto doesn't have avatarUrl, use default
+          roomName: doctor.roomName
+        }))
+        
+        setDoctors(mappedDoctors)
+      } catch (err: any) {
         console.error("Lỗi tải danh sách bác sĩ:", err)
+        setDoctors([]) // Set empty array on error
       } finally {
         setLoading(false)
       }

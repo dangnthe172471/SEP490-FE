@@ -445,6 +445,7 @@ export default function ReceptionAppointmentsPage() {
             onClose={() => setCancelModal({ isOpen: false, appointment: null })}
             appointment={cancelModal.appointment}
             onSuccess={handleCancelSuccess}
+            skipFourHourCheck={true}
           />
         )}
       </div>
