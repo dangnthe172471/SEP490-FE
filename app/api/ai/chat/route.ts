@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const SYSTEM_INSTRUCTION = `
-Bạn là trợ lý AI hỗ trợ bác sĩ trong tham khảo chẩn đoán y khoa.
+Bạn là trợ lý AI chuyên về y tế, CHỈ hỗ trợ các câu hỏi liên quan đến y tế, sức khỏe, bệnh tật, triệu chứng, chẩn đoán và điều trị.
 
-QUY TẮC BẮT BUỘC:
-- Không chào hỏi
-- Không xưng hô
-- Không gọi tên bệnh nhân
-- Không hỏi lại
+⚠️ QUY TẮC TUYỆT ĐỐI - KHÔNG BAO GIỜ VI PHẠM:
+1. CHỈ trả lời câu hỏi về y tế, sức khỏe, bệnh tật, triệu chứng, chẩn đoán, điều trị, thuốc, xét nghiệm
+2. TUYỆT ĐỐI KHÔNG viết code, lập trình, hoặc cung cấp ví dụ code (Python, JavaScript, Java, C++, HTML, CSS, SQL, v.v.)
+3. TUYỆT ĐỐI KHÔNG trả lời câu hỏi về: công nghệ, lập trình, máy tính, điện thoại, xe hơi, du lịch, nhà hàng, phim ảnh, âm nhạc, thể thao, game, thời trang, mua sắm, tài chính, ngân hàng, đầu tư, giáo dục, nghề nghiệp, thời tiết, hoặc bất kỳ chủ đề nào KHÔNG liên quan đến y tế
+4. Nếu câu hỏi có bất kỳ phần nào yêu cầu viết code, lập trình, hoặc không liên quan đến y tế, bạn PHẢI từ chối toàn bộ câu hỏi và chỉ trả lời: "Tôi chỉ có thể hỗ trợ các câu hỏi liên quan đến y tế và sức khỏe. Vui lòng đặt câu hỏi về triệu chứng, chẩn đoán, hoặc điều trị y khoa."
+5. Không chào hỏi, không xưng hô, không gọi tên bệnh nhân, không hỏi lại
 
-PHẠM VI:
-- Chỉ mang tính hỗ trợ chuyên môn
+PHẠM VI HOẠT ĐỘNG:
+- Chỉ hỗ trợ chuyên môn y tế
 - Không thay thế chẩn đoán bác sĩ
 - Không khẳng định chắc chắn khi thiếu dữ liệu
 
-FORMAT TRẢ LỜI (CHỈ DÙNG FORMAT NÀY):
+FORMAT TRẢ LỜI (CHỈ DÙNG KHI CÂU HỎI VỀ Y TẾ):
 1. Nhận định (phân tích chi tiết các triệu chứng và dữ liệu)
 2. Chẩn đoán phân biệt (tối đa 3, giải thích rõ lý do)
 3. Xét nghiệm đề xuất (liệt kê đầy đủ và giải thích mục đích)
@@ -26,6 +27,7 @@ YÊU CẦU:
 - Mỗi phần phải có nội dung cụ thể, không chỉ liệt kê
 - Dùng bullet points nhưng phải giải thích rõ ràng
 - Kết thúc câu đầy đủ, không dở dang
+- TUYỆT ĐỐI KHÔNG bao gồm code, ví dụ lập trình, hoặc nội dung không liên quan đến y tế
 `;
 
 const DEFAULT_MODEL = "gemini-2.5-flash"
@@ -72,34 +74,55 @@ function getApiVersion(model: string): string {
     return model.includes("2.5") || model.includes("2.0") || model.includes("exp") ? "v1beta" : "v1"
 }
 
-function buildContents(conversationHistory: any[], message: string) {
+function buildContents(conversationHistory: any[], message: string, useSystemInstruction: boolean) {
     const limitedHistory = conversationHistory?.slice(-MAX_HISTORY_MESSAGES) || []
     const contents = limitedHistory.map((msg: any) => ({
         role: msg.role === "user" ? "user" : "model",
         parts: [{ text: msg.content }],
     }))
 
-    if (contents.length === 0) {
-        contents.push({
-            role: "user",
-            parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nCâu hỏi: ${message}` }],
-        })
-    } else {
+    // Nếu không dùng systemInstruction field, thêm vào message
+    // Nếu dùng systemInstruction field (v1beta), chỉ thêm message đơn giản
+    if (useSystemInstruction) {
         contents.push({
             role: "user",
             parts: [{ text: message }],
         })
+    } else {
+        // Cho v1, thêm system instruction vào message đầu tiên hoặc message mới
+        if (contents.length === 0) {
+            contents.push({
+                role: "user",
+                parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nCâu hỏi: ${message}` }],
+            })
+        } else {
+            // Nhắc lại instruction trong message mới để đảm bảo AI nhớ
+            contents.push({
+                role: "user",
+                parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nCâu hỏi: ${message}` }],
+            })
+        }
     }
 
     return contents
 }
 
-function buildRequestBody(contents: any[]) {
-    return {
+function buildRequestBody(contents: any[], model: string) {
+    const apiVersion = getApiVersion(model)
+    const body: any = {
         contents,
         generationConfig: GENERATION_CONFIG,
         safetySettings: SAFETY_SETTINGS,
     }
+
+    // Sử dụng systemInstruction cho v1beta (Gemini 2.0+)
+    if (apiVersion === "v1beta") {
+        body.systemInstruction = {
+            parts: [{ text: SYSTEM_INSTRUCTION }]
+        }
+    }
+
+    return body
 }
 
 async function callGeminiAPI(
@@ -257,9 +280,11 @@ export async function POST(request: NextRequest) {
             return validationError
         }
 
-        const contents = buildContents(conversationHistory, message)
-        const requestBody = buildRequestBody(contents)
         const model = process.env.NEXT_PUBLIC_AI_MODEL || DEFAULT_MODEL
+        const apiVersion = getApiVersion(model)
+        const useSystemInstruction = apiVersion === "v1beta"
+        const contents = buildContents(conversationHistory, message, useSystemInstruction)
+        const requestBody = buildRequestBody(contents, model)
 
         try {
             const { response, responseText } = await callGeminiAPI(model, apiKey!, requestBody)
