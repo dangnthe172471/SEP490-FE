@@ -315,7 +315,7 @@ export default function LienHePage() {
 
                   <form className="space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-3">
-                      <label className="text-sm font-semibold">Họ và tên *</label>
+                      <label className="text-sm font-semibold">Họ và tên </label>
                       <input
                         type="text"
                         name="name"
@@ -344,7 +344,7 @@ export default function LienHePage() {
                     </div>
 
                     <div className="space-y-3">
-                      <label className="text-sm font-semibold">Đặt lịch khám *</label>
+                      <label className="text-sm font-semibold">Đặt lịch khám </label>
                       <Button
                         type="button"
                         onClick={() => setIsBookingOpen(true)}
