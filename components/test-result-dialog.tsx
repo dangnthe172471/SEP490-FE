@@ -48,7 +48,6 @@ type RowState = {
   resultValue: string // chỉ phần số / giá trị
   unit: string // đơn vị (mmHg, mmol/L,...)
   attachment: string
-  resultDate: string // yyyy-MM-ddTHH:mm (local)
   notes: string
 }
 
@@ -60,7 +59,27 @@ const sanitizeValue = (value: string | null | undefined) => {
   return value
 }
 
-// format Date -> chuỗi cho <input type="datetime-local"> (local time)
+/**
+ * Nếu DB/nhập tay bị dính unit trong value (vd "5,6%" hoặc "5.6 %")
+ * và unit="%" => trả về "5,6" / "5.6"
+ *
+ * Chỉ strip khi unit nằm ở CUỐI chuỗi để tránh phá case phức tạp.
+ */
+function stripUnitFromValue(value: string, unit: string): string {
+  if (!value || !unit) return value
+  const v = value.trim()
+  const u = unit.trim()
+  if (!u) return value
+
+  // "5.6 %"
+  if (v.endsWith(` ${u}`)) return v.slice(0, -(u.length + 1)).trim()
+  // "5.6%"
+  if (v.endsWith(u)) return v.slice(0, -u.length).trim()
+
+  return value
+}
+
+// format Date -> chuỗi local yyyy-MM-ddTHH:mm (không toISOString)
 function toLocalDateTimeInputValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0")
   const yyyy = d.getFullYear()
@@ -69,13 +88,6 @@ function toLocalDateTimeInputValue(d: Date) {
   const hh = pad(d.getHours())
   const mm = pad(d.getMinutes())
   return `${yyyy}-${MM}-${dd}T${hh}:${mm}`
-}
-
-// chuyển chuỗi ngày giờ từ API -> chuỗi datetime-local (KHÔNG đổi timezone)
-// API lưu kiểu 2025-12-11T08:29:00 => cắt còn 2025-12-11T08:29
-function apiDateToInput(value?: string | null): string {
-  if (!value) return toLocalDateTimeInputValue(new Date())
-  return value.slice(0, 16) // yyyy-MM-ddTHH:mm
 }
 
 export function TestResultDialog({
@@ -107,14 +119,8 @@ export function TestResultDialog({
     resultValue: "",
     unit: "",
     attachment: "",
-    resultDate: toLocalDateTimeInputValue(new Date()),
     notes: "",
   })
-
-  // min cho datetime-local (không chọn quá khứ)
-  const [minDateStr, setMinDateStr] = useState<string>(
-    toLocalDateTimeInputValue(new Date())
-  )
 
   // toast state
   const [toastOpen, setToastOpen] = useState(false)
@@ -134,10 +140,6 @@ export function TestResultDialog({
 
     let mounted = true
 
-    // mỗi lần mở dialog, cập nhật min = thời điểm hiện tại
-    const nowStr = toLocalDateTimeInputValue(new Date())
-    setMinDateStr(nowStr)
-
     async function load() {
       try {
         setLoadingData(true)
@@ -155,9 +157,13 @@ export function TestResultDialog({
           setSelectedResultId(first.testResultId)
 
           const sanitized = sanitizeValue(first.resultValue)
-          let numeric = sanitized
           let unit = first.unit ?? ""
+          let numeric = sanitized
 
+          // ✅ FIX: nếu DB đã bị dính unit trong value, strip ra
+          if (sanitized && unit) numeric = stripUnitFromValue(sanitized, unit)
+
+          // fallback: nếu không có unit thì thử tách từ value
           if (sanitized && !unit) {
             const parts = sanitized.split(" ")
             if (parts.length > 1) {
@@ -170,8 +176,6 @@ export function TestResultDialog({
             resultValue: numeric,
             unit,
             attachment: first.attachment ?? "",
-            // dùng trực tiếp chuỗi local từ API (không đổi timezone)
-            resultDate: first.resultDate ? apiDateToInput(first.resultDate) : nowStr,
             notes: first.notes ?? "",
           })
         } else {
@@ -180,7 +184,6 @@ export function TestResultDialog({
             resultValue: "",
             unit: "",
             attachment: "",
-            resultDate: nowStr,
             notes: "",
           })
         }
@@ -214,9 +217,13 @@ export function TestResultDialog({
     const ex = results.find((r) => r.testResultId === id) ?? null
 
     const sanitized = sanitizeValue(ex?.resultValue)
-    let numeric = sanitized
     let unit = ex?.unit ?? ""
+    let numeric = sanitized
 
+    // ✅ FIX: nếu DB đã bị dính unit trong value, strip ra
+    if (sanitized && unit) numeric = stripUnitFromValue(sanitized, unit)
+
+    // fallback: nếu không có unit thì thử tách từ value
     if (sanitized && !unit) {
       const parts = sanitized.split(" ")
       if (parts.length > 1) {
@@ -233,9 +240,6 @@ export function TestResultDialog({
       resultValue: numeric,
       unit,
       attachment: ex?.attachment ?? "",
-      resultDate: ex?.resultDate
-        ? apiDateToInput(ex.resultDate)
-        : toLocalDateTimeInputValue(new Date()),
       notes: ex?.notes ?? "",
     })
     setTypePopoverOpen(false)
@@ -243,6 +247,12 @@ export function TestResultDialog({
 
   const handleChange = (k: keyof RowState, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }))
+
+  // helper: strip theo unit hiện tại để tránh "5.6 g/dL" dính vào ô giá trị
+  const stripByCurrentUnit = (value: string) => {
+    const u = (form.unit ?? "").trim()
+    return u ? stripUnitFromValue(value, u) : value
+  }
 
   // chỉ dùng khi nhấn Lưu
   async function uploadAttachment(file: File): Promise<string> {
@@ -256,11 +266,7 @@ export function TestResultDialog({
 
     const res = await fetch(`${API_BASE_URL}/api/uploads/attachments`, {
       method: "POST",
-      headers: token
-        ? {
-          Authorization: `Bearer ${token}`,
-        }
-        : undefined,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: formData,
     })
 
@@ -289,18 +295,6 @@ export function TestResultDialog({
     })
   }
 
-  const isResultDateInPast = (value: string) => {
-    if (!value) return true
-    const picked = new Date(value) // interpret local
-    const now = new Date()
-
-    // so sánh theo phút, bỏ giây & milli-giây
-    picked.setSeconds(0, 0)
-    now.setSeconds(0, 0)
-
-    return picked.getTime() < now.getTime()
-  }
-
   const handleSave = async () => {
     if (!selectedResultId) {
       return showToast(
@@ -318,22 +312,6 @@ export function TestResultDialog({
       )
     }
 
-    if (!form.resultDate) {
-      return showToast(
-        "destructive",
-        "Thiếu thời điểm",
-        "Vui lòng chọn Thời điểm kết quả."
-      )
-    }
-
-    if (isResultDateInPast(form.resultDate)) {
-      return showToast(
-        "destructive",
-        "Thời điểm không hợp lệ",
-        "Không được chọn thời điểm kết quả trong quá khứ."
-      )
-    }
-
     try {
       setLoading(true)
 
@@ -346,21 +324,22 @@ export function TestResultDialog({
         setForm((prev) => ({ ...prev, attachment: attachmentPath }))
       }
 
-      const numeric = form.resultValue.trim()
+      // ✅ FIX LƯU DB: resultValue chỉ lưu GIÁ TRỊ, unit lưu RIÊNG
       const unit = (form.unit ?? "").trim()
-      const combined = unit ? `${numeric} ${unit}` : numeric
+      let numeric = form.resultValue.trim()
 
-      // chuẩn hoá: thêm giây nếu thiếu (yyyy-MM-ddTHH:mm -> yyyy-MM-ddTHH:mm:ss)
-      const normalizedResultDate =
-        form.resultDate.length === 16
-          ? `${form.resultDate}:00`
-          : form.resultDate
+      // nếu user lỡ nhập kèm unit -> strip để tránh lưu "5,6%" vào value
+      if (unit) numeric = stripUnitFromValue(numeric, unit)
+
+      // ✅ Thời điểm luôn lấy theo thời gian hiện tại khi bấm Lưu (local, có giây)
+      const nowLocal = toLocalDateTimeInputValue(new Date())
+      const normalizedResultDate = `${nowLocal}:00`
 
       await updateTestResult(selectedResultId, {
-        resultValue: combined,
+        resultValue: numeric,
         unit: unit || null,
         attachment: attachmentPath?.trim() || null,
-        // GỬI CHUỖI LOCAL, KHÔNG toISOString (không lệch UTC nữa)
+        // ✅ luôn NOW, không cho user chọn
         resultDate: normalizedResultDate,
         notes: form.notes?.trim() || null,
       })
@@ -395,17 +374,15 @@ export function TestResultDialog({
   const previewUrl = pendingFile
     ? localPreviewUrl
     : form.attachment
-      ? buildAttachmentUrl(form.attachment)
-      : ""
+    ? buildAttachmentUrl(form.attachment)
+    : ""
 
   const canSave =
     !loading &&
     !loadingData &&
     results.length > 0 &&
     !!selectedResultId &&
-    !!form.resultValue.trim() &&
-    !!form.resultDate &&
-    !isResultDateInPast(form.resultDate)
+    !!form.resultValue.trim()
 
   return (
     <>
@@ -473,6 +450,7 @@ export function TestResultDialog({
                     </Command>
                   </PopoverContent>
                 </Popover>
+
                 {selectedResult && (
                   <p className="text-xs text-muted-foreground">
                     Mã xét nghiệm: #{selectedResult.testResultId}
@@ -486,31 +464,32 @@ export function TestResultDialog({
                   <Input
                     value={form.resultValue}
                     onChange={(e) =>
-                      handleChange("resultValue", e.target.value)
+                      handleChange(
+                        "resultValue",
+                        stripByCurrentUnit(e.target.value)
+                      )
                     }
                     placeholder="VD: 5.6 hoặc 145/90"
                   />
                 </div>
-                {/* Dropdown đơn vị dùng UnitSelect */}
+
                 <UnitSelect
                   value={form.unit}
-                  onChange={(v) => handleChange("unit", v)}
+                  onChange={(v) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      unit: v,
+                      // ✅ đổi unit -> strip lại value
+                      resultValue: v
+                        ? stripUnitFromValue(prev.resultValue, v)
+                        : prev.resultValue,
+                    }))
+                  }}
                   placeholder="Chọn đơn vị"
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label>Thời điểm kết quả *</Label>
-                <Input
-                  type="datetime-local"
-                  value={form.resultDate}
-                  min={minDateStr}
-                  onChange={(e) => handleChange("resultDate", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Không chọn thời điểm trong quá khứ.
-                </p>
-              </div>
+              {/* ✅ ĐÃ ẨN trường thời điểm kết quả */}
 
               <div className="space-y-1">
                 <Label>Đính kèm (chọn ảnh từ máy)</Label>
@@ -527,7 +506,6 @@ export function TestResultDialog({
                   </p>
                 )}
 
-                {/* Xem trước ảnh */}
                 {previewUrl && (
                   <div className="mt-2 space-y-1">
                     <Label className="text-xs text-muted-foreground">
@@ -587,7 +565,7 @@ export function TestResultDialog({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog xem ảnh – 2/3 màn hình, căn giữa, có DialogTitle ẩn cho a11y */}
+      {/* Dialog xem ảnh */}
       <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
         <DialogContent className="max-w-[70vw] max-h-[70vh] p-0 border-none bg-transparent shadow-none">
           <DialogHeader className="sr-only">
@@ -607,10 +585,11 @@ export function TestResultDialog({
 
       {toastOpen && (
         <div
-          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${toastVariant === "destructive"
-            ? "border border-red-200 bg-red-50 text-red-900"
-            : "border border-emerald-200 bg-emerald-50 text-emerald-900"
-            }`}
+          className={`fixed bottom-6 right-6 z-[210] max-w-sm rounded-md px-4 py-3 shadow-md flex flex-col gap-1 ${
+            toastVariant === "destructive"
+              ? "border border-red-200 bg-red-50 text-red-900"
+              : "border border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
         >
           <span className="font-semibold">{toastTitle}</span>
           {toastDesc && <span className="text-sm">{toastDesc}</span>}
