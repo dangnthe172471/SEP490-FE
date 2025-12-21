@@ -119,11 +119,11 @@ export async function getDoctorAppointmentDetail(
     patientId: d.patientId,
     patientName: d.patientName,
     patientPhone: d.patientPhone,
+    reasonForVisit: d.visitReason ?? "",
     createdAt: d.createdAt ?? null,
     doctorId: d.doctorId,
     doctorName: d.doctorName,
     doctorSpecialty: d.doctorSpecialty,
     visitReason: d.visitReason ?? null,
-
   };
 }

@@ -1141,6 +1141,96 @@ export default function MedicalRecordDetailPage() {
               )} */}
             </div>
 
+            {/* Kết quả xét nghiệm */}
+            <div>
+              <div className="font-semibold mb-2">
+                Kết quả xét nghiệm ({testResults.length})
+              </div>
+              {testResults.length > 0 ? (
+                <div className="border rounded divide-y">
+                  {testResults.map((t) => {
+                    const typeName =
+                      t.testName ??
+                      testTypes.find(
+                        (tt) => tt.testTypeId === t.testTypeId
+                      )?.testName ??
+                      `Loại #${t.testTypeId}`;
+                    const pending = t.resultValue
+                      ? t.resultValue.toLowerCase().includes("pending") ||
+                      t.resultValue.toLowerCase().includes("chờ")
+                      : true;
+                    return (
+                      <div
+                        key={t.testResultId}
+                        className="p-3 text-sm space-y-2 border-b last:border-b-0"
+                      >
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="font-medium">Xét nghiệm:</span>{" "}
+                            {typeName}
+                          </div>
+                          <div>
+                            <span className="font-medium">Trạng thái:</span>{" "}
+                            {pending ? (
+                              <span className="text-orange-600">Chờ kết quả</span>
+                            ) : (
+                              <span>
+                                {t.resultValue ?? "-"}
+                                {t.unit && ` ${t.unit}`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {t.resultDate && (
+                          <div>
+                            <span className="font-medium">Ngày kết quả:</span>{" "}
+                            {new Date(t.resultDate).toLocaleDateString("vi-VN")}
+                          </div>
+                        )}
+                        {t.notes && (
+                          <div>
+                            <span className="font-medium">Ghi chú:</span> {t.notes}
+                          </div>
+                        )}
+                        {t.attachment && (
+                          <div>
+                            <span className="font-medium">Ảnh đính kèm:</span>
+                            <div className="mt-2">
+                              <a
+                                href={buildAttachmentUrl(t.attachment)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block"
+                              >
+                                <img
+                                  src={buildAttachmentUrl(t.attachment)}
+                                  alt={`Ảnh xét nghiệm ${typeName}`}
+                                  className="max-w-xs max-h-48 rounded border cursor-pointer hover:opacity-80 transition-opacity object-contain"
+                                  onError={(e) => {
+                                    // Fallback nếu ảnh không load được
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = "none";
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = `<span class="text-xs text-muted-foreground">Không thể tải ảnh: ${t.attachment}</span>`;
+                                    }
+                                  }}
+                                />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Chưa có kết quả xét nghiệm
+                </p>
+              )}
+            </div>
+
             {/* Lên lịch tái khám */}
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -1300,96 +1390,6 @@ export default function MedicalRecordDetailPage() {
                   {sendingReappointment ? "Đang đặt lịch..." : "Đặt lịch tái khám"}
                 </Button>
               </div>
-            </div>
-
-            {/* Kết quả xét nghiệm */}
-            <div>
-              <div className="font-semibold mb-2">
-                Kết quả xét nghiệm ({testResults.length})
-              </div>
-              {testResults.length > 0 ? (
-                <div className="border rounded divide-y">
-                  {testResults.map((t) => {
-                    const typeName =
-                      t.testName ??
-                      testTypes.find(
-                        (tt) => tt.testTypeId === t.testTypeId
-                      )?.testName ??
-                      `Loại #${t.testTypeId}`;
-                    const pending = t.resultValue
-                      ? t.resultValue.toLowerCase().includes("pending") ||
-                      t.resultValue.toLowerCase().includes("chờ")
-                      : true;
-                    return (
-                      <div
-                        key={t.testResultId}
-                        className="p-3 text-sm space-y-2 border-b last:border-b-0"
-                      >
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <span className="font-medium">Xét nghiệm:</span>{" "}
-                            {typeName}
-                          </div>
-                          <div>
-                            <span className="font-medium">Trạng thái:</span>{" "}
-                            {pending ? (
-                              <span className="text-orange-600">Chờ kết quả</span>
-                            ) : (
-                              <span>
-                                {t.resultValue ?? "-"}
-                                {t.unit && ` ${t.unit}`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {t.resultDate && (
-                          <div>
-                            <span className="font-medium">Ngày kết quả:</span>{" "}
-                            {new Date(t.resultDate).toLocaleDateString("vi-VN")}
-                          </div>
-                        )}
-                        {t.notes && (
-                          <div>
-                            <span className="font-medium">Ghi chú:</span> {t.notes}
-                          </div>
-                        )}
-                        {t.attachment && (
-                          <div>
-                            <span className="font-medium">Ảnh đính kèm:</span>
-                            <div className="mt-2">
-                              <a
-                                href={buildAttachmentUrl(t.attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-block"
-                              >
-                                <img
-                                  src={buildAttachmentUrl(t.attachment)}
-                                  alt={`Ảnh xét nghiệm ${typeName}`}
-                                  className="max-w-xs max-h-48 rounded border cursor-pointer hover:opacity-80 transition-opacity object-contain"
-                                  onError={(e) => {
-                                    // Fallback nếu ảnh không load được
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = "none";
-                                    const parent = target.parentElement;
-                                    if (parent) {
-                                      parent.innerHTML = `<span class="text-xs text-muted-foreground">Không thể tải ảnh: ${t.attachment}</span>`;
-                                    }
-                                  }}
-                                />
-                              </a>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Chưa có kết quả xét nghiệm
-                </p>
-              )}
             </div>
 
             {/* Thanh toán
