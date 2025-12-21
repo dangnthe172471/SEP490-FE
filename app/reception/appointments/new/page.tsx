@@ -172,13 +172,21 @@ export default function NewAppointmentPage() {
         try {
             // Validate form
             if (!formData.patientId || !formData.doctorId || !formData.appointmentDate || !formData.appointmentTime) {
-                throw new Error('Vui lòng điền đầy đủ thông tin bắt buộc')
+                const errorMsg = 'Vui lòng điền đầy đủ thông tin bắt buộc'
+                setError(errorMsg)
+                toast.error(errorMsg, { duration: 5000 })
+                setIsLoading(false)
+                return
             }
 
             // Validate shift: Check if patient already has an appointment in the selected shift on the selected date
             const selectedShift = getShiftForTime(formData.appointmentTime)
             if (!selectedShift) {
-                throw new Error("Giờ khám không thuộc ca làm việc nào. Vui lòng chọn lại.")
+                const errorMsg = "Giờ khám không thuộc ca làm việc nào. Vui lòng chọn lại."
+                setError(errorMsg)
+                toast.error(errorMsg, { duration: 5000 })
+                setIsLoading(false)
+                return
             }
 
             // Fetch existing appointments for this patient on this date
@@ -208,7 +216,11 @@ export default function NewAppointmentPage() {
             })
 
             if (hasConflict) {
-                throw new Error(`Bệnh nhân đã có lịch hẹn trong ca ${selectedShift.shiftType} vào ngày này. Mỗi bệnh nhân chỉ được đặt 1 lịch trong mỗi ca.`)
+                const errorMsg = `Bệnh nhân đã có lịch hẹn trong ca ${selectedShift.shiftType} vào ngày này. Mỗi bệnh nhân chỉ được đặt 1 lịch trong mỗi ca.`
+                setError(errorMsg)
+                toast.error(errorMsg, { duration: 5000 })
+                setIsLoading(false)
+                return
             }
 
             // Combine date and time (fix timezone issue)
@@ -225,7 +237,11 @@ export default function NewAppointmentPage() {
 
             // Validate the date is valid
             if (isNaN(appointmentDate.getTime())) {
-                throw new Error(`Thời gian không hợp lệ: ${dateTimeString}. Vui lòng chọn lại.`)
+                const errorMsg = `Thời gian không hợp lệ: ${dateTimeString}. Vui lòng chọn lại.`
+                setError(errorMsg)
+                toast.error(errorMsg, { duration: 5000 })
+                setIsLoading(false)
+                return
             }
 
             // Send local time string to backend (not ISO UTC)

@@ -72,18 +72,18 @@ export default function AdminUsersPage() {
         // Dùng appointmentService để lấy doctors với userId
         const { appointmentService } = await import("@/lib/services/appointment-service")
         const doctorsWithUserId = await appointmentService.getPagedDoctors(1, 1000)
-        
+
         // Tạo map userId -> specialty
         const map: Record<number, string> = {}
         const specialtySet = new Set<string>()
-        
+
         doctorsWithUserId.data.forEach((doctor) => {
           if (doctor.userId && doctor.specialty) {
             map[doctor.userId] = doctor.specialty
             specialtySet.add(doctor.specialty)
           }
         })
-        
+
         setDoctorsMap(map)
         setSpecialties(Array.from(specialtySet).sort())
       } catch (err) {
@@ -182,12 +182,12 @@ export default function AdminUsersPage() {
   const activeUsers = filteredUsers.filter((u) => u.status === "active")
   const inActiveUsers = filteredUsers.filter((u) => u.status === "inactive")
   let doctorUsers = filteredUsers.filter((u) => u.role === "Doctor")
-  
+
   // Filter doctors by specialty
   if (selectedSpecialty !== "all") {
     doctorUsers = doctorUsers.filter((u) => u.specialty === selectedSpecialty)
   }
-  
+
   const patientUsers = filteredUsers.filter((u) => u.role === "Patient")
   const receptionistUsers = filteredUsers.filter((u) => u.role === "Receptionist")
   const pharmacyProviderUsers = filteredUsers.filter((u) => u.role === "Pharmacy Provider")

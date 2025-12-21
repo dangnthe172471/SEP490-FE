@@ -97,6 +97,7 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
             case "policy":
                 return "bg-amber-100 text-amber-700"
             case "reappointmentrequest":
+            case "reappointment":
                 return "bg-green-100 text-green-700"
             default:
                 return "bg-gray-100 text-gray-700"
@@ -113,6 +114,8 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
                 return "Chính sách"
             case "reappointmentrequest":
                 return "Yêu cầu tái khám"
+            case "reappointment":
+                return "Tái khám"
             default:
                 return "Thông báo"
         }
@@ -123,8 +126,11 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
             const data = JSON.parse(content)
             return {
                 patientName: data.PatientName || data.patientName || "Bệnh nhân",
-                preferredDate: data.PreferredDate || data.preferredDate,
-                notes: data.Notes || data.notes,
+                preferredDate: data.PreferredDate || data.preferredDate || data.AppointmentDate,
+                notes: data.Notes || data.notes || data.ReasonForVisit,
+                appointmentId: data.AppointmentId || data.appointmentId,
+                appointmentDate: data.AppointmentDate || data.appointmentDate,
+                reasonForVisit: data.ReasonForVisit || data.reasonForVisit,
             }
         } catch {
             return null
@@ -222,7 +228,7 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
                                         <p className="font-medium text-sm leading-tight">
                                             {n.title}
                                         </p>
-                                        {n.type.toLowerCase() === "reappointmentrequest" ? (
+                                        {(n.type.toLowerCase() === "reappointmentrequest" || n.type.toLowerCase() === "reappointment") ? (
                                             <div className="text-xs text-muted-foreground mt-2 space-y-1">
                                                 {(() => {
                                                     const parsed = parseReappointmentContent(n.message)
@@ -231,7 +237,24 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
                                                     }
                                                     return (
                                                         <div className="space-y-1.5">
-                                                            {parsed.preferredDate && (
+                                                            {parsed.appointmentDate && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Calendar className="h-3 w-3 text-blue-600" />
+                                                                    <span>
+                                                                        Ngày hẹn:{" "}
+                                                                        <span className="font-medium text-slate-700">
+                                                                            {new Date(parsed.appointmentDate).toLocaleDateString("vi-VN", {
+                                                                                day: "2-digit",
+                                                                                month: "2-digit",
+                                                                                year: "numeric",
+                                                                                hour: "2-digit",
+                                                                                minute: "2-digit",
+                                                                            })}
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {parsed.preferredDate && !parsed.appointmentDate && (
                                                                 <div className="flex items-center gap-1.5">
                                                                     <Calendar className="h-3 w-3 text-blue-600" />
                                                                     <span>
@@ -248,11 +271,19 @@ export function NotificationBell({ notificationHref }: NotificationBellProps) {
                                                                     </span>
                                                                 </div>
                                                             )}
-                                                            {parsed.notes && (
+                                                            {parsed.patientName && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <User className="h-3 w-3 text-blue-600" />
+                                                                    <span>
+                                                                        Bệnh nhân: <span className="font-medium text-slate-700">{parsed.patientName}</span>
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {(parsed.reasonForVisit || parsed.notes) && (
                                                                 <div className="flex items-start gap-1.5">
                                                                     <FileText className="h-3 w-3 text-blue-600 mt-0.5" />
                                                                     <span className="line-clamp-2">
-                                                                        <span className="font-medium">Ghi chú:</span> {parsed.notes}
+                                                                        <span className="font-medium">Lý do:</span> {parsed.reasonForVisit || parsed.notes}
                                                                     </span>
                                                                 </div>
                                                             )}

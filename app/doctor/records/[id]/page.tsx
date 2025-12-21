@@ -83,6 +83,7 @@ export default function MedicalRecordDetailPage() {
   const id = params?.id ? Number(params.id) : null;
 
   const [record, setRecord] = useState<MedicalRecordDto | null>(null);
+  const [savedDiagnosis, setSavedDiagnosis] = useState<string | null>(null); // Chẩn đoán đã lưu trong database
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -172,6 +173,8 @@ export default function MedicalRecordDetailPage() {
         setError(null);
         const data = await MedicalRecordService.getById(Number(id));
         setRecord(data);
+        // Lưu chẩn đoán từ database để kiểm tra
+        setSavedDiagnosis(data.diagnosis ?? null);
 
         // LẤY THÊM TẤT CẢ TESTRESULT CHO RECORD NÀY
         try {
@@ -253,6 +256,8 @@ export default function MedicalRecordDetailPage() {
         doctorNotes: record.doctorNotes ?? undefined,
       });
       setRecord(updated);
+      // Cập nhật chẩn đoán đã lưu vào database
+      setSavedDiagnosis(updated.diagnosis ?? null);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       window.location.reload();
@@ -268,6 +273,8 @@ export default function MedicalRecordDetailPage() {
     try {
       const data = await MedicalRecordService.getById(Number(id));
       setRecord(data);
+      // Cập nhật chẩn đoán đã lưu sau khi reload
+      setSavedDiagnosis(data.diagnosis ?? null);
 
       // reload luôn testResults cho chắc
       const tests = await getTestResultsByRecord(data.recordId);
@@ -1045,9 +1052,9 @@ export default function MedicalRecordDetailPage() {
             {/* Đơn thuốc */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                {/* <div className="font-semibold">
+                <div className="font-semibold">
                   Đơn thuốc ({record.prescriptions?.length ?? 0})
-                </div> */}
+                </div>
 
                 {hasPrescriptions ? (
                   <Button
@@ -1062,14 +1069,26 @@ export default function MedicalRecordDetailPage() {
                     Xem đơn thuốc
                   </Button>
                 ) : (
-                  <Button
-                    size="sm"
-                    onClick={handleOpenPrescription}
-                    disabled={!record.diagnosis || record.diagnosis.trim() === ""} // disable nếu chẩn đoán rỗng
-                    title={!record.diagnosis ? "Vui lòng điền chẩn đoán trước khi kê đơn" : ""}
-                  >
-                    Kê đơn thuốc
-                  </Button>
+                  <div className="flex flex-col items-end">
+                    {(!savedDiagnosis || savedDiagnosis.trim() === "") && (
+                      <div className="rounded-md px-3 py-2 text-sm text-yellow-800">
+                        ⚠️ Vui lòng chẩn đoán trước khi kê đơn thuốc
+                      </div>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={handleOpenPrescription}
+                      disabled={!savedDiagnosis || savedDiagnosis.trim() === ""}
+                      title={!savedDiagnosis || savedDiagnosis.trim() === "" ? "Vui lòng nhập và lưu chẩn đoán trước khi kê đơn" : ""}
+                      className={
+                        !savedDiagnosis || savedDiagnosis.trim() === ""
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }
+                    >
+                      Kê đơn thuốc
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -1227,10 +1246,10 @@ export default function MedicalRecordDetailPage() {
 
                       // Format datetime: YYYY-MM-DDTHH:mm:ss
                       const appointmentDateTime = `${reappointmentDate}T${reappointmentTime}:00`;
-                      
+
                       // Create appointment directly
-                      const reasonForVisit = reappointmentNotes?.trim() 
-                        ? `Tái khám: ${reappointmentNotes}` 
+                      const reasonForVisit = reappointmentNotes?.trim()
+                        ? `Tái khám: ${reappointmentNotes}`
                         : "Tái khám theo yêu cầu của bác sĩ";
 
                       const appointmentResult = await appointmentService.createByReceptionist({
@@ -1241,7 +1260,7 @@ export default function MedicalRecordDetailPage() {
                       });
 
                       // Update medical record with reappointment info
-                      const updatedNotes = record.doctorNotes 
+                      const updatedNotes = record.doctorNotes
                         ? `${record.doctorNotes}\n\n[Lịch tái khám đã đặt: ${new Date(appointmentDateTime).toLocaleString('vi-VN')}]`
                         : `[Lịch tái khám đã đặt: ${new Date(appointmentDateTime).toLocaleString('vi-VN')}]`;
 

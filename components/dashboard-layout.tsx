@@ -14,11 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Heart, LogOut, UserIcon, Home, LayoutDashboard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { NotificationBell } from "@/components/notification-bell"
+import { avatarService } from "@/lib/services/avatar.service"
+import { authService } from "@/lib/services/auth.service"
 interface DashboardLayoutProps {
   children: React.ReactNode
   navigation: Array<{
@@ -32,6 +34,8 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
+  const [avatarError, setAvatarError] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const currentUser = getCurrentUser()
@@ -41,6 +45,47 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
       setUser(currentUser)
     }
   }, [router])
+
+  // Fetch user avatar when user changes
+  useEffect(() => {
+    if (!user) {
+      setAvatarUrl(undefined)
+      return
+    }
+
+    // Try to get avatar from localStorage first
+    const storedAvatar = localStorage.getItem('user_avatar')
+    if (storedAvatar && avatarService.isValidAvatarUrl(storedAvatar)) {
+      const url = avatarService.getAvatarUrl(storedAvatar)
+      setAvatarUrl(url)
+    } else {
+      // If no stored avatar, try to fetch from API
+      fetchUserAvatar()
+    }
+  }, [user?.id])
+
+  const fetchUserAvatar = async () => {
+    try {
+      const profile = await authService.getProfile()
+      if (profile.avatar && avatarService.isValidAvatarUrl(profile.avatar)) {
+        const url = avatarService.getAvatarUrl(profile.avatar)
+        setAvatarUrl(url)
+        // Store in localStorage for quick access
+        localStorage.setItem('user_avatar', profile.avatar)
+      } else {
+        setAvatarUrl(undefined)
+        localStorage.removeItem('user_avatar')
+      }
+    } catch (error) {
+      console.error('Failed to fetch user avatar:', error)
+      setAvatarUrl(undefined)
+    }
+  }
+
+  // Reset avatar error when user or avatar URL changes
+  useEffect(() => {
+    setAvatarError(false)
+  }, [user?.avatar, avatarUrl])
 
   const handleLogout = () => {
     logout()
@@ -89,7 +134,16 @@ export function DashboardLayout({ children, navigation }: DashboardLayoutProps) 
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                  {avatarUrl && !avatarError && (
+                    <AvatarImage
+                      src={avatarUrl}
+                      alt={user.name}
+                      onError={() => setAvatarError(true)}
+                    />
+                  )}
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>

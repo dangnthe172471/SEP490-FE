@@ -54,7 +54,7 @@ export function Footer() {
             <ul className="space-y-2 text-sm">
               <li className="text-muted-foreground">Nội tổng quát</li>
               <li className="text-muted-foreground">Nhi khoa</li>
-              <li className="text-muted-foreground">Sản - Phụ khoa</li>
+              <li className="text-muted-foreground">Da liễu</li>
               <li className="text-muted-foreground">Khám sức khỏe tổng quát</li>
               <li className="text-muted-foreground">Xét nghiệm</li>
             </ul>

@@ -194,7 +194,7 @@ export function PatientSearch({
     return (
         <div className="space-y-2" ref={searchRef}>
             <Label htmlFor="patient-search">
-                {label} {required && <span className="text-red-500">*</span>}
+                {label} {required && <span className="text-black-500">*</span>}
             </Label>
 
             <div className="relative">

@@ -120,7 +120,7 @@ export default function AppointmentsPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="internal">Nội tổng quát</SelectItem>
-                          <SelectItem value="obstetrics">Sản - Phụ khoa</SelectItem>
+                          <SelectItem value="obstetrics">Da liễu</SelectItem>
                           <SelectItem value="pediatrics">Nhi khoa</SelectItem>
                         </SelectContent>
                       </Select>
