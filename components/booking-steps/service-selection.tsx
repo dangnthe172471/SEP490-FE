@@ -5,9 +5,9 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Stethoscope, Award, Briefcase, GraduationCap, Check, Loader2 } from "lucide-react"
-import { managerService } from "@/lib/services/manager-service"
-import type { DoctorDto } from "@/lib/types/manager-type"
+import { Stethoscope, Briefcase, GraduationCap, Check, Loader2 } from "lucide-react"
+import { appointmentService } from "@/lib/services/appointment-service"
+import type { DoctorInfoDto } from "@/lib/types/appointment"
 
 // Define props: accepts onSelect callback
 interface ServiceSelectionProps {
@@ -15,23 +15,23 @@ interface ServiceSelectionProps {
 }
 
 export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
-    const [selectedDoctor, setSelectedDoctor] = useState<DoctorDto | null>(null)
+    const [selectedDoctor, setSelectedDoctor] = useState<DoctorInfoDto | null>(null)
 
     // State for API data
-    const [doctors, setDoctors] = useState<DoctorDto[]>([])
+    const [doctors, setDoctors] = useState<DoctorInfoDto[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Fetch doctors from centralized ManagerService (uses NEXT_PUBLIC_API_URL)
+    // Fetch doctors from AppointmentService (uses /api/Appointments/doctors)
     useEffect(() => {
         let mounted = true
             ; (async () => {
                 setIsLoading(true)
                 setError(null)
                 try {
-                    const data = await managerService.getAllDoctors()
+                    const response = await appointmentService.getPagedDoctors(1, 100)
                     if (mounted) {
-                        setDoctors(data)
+                        setDoctors(response.data || [])
                     }
                 } catch (err: any) {
                     if (mounted) {
@@ -45,7 +45,7 @@ export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
     }, [])
 
     // Handler when a doctor card is clicked
-    const handleDoctorSelect = (doctor: DoctorDto) => {
+    const handleDoctorSelect = (doctor: DoctorInfoDto) => {
         setSelectedDoctor(doctor) // Update state to highlight selection
 
         // Determine service name from doctor's specialty
@@ -57,7 +57,7 @@ export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
             service,          // Specialty
             price,
             doctor.fullName,  // Name
-            doctor.doctorID   // ID (note: doctorID not doctorId)
+            doctor.doctorId   // ID (note: doctorId lowercase)
         )
     }
 
@@ -90,9 +90,9 @@ export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
                 {/* Map through fetched doctors and render cards */}
                 {doctors.map((doctor) => (
                     <Card
-                        key={doctor.doctorID}
+                        key={doctor.doctorId}
                         onClick={() => handleDoctorSelect(doctor)}
-                        className={`border-2 cursor-pointer transition-all ${selectedDoctor?.doctorID === doctor.doctorID
+                        className={`border-2 cursor-pointer transition-all ${selectedDoctor?.doctorId === doctor.doctorId
                             ? "border-primary bg-primary/5 shadow-md" // Highlight if selected
                             : "border-border hover:shadow-md hover:border-primary/50"
                             }`}
@@ -112,7 +112,7 @@ export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
                                             <p className="text-sm text-primary font-medium">{doctor.specialty}</p>
                                         </div>
                                         {/* Checkmark if selected */}
-                                        {selectedDoctor?.doctorID === doctor.doctorID && (
+                                        {selectedDoctor?.doctorId === doctor.doctorId && (
                                             <div className="p-1 rounded-full bg-primary">
                                                 <Check className="h-4 w-4 text-white" />
                                             </div>
@@ -127,10 +127,6 @@ export function ServiceSelection({ onSelect }: ServiceSelectionProps) {
                                         <div className="flex items-center gap-2">
                                             <GraduationCap className="h-3.5 w-3.5 shrink-0" />
                                             <span>Email: {doctor.email}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Award className="h-3.5 w-3.5 shrink-0" />
-                                            <span>ID: {doctor.doctorID}</span>
                                         </div>
                                     </div>
                                 </div>

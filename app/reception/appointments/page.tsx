@@ -247,7 +247,6 @@ export default function ReceptionAppointmentsPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-lg font-semibold">{appointment.patientName || 'Không có tên'}</h3>
-                  <Badge variant="outline">APT{appointment.appointmentId.toString().padStart(3, '0')}</Badge>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />
@@ -281,9 +280,6 @@ export default function ReceptionAppointmentsPage() {
             </div>
           </div>
           <div className="flex gap-2 ml-4">
-            <Button size="sm" onClick={() => router.push(`/reception/appointments/${appointment.appointmentId}`)}>
-              Chi tiết
-            </Button>
             {canCancel(appointment) && (
                 <Button
                   size="sm"
@@ -445,6 +441,7 @@ export default function ReceptionAppointmentsPage() {
             onClose={() => setCancelModal({ isOpen: false, appointment: null })}
             appointment={cancelModal.appointment}
             onSuccess={handleCancelSuccess}
+            skipFourHourCheck={true}
           />
         )}
       </div>

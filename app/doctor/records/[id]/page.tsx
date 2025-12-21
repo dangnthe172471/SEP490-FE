@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/command";
 import { ChevronsUpDown, Check, Clock, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { reappointmentRequestService } from "@/lib/services/reappointment-request-service";
+import { getCurrentUser } from "@/lib/auth";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
@@ -1130,7 +1130,7 @@ export default function MedicalRecordDetailPage() {
               </div>
               <div className="bg-blue-50 rounded-lg p-4 space-y-3 border border-blue-100">
                 <p className="text-xs text-muted-foreground mb-2">
-                  Gửi yêu cầu tái khám cho lễ tân để đặt lịch hẹn cho bệnh nhân
+                  Đặt lịch tái khám trực tiếp cho bệnh nhân. Lịch hẹn sẽ được lưu vào hồ sơ bệnh án và bệnh nhân sẽ nhận được email thông báo.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1174,7 +1174,7 @@ export default function MedicalRecordDetailPage() {
                   </Label>
                   <Textarea
                     id="reappointment-notes"
-                    placeholder="Nhập ghi chú về lý do tái khám hoặc hướng dẫn cho lễ tân..."
+                    placeholder="Nhập ghi chú về lý do tái khám (sẽ được gửi trong email thông báo cho bệnh nhân)..."
                     value={reappointmentNotes}
                     onChange={(e) => setReappointmentNotes(e.target.value)}
                     rows={2}
@@ -1186,13 +1186,22 @@ export default function MedicalRecordDetailPage() {
                     if (!reappointmentDate) {
                       toast({
                         title: "Lỗi",
-                        description: "Vui lòng chọn ngày tái khám mong muốn.",
+                        description: "Vui lòng chọn ngày tái khám.",
                         variant: "destructive",
                       });
                       return;
                     }
 
-                    if (!record?.appointment?.appointmentId && !record?.appointmentId) {
+                    if (!reappointmentTime) {
+                      toast({
+                        title: "Lỗi",
+                        description: "Vui lòng chọn giờ tái khám.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    if (!record?.appointment) {
                       toast({
                         title: "Lỗi",
                         description: "Không tìm thấy thông tin lịch hẹn.",
@@ -1201,44 +1210,75 @@ export default function MedicalRecordDetailPage() {
                       return;
                     }
 
+                    const patientId = record.appointment.patientId;
+                    const doctorId = record.appointment.doctorId;
+
+                    if (!patientId || !doctorId) {
+                      toast({
+                        title: "Lỗi",
+                        description: "Không tìm thấy thông tin bệnh nhân hoặc bác sĩ.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
                     try {
                       setSendingReappointment(true);
 
-                      const preferredDateTime = reappointmentTime
-                        ? `${reappointmentDate}T${reappointmentTime}:00`
-                        : `${reappointmentDate}T00:00:00`;
+                      // Format datetime: YYYY-MM-DDTHH:mm:ss
+                      const appointmentDateTime = `${reappointmentDate}T${reappointmentTime}:00`;
+                      
+                      // Create appointment directly
+                      const reasonForVisit = reappointmentNotes?.trim() 
+                        ? `Tái khám: ${reappointmentNotes}` 
+                        : "Tái khám theo yêu cầu của bác sĩ";
 
-                      await reappointmentRequestService.createReappointmentRequest({
-                        appointmentId: record.appointment?.appointmentId ?? record.appointmentId,
-                        preferredDate: preferredDateTime,
-                        notes: reappointmentNotes || null,
+                      const appointmentResult = await appointmentService.createByReceptionist({
+                        patientId: patientId,
+                        doctorId: doctorId,
+                        appointmentDate: appointmentDateTime,
+                        reasonForVisit: reasonForVisit,
+                      });
+
+                      // Update medical record with reappointment info
+                      const updatedNotes = record.doctorNotes 
+                        ? `${record.doctorNotes}\n\n[Lịch tái khám đã đặt: ${new Date(appointmentDateTime).toLocaleString('vi-VN')}]`
+                        : `[Lịch tái khám đã đặt: ${new Date(appointmentDateTime).toLocaleString('vi-VN')}]`;
+
+                      await MedicalRecordService.update(record.recordId, {
+                        doctorNotes: updatedNotes,
+                        diagnosis: record.diagnosis ?? undefined,
                       });
 
                       toast({
                         title: "Thành công",
-                        description: "Đã gửi yêu cầu tái khám cho lễ tân.",
+                        description: `Đã đặt lịch tái khám cho bệnh nhân vào ${new Date(appointmentDateTime).toLocaleString('vi-VN')}. Bệnh nhân sẽ nhận được email thông báo.`,
                       });
 
                       // Reset form
                       setReappointmentDate("");
                       setReappointmentTime("");
                       setReappointmentNotes("");
+
+                      // Reload record to show updated info
+                      await reloadRecord();
                     } catch (error: any) {
+                      console.error("Error creating reappointment:", error);
                       toast({
                         title: "Lỗi",
-                        description: error?.message || "Không thể gửi yêu cầu tái khám.",
+                        description: error?.message || "Không thể đặt lịch tái khám. Vui lòng thử lại.",
                         variant: "destructive",
                       });
                     } finally {
                       setSendingReappointment(false);
                     }
                   }}
-                  disabled={sendingReappointment || !reappointmentDate}
+                  disabled={sendingReappointment || !reappointmentDate || !reappointmentTime}
                   size="sm"
                   className="w-full"
                 >
                   <Send className="h-4 w-4 mr-2" />
-                  {sendingReappointment ? "Đang gửi..." : "Gửi yêu cầu tái khám"}
+                  {sendingReappointment ? "Đang đặt lịch..." : "Đặt lịch tái khám"}
                 </Button>
               </div>
             </div>
