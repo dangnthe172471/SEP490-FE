@@ -36,10 +36,10 @@ export function CancelAppointmentModal({
 
         if (skipFourHourCheck) {
             // Reception mode: 24-hour rule
-            if (diffHours < 24) {
+            if (diffHours < 4) {
                 return {
                     canCancel: false,
-                    message: 'Không thể hủy lịch hẹn. Lễ tân chỉ có thể hủy trước tối thiểu 24 giờ so với giờ hẹn.'
+                    message: 'Không thể hủy lịch hẹn. Lễ tân chỉ có thể hủy trước tối thiểu 4 giờ so với giờ hẹn.'
                 }
             }
         } else {
