@@ -42,6 +42,7 @@ import { DateFormatter } from "@/components/date-formatter"
 import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
 import { managerService } from "@/lib/services/manager-service"
 import type { DoctorDto } from "@/lib/types/manager-type"
+import { RoleGuard } from "@/components/role-guard"
 
 type User = UserDto & {
   id: string
@@ -331,8 +332,9 @@ export default function AdminUsersPage() {
   )
 
   return (
-    <DashboardLayout navigation={navigation}>
-      <ClientOnly
+    <RoleGuard allowedRoles="admin">
+      <DashboardLayout navigation={navigation}>
+        <ClientOnly
         fallback={
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -629,6 +631,7 @@ export default function AdminUsersPage() {
           )}
         </div>
       </ClientOnly>
-    </DashboardLayout>
+      </DashboardLayout>
+    </RoleGuard>
   )
 }

@@ -55,6 +55,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { RoleGuard } from "@/components/role-guard";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://api.diamondhealth.io.vn";
@@ -515,9 +516,11 @@ export default function MedicalRecordDetailPage() {
 
   if (!record) {
     return (
-      <DashboardLayout navigation={navigation}>
-        <div className="p-6 text-red-600">Không tìm thấy hồ sơ</div>
-      </DashboardLayout>
+      <RoleGuard allowedRoles="doctor">
+        <DashboardLayout navigation={navigation}>
+          <div className="p-6 text-red-600">Không tìm thấy hồ sơ</div>
+        </DashboardLayout>
+      </RoleGuard>
     );
   }
 
@@ -538,6 +541,7 @@ export default function MedicalRecordDetailPage() {
   const noMoreAvailableTests = availableTestTypes.length === 0;
 
   return (
+    <RoleGuard allowedRoles="doctor">
     <DashboardLayout navigation={navigation}>
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -1433,5 +1437,6 @@ export default function MedicalRecordDetailPage() {
         />
       )}
     </DashboardLayout>
+    </RoleGuard>
   );
 }

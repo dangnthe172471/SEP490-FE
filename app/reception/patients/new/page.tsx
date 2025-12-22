@@ -34,6 +34,7 @@ import { ApiError, CreateUserRequest } from "@/lib/types/api"
 import { toast } from "sonner"
 import { ClientOnly } from "@/components/client-only"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 interface CreateUserData {
   fullName: string
@@ -228,6 +229,7 @@ export default function CreateUserPage() {
   }
 
   return (
+    <RoleGuard allowedRoles="reception">
     <DashboardLayout navigation={navigation}>
       <ClientOnly fallback={
         <div className="space-y-6">
@@ -454,5 +456,6 @@ export default function CreateUserPage() {
         </div>
       </ClientOnly>
     </DashboardLayout>
+    </RoleGuard>
   )
 }

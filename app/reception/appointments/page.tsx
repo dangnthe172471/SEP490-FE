@@ -16,6 +16,7 @@ import { AppointmentDto } from "@/lib/types/appointment"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { CancelAppointmentModal } from "@/components/cancel-appointment-modal"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 export default function ReceptionAppointmentsPage() {
   // Get reception navigation from centralized config
@@ -341,6 +342,7 @@ export default function ReceptionAppointmentsPage() {
   }
 
   return (
+    <RoleGuard allowedRoles="reception">
     <DashboardLayout navigation={navigation}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -446,5 +448,6 @@ export default function ReceptionAppointmentsPage() {
         )}
       </div>
     </DashboardLayout>
+    </RoleGuard>
   )
 }

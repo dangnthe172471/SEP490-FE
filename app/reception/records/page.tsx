@@ -16,6 +16,7 @@ import { MedicalRecordService } from "@/lib/services/medical-record-service"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { patientService } from "@/lib/services/patient-service"
 import { userService } from "@/lib/services/user.service"
+import { RoleGuard } from "@/components/role-guard"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { createPayment2, getPaymentStatus, getPaymentDetails } from "@/lib/services/payment-service";
@@ -462,6 +463,7 @@ const handlePayNow = async (recordId: number) => {
   }
 
   return (
+    <RoleGuard allowedRoles="reception">
     <DashboardLayout navigation={navigation}>
       <div className="space-y-6">
         {/* Header */}
@@ -617,5 +619,6 @@ const handlePayNow = async (recordId: number) => {
         </Card>
       </div>
     </DashboardLayout>
+    </RoleGuard>
   )
 }

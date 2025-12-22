@@ -36,6 +36,7 @@ import { ClientOnly } from "@/components/client-only"
 import { DateFormatter } from "@/components/date-formatter"
 import { getCurrentUser } from "@/lib/auth"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 export default function UserDetailPage() {
   // Get reception navigation from centralized config
@@ -324,6 +325,7 @@ export default function UserDetailPage() {
   }
 
   return (
+    <RoleGuard allowedRoles="reception">
     <DashboardLayout navigation={navigation}>
       <ClientOnly fallback={
         <div className="space-y-6">
@@ -628,5 +630,6 @@ export default function UserDetailPage() {
         </div>
       </ClientOnly>
     </DashboardLayout>
+    </RoleGuard>
   )
 }

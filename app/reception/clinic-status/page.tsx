@@ -18,6 +18,7 @@ import {
 import { DashboardService } from '@/lib/services/dashboard-service'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { getReceptionNavigation } from '@/lib/navigation'
+import { RoleGuard } from '@/components/role-guard'
 
 type ClinicStatus = {
     date: string
@@ -80,6 +81,7 @@ export default function ClinicStatusPage() {
     if (!data) return <DashboardLayout navigation={navigation}><div>Không có dữ liệu</div></DashboardLayout>
 
     return (
+        <RoleGuard allowedRoles="reception">
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -170,6 +172,7 @@ export default function ClinicStatusPage() {
                 </div>
             </div>
         </DashboardLayout>
+        </RoleGuard>
     )
 }
 

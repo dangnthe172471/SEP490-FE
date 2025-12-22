@@ -23,6 +23,7 @@ import {
 import { appointmentService } from "@/lib/services/appointment-service"
 import { AppointmentDto } from "@/lib/types/appointment"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { RoleGuard } from "@/components/role-guard"
 import {
     shiftService,
     type ShiftResponseDTO,
@@ -316,6 +317,7 @@ export default function ReceptionAppointmentsSchedulePage() {
     }
 
     return (
+        <RoleGuard allowedRoles="reception">
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div className="flex items-end justify-between gap-4">
@@ -562,6 +564,7 @@ export default function ReceptionAppointmentsSchedulePage() {
                 </div>
             )}
         </DashboardLayout>
+        </RoleGuard>
     )
 }
 

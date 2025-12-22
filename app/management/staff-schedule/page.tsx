@@ -12,7 +12,7 @@ import ScheduleMonthView from "./components/ScheduleMonthView"
 import ScheduleSummary from "./components/ScheduleSummary"
 import SchedulePeriodListView from "./components/SchedulePeriodListView"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
-import PageGuard from "@/components/PageGuard"
+import { RoleGuard } from "@/components/role-guard"
 
 export default function StaffSchedulePage() {
     const navigation = getManagerNavigation()
@@ -54,7 +54,7 @@ export default function StaffSchedulePage() {
     }
 
     return (
-        <PageGuard allowedRoles={["management", "admin"]}>
+        <RoleGuard allowedRoles={["management", "admin"]}>
             <DashboardLayout navigation={navigation}>
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
@@ -117,6 +117,6 @@ export default function StaffSchedulePage() {
                     />
                 </div>
             </DashboardLayout>
-        </PageGuard>
+        </RoleGuard>
     )
 }

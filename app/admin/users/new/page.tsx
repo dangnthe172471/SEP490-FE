@@ -27,6 +27,7 @@ import { ClientOnly } from "@/components/client-only"
 import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
 import { shiftSwapService } from "@/lib/services/shift-swap-service"
 import { roomService } from "@/lib/services/room-service"
+import { RoleGuard } from "@/components/role-guard"
 
 interface CreateUserData {
   fullName: string
@@ -472,8 +473,9 @@ export default function CreateUserPage() {
   }
 
   return (
-    <DashboardLayout navigation={navigation}>
-      <ClientOnly fallback={
+    <RoleGuard allowedRoles="admin">
+      <DashboardLayout navigation={navigation}>
+        <ClientOnly fallback={
         <div className="space-y-6">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -833,6 +835,7 @@ export default function CreateUserPage() {
           </form>
         </div>
       </ClientOnly>
-    </DashboardLayout>
+      </DashboardLayout>
+    </RoleGuard>
   )
 }

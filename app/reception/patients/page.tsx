@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { ClientOnly } from "@/components/client-only";
 import { DateFormatter } from "@/components/date-formatter";
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation";
+import { RoleGuard } from "@/components/role-guard";
 
 type User = UserDto & {
   id: string;
@@ -281,6 +282,7 @@ export default function ReceptionPatientsPage() {
   };
 
   return (
+    <RoleGuard allowedRoles="reception">
     <DashboardLayout navigation={navigation}>
       <ClientOnly
         fallback={
@@ -516,5 +518,6 @@ export default function ReceptionPatientsPage() {
         </div>
       </ClientOnly>
     </DashboardLayout>
+    </RoleGuard>
   );
 }

@@ -37,6 +37,7 @@ import {
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 export default function ManagerShiftSwapRequestsPage() {
     // Get manager navigation from centralized config
@@ -232,209 +233,344 @@ export default function ManagerShiftSwapRequestsPage() {
     const approvedRequests = filteredRequests.filter(req => req.status === "Approved")
     const rejectedRequests = filteredRequests.filter(req => req.status === "Rejected")
 
-    if (loading) {
-        return (
-            <DashboardLayout navigation={navigation}>
-                <div className="flex items-center justify-center h-64">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-2 text-gray-600">Đang tải danh sách yêu cầu...</p>
-                    </div>
-                </div>
-            </DashboardLayout>
-        )
-    }
-
     return (
-        <DashboardLayout navigation={navigation}>
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold">Quản lý yêu cầu đổi ca</h1>
-                        <p className="text-muted-foreground">Duyệt và xử lý các yêu cầu đổi ca từ bác sĩ</p>
-                    </div>
-                    <Button onClick={fetchAllRequests} variant="outline" size="sm" disabled={loading}>
-                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                        Làm mới
-                    </Button>
-                </div>
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className="border-l-4 border-l-yellow-500">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Chờ duyệt</p>
-                                    <p className="text-2xl font-bold text-yellow-600">{pendingRequests.length}</p>
-                                </div>
-                                <Clock3 className="w-8 h-8 text-yellow-500" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-l-4 border-l-green-500">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Đã chấp nhận</p>
-                                    <p className="text-2xl font-bold text-green-600">{approvedRequests.length}</p>
-                                </div>
-                                <CheckCircle className="w-8 h-8 text-green-500" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-l-4 border-l-red-500">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Đã từ chối</p>
-                                    <p className="text-2xl font-bold text-red-600">{rejectedRequests.length}</p>
-                                </div>
-                                <XCircle className="w-8 h-8 text-red-500" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Filters and Search */}
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            <div className="flex-1">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                    <Input
-                                        placeholder="Tìm kiếm theo tên bác sĩ hoặc chuyên khoa..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="w-40">
-                                        <Filter className="w-4 h-4 mr-2" />
-                                        <SelectValue placeholder="Trạng thái" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tất cả</SelectItem>
-                                        <SelectItem value="Pending">Chờ duyệt</SelectItem>
-                                        <SelectItem value="Approved">Đã chấp nhận</SelectItem>
-                                        <SelectItem value="Rejected">Đã từ chối</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select value={sortBy} onValueChange={setSortBy}>
-                                    <SelectTrigger className="w-40">
-                                        <ArrowUpDown className="w-4 h-4 mr-2" />
-                                        <SelectValue placeholder="Sắp xếp" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="date">Theo ngày</SelectItem>
-                                        <SelectItem value="doctor1">Theo bác sĩ 1</SelectItem>
-                                        <SelectItem value="doctor2">Theo bác sĩ 2</SelectItem>
-                                        <SelectItem value="status">Theo trạng thái</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                                >
-                                    <ArrowUpDown className="w-4 h-4" />
-                                </Button>
-                            </div>
+        <RoleGuard allowedRoles={["management", "admin"]}>
+            <DashboardLayout navigation={navigation}>
+                <div className="space-y-6">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold">Quản lý yêu cầu đổi ca</h1>
+                            <p className="text-muted-foreground">Duyệt và xử lý các yêu cầu đổi ca từ bác sĩ</p>
                         </div>
-                    </CardContent>
-                </Card>
+                        <Button onClick={fetchAllRequests} variant="outline" size="sm" disabled={loading}>
+                            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                            Làm mới
+                        </Button>
+                    </div>
 
-                {/* Bulk Actions */}
-                {selectedRequests.length > 0 && (
-                    <Card className="border-blue-200 bg-blue-50">
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="border-l-4 border-l-yellow-500">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Chờ duyệt</p>
+                                        <p className="text-2xl font-bold text-yellow-600">{pendingRequests.length}</p>
+                                    </div>
+                                    <Clock3 className="w-8 h-8 text-yellow-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-green-500">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Đã chấp nhận</p>
+                                        <p className="text-2xl font-bold text-green-600">{approvedRequests.length}</p>
+                                    </div>
+                                    <CheckCircle className="w-8 h-8 text-green-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-red-500">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Đã từ chối</p>
+                                        <p className="text-2xl font-bold text-red-600">{rejectedRequests.length}</p>
+                                    </div>
+                                    <XCircle className="w-8 h-8 text-red-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Filters and Search */}
+                    <Card>
                         <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <CheckSquare className="w-4 h-4 text-blue-600" />
-                                    <span className="text-sm font-medium text-blue-800">
-                                        Đã chọn {selectedRequests.length} yêu cầu
-                                    </span>
+                            <div className="flex flex-col lg:flex-row gap-4">
+                                <div className="flex-1">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                        <Input
+                                            placeholder="Tìm kiếm theo tên bác sĩ hoặc chuyên khoa..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="pl-10"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
+                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                        <SelectTrigger className="w-40">
+                                            <Filter className="w-4 h-4 mr-2" />
+                                            <SelectValue placeholder="Trạng thái" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Tất cả</SelectItem>
+                                            <SelectItem value="Pending">Chờ duyệt</SelectItem>
+                                            <SelectItem value="Approved">Đã chấp nhận</SelectItem>
+                                            <SelectItem value="Rejected">Đã từ chối</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={sortBy} onValueChange={setSortBy}>
+                                        <SelectTrigger className="w-40">
+                                            <ArrowUpDown className="w-4 h-4 mr-2" />
+                                            <SelectValue placeholder="Sắp xếp" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="date">Theo ngày</SelectItem>
+                                            <SelectItem value="doctor1">Theo bác sĩ 1</SelectItem>
+                                            <SelectItem value="doctor2">Theo bác sĩ 2</SelectItem>
+                                            <SelectItem value="status">Theo trạng thái</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <Button
-                                        size="sm"
-                                        onClick={handleBulkApprove}
-                                        className="bg-green-600 hover:bg-green-700"
-                                        disabled={loading}
-                                    >
-                                        <UserCheck className="w-4 h-4 mr-1" />
-                                        Chấp nhận tất cả
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="destructive"
-                                        onClick={handleBulkReject}
-                                        disabled={loading}
-                                    >
-                                        <UserX className="w-4 h-4 mr-1" />
-                                        Từ chối tất cả
-                                    </Button>
-                                    <Button
-                                        size="sm"
                                         variant="outline"
-                                        onClick={() => setSelectedRequests([])}
+                                        size="sm"
+                                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
                                     >
-                                        Bỏ chọn
+                                        <ArrowUpDown className="w-4 h-4" />
                                     </Button>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
-                )}
 
-                {/* Tabs */}
-                <Tabs defaultValue="pending" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="pending" className="flex items-center gap-2">
-                            <Clock3 className="w-4 h-4" />
-                            Chờ duyệt ({pendingRequests.length})
-                        </TabsTrigger>
-                        <TabsTrigger value="approved" className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4" />
-                            Đã chấp nhận ({approvedRequests.length})
-                        </TabsTrigger>
-                        <TabsTrigger value="rejected" className="flex items-center gap-2">
-                            <XCircle className="w-4 h-4" />
-                            Đã từ chối ({rejectedRequests.length})
-                        </TabsTrigger>
-                    </TabsList>
+                    {/* Bulk Actions */}
+                    {selectedRequests.length > 0 && (
+                        <Card className="border-blue-200 bg-blue-50">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <CheckSquare className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm font-medium text-blue-800">
+                                            Đã chọn {selectedRequests.length} yêu cầu
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            onClick={handleBulkApprove}
+                                            className="bg-green-600 hover:bg-green-700"
+                                            disabled={loading}
+                                        >
+                                            <UserCheck className="w-4 h-4 mr-1" />
+                                            Chấp nhận tất cả
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={handleBulkReject}
+                                            disabled={loading}
+                                        >
+                                            <UserX className="w-4 h-4 mr-1" />
+                                            Từ chối tất cả
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setSelectedRequests([])}
+                                        >
+                                            Bỏ chọn
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <TabsContent value="pending" className="space-y-4">
-                        {pendingRequests.length === 0 ? (
-                            <Card>
-                                <CardContent className="p-8 text-center">
-                                    <Clock3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Không có yêu cầu chờ duyệt</h3>
-                                    <p className="text-gray-500">Tất cả yêu cầu đã được xử lý</p>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="grid gap-4">
-                                {pendingRequests.map((request) => (
-                                    <Card key={request.exchangeId} className="border-l-4 border-l-yellow-500 hover:shadow-lg transition-shadow">
-                                        <CardHeader>
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <Checkbox
-                                                        checked={selectedRequests.includes(request.exchangeId)}
-                                                        onCheckedChange={(checked) => {
-                                                            if (checked) {
-                                                                setSelectedRequests([...selectedRequests, request.exchangeId])
-                                                            } else {
-                                                                setSelectedRequests(selectedRequests.filter(id => id !== request.exchangeId))
-                                                            }
-                                                        }}
-                                                    />
+                    {/* Tabs */}
+                    <Tabs defaultValue="pending" className="space-y-4">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="pending" className="flex items-center gap-2">
+                                <Clock3 className="w-4 h-4" />
+                                Chờ duyệt ({pendingRequests.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="approved" className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4" />
+                                Đã chấp nhận ({approvedRequests.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="rejected" className="flex items-center gap-2">
+                                <XCircle className="w-4 h-4" />
+                                Đã từ chối ({rejectedRequests.length})
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="pending" className="space-y-4">
+                            {pendingRequests.length === 0 ? (
+                                <Card>
+                                    <CardContent className="p-8 text-center">
+                                        <Clock3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Không có yêu cầu chờ duyệt</h3>
+                                        <p className="text-gray-500">Tất cả yêu cầu đã được xử lý</p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div className="grid gap-4">
+                                    {pendingRequests.map((request) => (
+                                        <Card key={request.exchangeId} className="border-l-4 border-l-yellow-500 hover:shadow-lg transition-shadow">
+                                            <CardHeader>
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <Checkbox
+                                                            checked={selectedRequests.includes(request.exchangeId)}
+                                                            onCheckedChange={(checked) => {
+                                                                if (checked) {
+                                                                    setSelectedRequests([...selectedRequests, request.exchangeId])
+                                                                } else {
+                                                                    setSelectedRequests(selectedRequests.filter(id => id !== request.exchangeId))
+                                                                }
+                                                            }}
+                                                        />
+                                                        <div>
+                                                            <CardTitle className="text-lg flex items-center gap-2">
+                                                                {getSwapTypeIcon(request.swapType)}
+                                                                Yêu cầu đổi ca #{request.exchangeId}
+                                                            </CardTitle>
+                                                            <CardDescription className="flex items-center gap-4 mt-1">
+                                                                {request.exchangeDate && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Calendar className="w-4 h-4" />
+                                                                        {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
+                                                                    </span>
+                                                                )}
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {getSwapTypeText(request.swapType)}
+                                                                </Badge>
+                                                            </CardDescription>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {getStatusBadge(request.status)}
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Users className="w-4 h-4 text-blue-600" />
+                                                            <h4 className="font-semibold text-gray-900">Bác sĩ 1</h4>
+                                                        </div>
+                                                        <div className="bg-blue-50 p-3 rounded-lg">
+                                                            <p className="font-medium text-gray-900">{request.doctor1Name}</p>
+                                                            <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
+                                                            <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                                                                <Clock className="w-3 h-3" />
+                                                                Ca: {request.doctor1ShiftName}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Users className="w-4 h-4 text-green-600" />
+                                                            <h4 className="font-semibold text-gray-900">Bác sĩ 2</h4>
+                                                        </div>
+                                                        <div className="bg-green-50 p-3 rounded-lg">
+                                                            <p className="font-medium text-gray-900">{request.doctor2Name}</p>
+                                                            <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
+                                                            <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                                                                <Clock className="w-3 h-3" />
+                                                                Ca: {request.doctor2ShiftName}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex gap-2 pt-4 border-t">
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button
+                                                                variant="default"
+                                                                size="sm"
+                                                                disabled={processingId === request.exchangeId}
+                                                                className="bg-green-600 hover:bg-green-700"
+                                                            >
+                                                                {processingId === request.exchangeId ? (
+                                                                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                                ) : (
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                )}
+                                                                {processingId === request.exchangeId ? "Đang xử lý..." : "Chấp nhận"}
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Chấp nhận yêu cầu đổi ca</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Bạn có chắc chắn muốn chấp nhận yêu cầu đổi ca này không?
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    onClick={() => handleReviewRequest(request.exchangeId, "Approved")}
+                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                >
+                                                                    Chấp nhận
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                disabled={processingId === request.exchangeId}
+                                                            >
+                                                                {processingId === request.exchangeId ? (
+                                                                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                                ) : (
+                                                                    <XCircle className="w-4 h-4 mr-2" />
+                                                                )}
+                                                                {processingId === request.exchangeId ? "Đang xử lý..." : "Từ chối"}
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Từ chối yêu cầu đổi ca</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Bạn có chắc chắn muốn từ chối yêu cầu đổi ca này không?
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    onClick={() => handleReviewRequest(request.exchangeId, "Rejected")}
+                                                                    className="bg-red-600 hover:bg-red-700"
+                                                                >
+                                                                    Từ chối
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="approved" className="space-y-4">
+                            {approvedRequests.length === 0 ? (
+                                <Card>
+                                    <CardContent className="p-8 text-center">
+                                        <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Không có yêu cầu đã chấp nhận</h3>
+                                        <p className="text-gray-500">Chưa có yêu cầu nào được chấp nhận</p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div className="grid gap-4">
+                                    {approvedRequests.map((request) => (
+                                        <Card key={request.exchangeId} className="border-l-4 border-l-green-500">
+                                            <CardHeader>
+                                                <div className="flex items-start justify-between">
                                                     <div>
                                                         <CardTitle className="text-lg flex items-center gap-2">
                                                             {getSwapTypeIcon(request.swapType)}
@@ -452,280 +588,134 @@ export default function ManagerShiftSwapRequestsPage() {
                                                             </Badge>
                                                         </CardDescription>
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {getStatusBadge(request.status)}
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="grid md:grid-cols-2 gap-6 mb-6">
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Users className="w-4 h-4 text-blue-600" />
-                                                        <h4 className="font-semibold text-gray-900">Bác sĩ 1</h4>
-                                                    </div>
-                                                    <div className="bg-blue-50 p-3 rounded-lg">
-                                                        <p className="font-medium text-gray-900">{request.doctor1Name}</p>
-                                                        <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
-                                                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            Ca: {request.doctor1ShiftName}
-                                                        </p>
+                                                    <div className="flex items-center gap-2">
+                                                        {getStatusBadge(request.status)}
                                                     </div>
                                                 </div>
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Users className="w-4 h-4 text-green-600" />
-                                                        <h4 className="font-semibold text-gray-900">Bác sĩ 2</h4>
-                                                    </div>
-                                                    <div className="bg-green-50 p-3 rounded-lg">
-                                                        <p className="font-medium text-gray-900">{request.doctor2Name}</p>
-                                                        <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
-                                                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            Ca: {request.doctor2ShiftName}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex gap-2 pt-4 border-t">
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button
-                                                            variant="default"
-                                                            size="sm"
-                                                            disabled={processingId === request.exchangeId}
-                                                            className="bg-green-600 hover:bg-green-700"
-                                                        >
-                                                            {processingId === request.exchangeId ? (
-                                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                                            ) : (
-                                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid md:grid-cols-2 gap-6">
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Users className="w-4 h-4 text-blue-600" />
+                                                            <h4 className="font-semibold text-gray-900">Bác sĩ 1</h4>
+                                                        </div>
+                                                        <div className="bg-blue-50 p-3 rounded-lg">
+                                                            <p className="font-medium text-gray-900">{request.doctor1Name}</p>
+                                                            <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
+                                                            {request.doctorOld1ShiftName && (
+                                                                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    Ca cũ: {request.doctorOld1ShiftName}
+                                                                </p>
                                                             )}
-                                                            {processingId === request.exchangeId ? "Đang xử lý..." : "Chấp nhận"}
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Chấp nhận yêu cầu đổi ca</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Bạn có chắc chắn muốn chấp nhận yêu cầu đổi ca này không?
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                                                            <AlertDialogAction
-                                                                onClick={() => handleReviewRequest(request.exchangeId, "Approved")}
-                                                                className="bg-green-600 hover:bg-green-700"
-                                                            >
-                                                                Chấp nhận
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            disabled={processingId === request.exchangeId}
-                                                        >
-                                                            {processingId === request.exchangeId ? (
-                                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                                            ) : (
-                                                                <XCircle className="w-4 h-4 mr-2" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Users className="w-4 h-4 text-green-600" />
+                                                            <h4 className="font-semibold text-gray-900">Bác sĩ 2</h4>
+                                                        </div>
+                                                        <div className="bg-green-50 p-3 rounded-lg">
+                                                            <p className="font-medium text-gray-900">{request.doctor2Name}</p>
+                                                            <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
+                                                            {request.doctorOld2ShiftName && (
+                                                                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    Ca cũ: {request.doctorOld2ShiftName}
+                                                                </p>
                                                             )}
-                                                            {processingId === request.exchangeId ? "Đang xử lý..." : "Từ chối"}
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Từ chối yêu cầu đổi ca</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Bạn có chắc chắn muốn từ chối yêu cầu đổi ca này không?
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                                                            <AlertDialogAction
-                                                                onClick={() => handleReviewRequest(request.exchangeId, "Rejected")}
-                                                                className="bg-red-600 hover:bg-red-700"
-                                                            >
-                                                                Từ chối
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
 
-                    <TabsContent value="approved" className="space-y-4">
-                        {approvedRequests.length === 0 ? (
-                            <Card>
-                                <CardContent className="p-8 text-center">
-                                    <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Không có yêu cầu đã chấp nhận</h3>
-                                    <p className="text-gray-500">Chưa có yêu cầu nào được chấp nhận</p>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="grid gap-4">
-                                {approvedRequests.map((request) => (
-                                    <Card key={request.exchangeId} className="border-l-4 border-l-green-500">
-                                        <CardHeader>
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <CardTitle className="text-lg flex items-center gap-2">
-                                                        {getSwapTypeIcon(request.swapType)}
-                                                        Yêu cầu đổi ca #{request.exchangeId}
-                                                    </CardTitle>
-                                                    <CardDescription className="flex items-center gap-4 mt-1">
-                                                        {request.exchangeDate && (
-                                                            <span className="flex items-center gap-1">
-                                                                <Calendar className="w-4 h-4" />
-                                                                {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
-                                                            </span>
-                                                        )}
-                                                        <Badge variant="outline" className="text-xs">
-                                                            {getSwapTypeText(request.swapType)}
-                                                        </Badge>
-                                                    </CardDescription>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {getStatusBadge(request.status)}
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="grid md:grid-cols-2 gap-6">
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Users className="w-4 h-4 text-blue-600" />
-                                                        <h4 className="font-semibold text-gray-900">Bác sĩ 1</h4>
+                        <TabsContent value="rejected" className="space-y-4">
+                            {rejectedRequests.length === 0 ? (
+                                <Card>
+                                    <CardContent className="p-8 text-center">
+                                        <XCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Không có yêu cầu bị từ chối</h3>
+                                        <p className="text-gray-500">Chưa có yêu cầu nào bị từ chối</p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div className="grid gap-4">
+                                    {rejectedRequests.map((request) => (
+                                        <Card key={request.exchangeId} className="border-l-4 border-l-red-500">
+                                            <CardHeader>
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <CardTitle className="text-lg flex items-center gap-2">
+                                                            {getSwapTypeIcon(request.swapType)}
+                                                            Yêu cầu đổi ca #{request.exchangeId}
+                                                        </CardTitle>
+                                                        <CardDescription className="flex items-center gap-4 mt-1">
+                                                            {request.exchangeDate && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <Calendar className="w-4 h-4" />
+                                                                    {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
+                                                                </span>
+                                                            )}
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {getSwapTypeText(request.swapType)}
+                                                            </Badge>
+                                                        </CardDescription>
                                                     </div>
-                                                    <div className="bg-blue-50 p-3 rounded-lg">
-                                                        <p className="font-medium text-gray-900">{request.doctor1Name}</p>
-                                                        <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
-                                                        {request.doctorOld1ShiftName && (
-                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                                                                <Clock className="w-3 h-3" />
-                                                                Ca cũ: {request.doctorOld1ShiftName}
-                                                            </p>
-                                                        )}
+                                                    <div className="flex items-center gap-2">
+                                                        {getStatusBadge(request.status)}
                                                     </div>
                                                 </div>
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Users className="w-4 h-4 text-green-600" />
-                                                        <h4 className="font-semibold text-gray-900">Bác sĩ 2</h4>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid md:grid-cols-2 gap-6">
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Users className="w-4 h-4 text-blue-600" />
+                                                            <h4 className="font-semibold text-gray-900">Bác sĩ 1</h4>
+                                                        </div>
+                                                        <div className="bg-blue-50 p-3 rounded-lg">
+                                                            <p className="font-medium text-gray-900">{request.doctor1Name}</p>
+                                                            <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
+                                                            {request.doctorOld1ShiftName && (
+                                                                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    Ca cũ: {request.doctorOld1ShiftName}
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-green-50 p-3 rounded-lg">
-                                                        <p className="font-medium text-gray-900">{request.doctor2Name}</p>
-                                                        <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
-                                                        {request.doctorOld2ShiftName && (
-                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                                                                <Clock className="w-3 h-3" />
-                                                                Ca cũ: {request.doctorOld2ShiftName}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="rejected" className="space-y-4">
-                        {rejectedRequests.length === 0 ? (
-                            <Card>
-                                <CardContent className="p-8 text-center">
-                                    <XCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Không có yêu cầu bị từ chối</h3>
-                                    <p className="text-gray-500">Chưa có yêu cầu nào bị từ chối</p>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="grid gap-4">
-                                {rejectedRequests.map((request) => (
-                                    <Card key={request.exchangeId} className="border-l-4 border-l-red-500">
-                                        <CardHeader>
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <CardTitle className="text-lg flex items-center gap-2">
-                                                        {getSwapTypeIcon(request.swapType)}
-                                                        Yêu cầu đổi ca #{request.exchangeId}
-                                                    </CardTitle>
-                                                    <CardDescription className="flex items-center gap-4 mt-1">
-                                                        {request.exchangeDate && (
-                                                            <span className="flex items-center gap-1">
-                                                                <Calendar className="w-4 h-4" />
-                                                                {new Date(request.exchangeDate).toLocaleDateString('vi-VN')}
-                                                            </span>
-                                                        )}
-                                                        <Badge variant="outline" className="text-xs">
-                                                            {getSwapTypeText(request.swapType)}
-                                                        </Badge>
-                                                    </CardDescription>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {getStatusBadge(request.status)}
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="grid md:grid-cols-2 gap-6">
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Users className="w-4 h-4 text-blue-600" />
-                                                        <h4 className="font-semibold text-gray-900">Bác sĩ 1</h4>
-                                                    </div>
-                                                    <div className="bg-blue-50 p-3 rounded-lg">
-                                                        <p className="font-medium text-gray-900">{request.doctor1Name}</p>
-                                                        <p className="text-sm text-gray-600">{request.doctor1Specialty}</p>
-                                                        {request.doctorOld1ShiftName && (
-                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                                                                <Clock className="w-3 h-3" />
-                                                                Ca cũ: {request.doctorOld1ShiftName}
-                                                            </p>
-                                                        )}
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Users className="w-4 h-4 text-green-600" />
+                                                            <h4 className="font-semibold text-gray-900">Bác sĩ 2</h4>
+                                                        </div>
+                                                        <div className="bg-green-50 p-3 rounded-lg">
+                                                            <p className="font-medium text-gray-900">{request.doctor2Name}</p>
+                                                            <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
+                                                            {request.doctorOld2ShiftName && (
+                                                                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    Ca cũ: {request.doctorOld2ShiftName}
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Users className="w-4 h-4 text-green-600" />
-                                                        <h4 className="font-semibold text-gray-900">Bác sĩ 2</h4>
-                                                    </div>
-                                                    <div className="bg-green-50 p-3 rounded-lg">
-                                                        <p className="font-medium text-gray-900">{request.doctor2Name}</p>
-                                                        <p className="text-sm text-gray-600">{request.doctor2Specialty}</p>
-                                                        {request.doctorOld2ShiftName && (
-                                                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                                                                <Clock className="w-3 h-3" />
-                                                                Ca cũ: {request.doctorOld2ShiftName}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
-            </div>
-        </DashboardLayout>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            </DashboardLayout>
+        </RoleGuard>
     )
 }

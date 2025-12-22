@@ -23,6 +23,7 @@ import { toast } from "sonner"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 import { notificationService } from "@/lib/services/notification-service"
 import type { NotificationUserDto } from "@/lib/types/notification-type"
+import { RoleGuard } from "@/components/role-guard"
 
 
 interface NotificationFormData {
@@ -208,8 +209,9 @@ const formatNotificationContent = (content: string): { summary: string; details?
 }
 
     return (
-        <DashboardLayout navigation={navigation}>
-            <div className="space-y-6">
+        <RoleGuard allowedRoles={["management", "admin"]}>
+            <DashboardLayout navigation={navigation}>
+                <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Gửi thông báo</h1>
@@ -470,6 +472,7 @@ const formatNotificationContent = (content: string): { summary: string; details?
                     </TabsContent>
                 </Tabs>
             </div>
-        </DashboardLayout>
+            </DashboardLayout>
+        </RoleGuard>
     )
 }

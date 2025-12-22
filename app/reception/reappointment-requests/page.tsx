@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
+import { RoleGuard } from "@/components/role-guard"
 import { useToast } from "@/hooks/use-toast"
 function formatDateTime(value?: string | null) {
     if (!value) return "Chưa xác định"
@@ -204,6 +205,7 @@ export default function ReappointmentRequestsPage() {
     const showingTo = totalCount === 0 ? 0 : showingFrom + requests.length - 1
 
     return (
+        <RoleGuard allowedRoles="reception">
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -429,6 +431,7 @@ export default function ReappointmentRequestsPage() {
                 )}
             </div>
         </DashboardLayout>
+        </RoleGuard>
     )
 }
 

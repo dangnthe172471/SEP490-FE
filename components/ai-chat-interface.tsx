@@ -13,6 +13,10 @@ import { getDoctorRecords } from "@/lib/services/doctor-record-service"
 import { patientService } from "@/lib/services/patient-service"
 import { AIChatHistoryService } from "@/lib/services/ai-chat-history.service"
 import type { RecordListItemDto } from "@/lib/types/doctor-record"
+import { appointmentService } from "@/lib/services/appointment-service"
+import { getTestResultsByRecord } from "@/lib/services/test-results-service"
+import type { ReadTestResultDto } from "@/lib/types/test-results"
+import type { AppointmentDto } from "@/lib/types/appointment"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 
@@ -100,7 +104,11 @@ export function AIChatInterface() {
         return `${prefix}-${now}-${random}`
     }
 
-    const formatRecordInfo = (record: RecordListItemDto, patientInfo?: { allergies?: string; medicalHistory?: string }) => {
+    const formatRecordInfo = (
+        record: RecordListItemDto,
+        patientInfo?: { allergies?: string; medicalHistory?: string },
+        extra?: { appointment?: AppointmentDto | null; tests?: ReadTestResultDto[] | null }
+    ) => {
         const dobFormatted = record.dob
             ? format(new Date(record.dob), "dd/MM/yyyy", { locale: vi })
             : "Không xác định"
@@ -119,7 +127,28 @@ export function AIChatInterface() {
             infoLines.push(`- Tiền sử bệnh: ${patientInfo.medicalHistory}`)
         }
 
-        // Chuẩn đoán hiện tại: nếu null hoặc "null" thì hiển thị là chưa có chẩn đoán
+        // Lý do khám bệnh từ cuộc hẹn
+        const reason = extra?.appointment?.reasonForVisit?.toString().trim()
+        if (reason) {
+            infoLines.push(`- Lý do khám: ${reason}`)
+        }
+
+        // Tóm tắt kết quả xét nghiệm gần đây
+        const tests = extra?.tests && Array.isArray(extra.tests) ? extra.tests : []
+        if (tests.length > 0) {
+            infoLines.push(`- Kết quả xét nghiệm gần đây:`)
+            const topTests = tests.slice(0, 5)
+            topTests.forEach((t) => {
+                const value = t.resultValue?.toString().trim() || "Chưa có kết quả"
+                const unit = t.unit ? ` ${t.unit}` : ""
+                infoLines.push(`  • ${t.testName}: ${value}${unit}`)
+            })
+            if (tests.length > topTests.length) {
+                infoLines.push(`  • ... và ${tests.length - topTests.length} xét nghiệm khác`)
+            }
+        }
+
+        // Chuẩn đoán hiện tại đặt ở cuối cùng cho dễ đọc
         const diagnosis = record.diagnosisRaw?.toString().trim()
         if (!diagnosis || diagnosis.toLowerCase() === "null") {
             infoLines.push(`- Chuẩn đoán hiện tại: Chưa có chẩn đoán`)
@@ -135,19 +164,37 @@ export function AIChatInterface() {
         setLoadingPatientInfo(true)
 
         try {
-            const [patientInfoResult, chatHistoryResult] = await Promise.allSettled([
+            const [
+                patientInfoResult,
+                chatHistoryResult,
+                appointmentResult,
+                testResultsResult,
+            ] = await Promise.allSettled([
                 patientService.getPatientById(record.patientId),
                 AIChatHistoryService.getChatHistory(record.recordId),
+                appointmentService.getById(record.appointmentId),
+                getTestResultsByRecord(record.recordId),
             ])
 
-            const patientInfo = patientInfoResult.status === 'fulfilled' ? patientInfoResult.value : undefined
-            const chatHistory = chatHistoryResult.status === 'fulfilled' ? chatHistoryResult.value : []
+            const patientInfo =
+                patientInfoResult.status === "fulfilled" ? patientInfoResult.value : undefined
+            const chatHistory =
+                chatHistoryResult.status === "fulfilled" ? chatHistoryResult.value : []
+            const appointment =
+                appointmentResult.status === "fulfilled" ? appointmentResult.value : null
+            const tests =
+                testResultsResult.status === "fulfilled" ? testResultsResult.value : null
 
             if (patientInfoResult.status === 'rejected') {
                 console.error("Failed to load patient medical info:", patientInfoResult.reason)
             }
 
-            setPatientContext(formatRecordInfo(record, patientInfo))
+            setPatientContext(
+                formatRecordInfo(record, patientInfo, {
+                    appointment,
+                    tests,
+                })
+            )
 
             if (chatHistory.length > 0) {
                 const firebaseMessages: Message[] = chatHistory.map((msg) => ({

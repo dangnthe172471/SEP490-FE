@@ -20,6 +20,7 @@ import {
 import { DashboardService } from '@/lib/services/dashboard-service'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { getManagerNavigation } from '@/lib/navigation'
+import { RoleGuard } from '@/components/role-guard'
 
 type Stats = {
     totalPatients: number
@@ -92,32 +93,9 @@ export default function PatientStatsPage() {
         ]
     }, [data])
 
-    if (loading) {
-        return (
-            <DashboardLayout navigation={navigation}>
-                <div>Đang tải...</div>
-            </DashboardLayout>
-        )
-    }
-
-    if (error) {
-        return (
-            <DashboardLayout navigation={navigation}>
-                <div className="text-red-600">Lỗi: {error}</div>
-            </DashboardLayout>
-        )
-    }
-
-    if (!data) {
-        return (
-            <DashboardLayout navigation={navigation}>
-                <div>Không có dữ liệu</div>
-            </DashboardLayout>
-        )
-    }
-
     return (
-        <DashboardLayout navigation={navigation}>
+        <RoleGuard allowedRoles={["management", "admin"]}>
+            <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="min-w-56">
@@ -212,7 +190,8 @@ export default function PatientStatsPage() {
                     </ResponsiveContainer>
                 </div>
             </div>
-        </DashboardLayout>
+            </DashboardLayout>
+        </RoleGuard>
     )
 }
 

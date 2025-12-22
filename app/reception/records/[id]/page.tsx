@@ -20,6 +20,7 @@ import {
   UserPlus
 } from "lucide-react"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { RoleGuard } from "@/components/role-guard"
 import { MedicalRecordService, type MedicalRecordDto } from "@/lib/services/medical-record-service"
 import { appointmentService } from "@/lib/services/appointment-service"
 import { patientService } from "@/lib/services/patient-service"
@@ -208,14 +209,16 @@ export default function MedicalRecordDetailPage() {
 
   if (!record) {
     return (
-      <DashboardLayout navigation={navigation}>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Không tìm thấy hồ sơ bệnh án</p>
-          <Button className="mt-4" onClick={() => router.push("/reception/records")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Quay lại danh sách
-          </Button>
-        </div>
-      </DashboardLayout>
+      <RoleGuard allowedRoles="reception">
+        <DashboardLayout navigation={navigation}>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Không tìm thấy hồ sơ bệnh án</p>
+            <Button className="mt-4" onClick={() => router.push("/reception/records")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Quay lại danh sách
+            </Button>
+          </div>
+        </DashboardLayout>
+      </RoleGuard>
     )
   }
 
@@ -226,6 +229,7 @@ export default function MedicalRecordDetailPage() {
   // Sử dụng testResults từ state (đã lấy từ getTestResultsByRecord) thay vì từ record
 
   return (
+    <RoleGuard allowedRoles="reception">
     <DashboardLayout navigation={navigation}>
       <div className="space-y-6">
         {/* Header */}
@@ -482,5 +486,6 @@ export default function MedicalRecordDetailPage() {
         </div>
       </div>
     </DashboardLayout>
+    </RoleGuard>
   )
 }

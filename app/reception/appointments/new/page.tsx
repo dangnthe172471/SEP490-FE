@@ -18,6 +18,7 @@ import { patientService, PatientInfoDto } from "@/lib/services/patient-service"
 import { PatientSearch } from "@/components/patient-search"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
 import { shiftService, ShiftResponseDTO } from "@/lib/services/shift-service"
+import { RoleGuard } from "@/components/role-guard"
 
 export default function NewAppointmentPage() {
     // Get reception navigation from centralized config
@@ -336,6 +337,7 @@ export default function NewAppointmentPage() {
     }
 
     return (
+        <RoleGuard allowedRoles="reception">
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
@@ -478,5 +480,6 @@ export default function NewAppointmentPage() {
                 </Card>
             </div>
         </DashboardLayout>
+        </RoleGuard>
     )
 }

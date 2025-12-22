@@ -212,7 +212,7 @@ export default function DoctorSchedulePage() {
 
     return (
 
-        <PageGuard allowedRoles={["doctor", "admin"]}>
+        <PageGuard allowedRoles={["doctor"]}>
             <DashboardLayout navigation={navigation}>
                 <div className="space-y-6">
                     <div>

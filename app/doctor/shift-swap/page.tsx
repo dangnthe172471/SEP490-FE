@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { showErrorAlert, showSuccessAlert } from "@/lib/sweetalert-config"
 import type { CreateShiftSwapRequest, ShiftSwapRequestResponse, DoctorShift, Doctor } from "@/lib/types/shift-swap"
 import { getDoctorNavigation } from "@/lib/navigation/doctor-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 const DAYS_TO_FETCH = 30
 const ACTIVE_STATUS = "Active"
@@ -462,6 +463,7 @@ export default function DoctorShiftSwapPage() {
     }
 
     return (
+        <RoleGuard allowedRoles="doctor">
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div>
@@ -703,5 +705,6 @@ export default function DoctorShiftSwapPage() {
                 </div>
             </div>
         </DashboardLayout>
+        </RoleGuard>
     )
 }

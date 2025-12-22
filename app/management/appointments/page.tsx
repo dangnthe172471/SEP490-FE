@@ -7,6 +7,7 @@ import { Calendar, Users, CheckCircle, Clock, XCircle, AlertCircle, TrendingUp, 
 import { appointmentService } from "@/lib/services/appointment-service"
 import { useEffect, useState } from "react"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 interface AppointmentStatistics {
     totalAppointments: number
@@ -104,42 +105,9 @@ export default function ManagementAppointmentsPage() {
         ? Math.round((statistics.cancelledAppointments / statistics.totalAppointments) * 100)
         : 0
 
-    if (isLoading) {
-        return (
-            <DashboardLayout navigation={navigation}>
-                <div className="flex items-center justify-center h-screen">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                        <p className="mt-4 text-muted-foreground">Đang tải dữ liệu...</p>
-                    </div>
-                </div>
-            </DashboardLayout>
-        )
-    }
-
-    if (error) {
-        return (
-            <DashboardLayout navigation={navigation}>
-                <div className="space-y-6">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Thống kê Lịch hẹn</h1>
-                        <p className="text-muted-foreground">Phân tích và theo dõi lịch hẹn</p>
-                    </div>
-                    <Card className="border-destructive">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3 text-destructive">
-                                <AlertCircle className="h-5 w-5" />
-                                <p>{error}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </DashboardLayout>
-        )
-    }
-
     return (
-        <DashboardLayout navigation={navigation}>
+        <RoleGuard allowedRoles={["management", "admin"]}>
+            <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Thống kê Lịch hẹn</h1>
@@ -266,7 +234,8 @@ export default function ManagementAppointmentsPage() {
                     </CardContent>
                 </Card>
             </div>
-        </DashboardLayout>
+            </DashboardLayout>
+        </RoleGuard>
     )
 }
 

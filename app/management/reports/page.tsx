@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { BarChart3, TrendingUp, FileText, Download, Calendar, TestTube, Building2 } from "lucide-react"
 import { useState } from "react"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 const reports = [
   {
@@ -70,8 +71,9 @@ export default function ManagementReportsPage() {
   const filteredReports = selectedType === "all" ? reports : reports.filter((r) => r.type === selectedType)
 
   return (
-    <DashboardLayout navigation={navigation}>
-      <div className="space-y-6">
+    <RoleGuard allowedRoles={["management", "admin"]}>
+      <DashboardLayout navigation={navigation}>
+        <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Báo cáo</h1>
@@ -150,6 +152,7 @@ export default function ManagementReportsPage() {
           </Card>
         )}
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </RoleGuard>
   )
 }

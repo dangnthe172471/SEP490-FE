@@ -33,6 +33,7 @@ import { ClientOnly } from "@/components/client-only"
 import { DateFormatter } from "@/components/date-formatter"
 import { getCurrentUser } from "@/lib/auth"
 import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 export default function UserDetailPage() {
   // Get admin navigation from centralized config
@@ -52,16 +53,6 @@ export default function UserDetailPage() {
   const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Check authentication
-  useEffect(() => {
-    const currentUser = getCurrentUser()
-    const token = localStorage.getItem('auth_token')
-
-    if (!currentUser || !token) {
-      router.push('/login')
-      return
-    }
-  }, [router])
 
   // Helper function to format date for input
   const formatDateForInput = (dateString?: string): string => {
@@ -361,39 +352,44 @@ export default function UserDetailPage() {
 
   if (loading && !user) {
     return (
-      <DashboardLayout navigation={navigation}>
-        <div className="space-y-6">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin" />
+      <RoleGuard allowedRoles="admin">
+        <DashboardLayout navigation={navigation}>
+          <div className="space-y-6">
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
           </div>
-        </div>
-      </DashboardLayout>
+        </DashboardLayout>
+      </RoleGuard>
     )
   }
 
   if (error || !user) {
     return (
-      <DashboardLayout navigation={navigation}>
-        <div className="space-y-6">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <p className="text-red-500 font-medium mb-4">
-                {error || "Không tìm thấy người dùng"}
-              </p>
-              <Button onClick={() => router.push("/admin/users")} variant="outline">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Quay lại danh sách
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </DashboardLayout>
+      <RoleGuard allowedRoles="admin">
+        <DashboardLayout navigation={navigation}>
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <p className="text-red-500 font-medium mb-4">
+                  {error || "Không tìm thấy người dùng"}
+                </p>
+                <Button onClick={() => router.push("/admin/users")} variant="outline">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Quay lại danh sách
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </DashboardLayout>
+      </RoleGuard>
     )
   }
 
   return (
-    <DashboardLayout navigation={navigation}>
+    <RoleGuard allowedRoles="admin">
+      <DashboardLayout navigation={navigation}>
       <ClientOnly fallback={
         <div className="space-y-6">
           <div className="flex items-center justify-center py-12">
@@ -687,6 +683,7 @@ export default function UserDetailPage() {
           </Card> */}
         </div>
       </ClientOnly>
-    </DashboardLayout>
+      </DashboardLayout>
+    </RoleGuard>
   )
 }

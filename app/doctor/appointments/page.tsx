@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { DashboardLayout } from "@/components/dashboard-layout";
+import { RoleGuard } from "@/components/role-guard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -246,6 +247,8 @@ export default function DoctorAppointmentsPage() {
   const [shifts, setShifts] = useState<ShiftResponseDTO[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(true);
   const [shiftsError, setShiftsError] = useState<string | null>(null);
+  // Ca làm việc hiện tại (dựa trên giờ hiện tại)
+  const [currentShiftId, setCurrentShiftId] = useState<number | null>(null);
 
   const loadOrCreateMedicalRecord = async () => {
     if (!selected) return;
@@ -347,12 +350,31 @@ export default function DoctorAppointmentsPage() {
     };
   }, [authChecked]);
 
+  // Xác định ca đang làm theo thời gian hiện tại và danh sách ca
+  useEffect(() => {
+    if (!authChecked || !shifts.length) return;
+
+    const computeCurrentShift = () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      const currentTime = `${hh}:${mm}`;
+      const shiftId = getShiftIdForTime(currentTime, shifts);
+      setCurrentShiftId(shiftId);
+    };
+
+    computeCurrentShift();
+    const timer = setInterval(computeCurrentShift, 60_000);
+
+    return () => clearInterval(timer);
+  }, [authChecked, shifts]);
+
   // ---- 7 ngày theo tuần đã chọn ----
   const weekDates = useMemo(() => generate7Days(weekStart), [weekStart]);
 
   const filteredAppointments = useMemo(
-    () => items.filter((a) => 
-      weekDates.includes(a.appointmentDateISO) && 
+    () => items.filter((a) =>
+      weekDates.includes(a.appointmentDateISO) &&
       a.status !== "Cancelled"
     ),
     [items, weekDates]
@@ -435,379 +457,410 @@ export default function DoctorAppointmentsPage() {
     }
   };
 
-  // ⛔ Nếu chưa check xong quyền thì không render UI
-  if (!authChecked) {
-    return null;
-  }
-
   return (
-    <DashboardLayout navigation={navigation}>
-      <div className="space-y-6">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Lịch hẹn</h1>
-            <p className="text-muted-foreground">
-              Xem lịch theo ca làm việc trong 7 ngày
-            </p>
-          </div>
-
-          {/* 2 dropdown: YEAR + WEEK */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold uppercase tracking-wide text-red-600 underline">
-                Year
-              </span>
-              <select
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[110px]"
-                value={year}
-                onChange={(e) => setYear(parseInt(e.target.value, 10))}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
+    <RoleGuard allowedRoles="doctor">
+      <DashboardLayout navigation={navigation}>
+        <div className="space-y-6">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Lịch hẹn</h1>
+              <p className="text-muted-foreground">
+                Xem lịch theo ca làm việc trong 7 ngày
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                Week
-              </span>
-              <select
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[200px]"
-                value={weekStart}
-                onChange={(e) => setWeekStart(e.target.value)}
-              >
-                {weekOptions.map((ws) => (
-                  <option key={ws} value={ws}>
-                    {weekLabel(ws)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Thống kê nhỏ */}
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="tabular-nums">
-            Tổng: {total}
-          </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-200 hover:text-blue-900 transition-colors"
-            onClick={() => {
-              setYear(today.getFullYear());
-              setWeekStart(currentWeekStart);
-            }}
-          >
-            Tuần hiện tại
-          </Button>
-        </div>
-
-        {/* Báo trạng thái fetch */}
-        {loading && (
-          <p className="text-sm text-muted-foreground">Đang tải danh sách…</p>
-        )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {shiftsLoading && (
-          <p className="text-sm text-muted-foreground">Đang tải ca làm việc…</p>
-        )}
-        {shiftsError && (
-          <p className="text-sm text-red-600">{shiftsError}</p>
-        )}
-
-        {/* Bảng lịch */}
-        <div className="overflow-x-auto rounded-lg shadow-lg border border-slate-200 bg-white font-sans">
-          <table className="w-full border-collapse table-fixed">
-            <thead>
-              <tr className="bg-gradient-to-r from-blue-600 to-blue-700">
-                <th className="p-4 text-left text-white font-bold sticky left-0 bg-blue-700 w-56">
-                  Ca &amp; khung giờ
-                </th>
-                {weekDates.map((iso) => {
-                  const d = new Date(iso + "T00:00:00");
-                  const dow = d.toLocaleDateString("vi-VN", {
-                    weekday: "short",
-                  });
-                  const dm = d.toLocaleDateString("vi-VN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                  });
-                  return (
-                    <th
-                      key={iso}
-                      className="p-4 text-center text-white font-bold min-w-60"
-                    >
-                      <div className="whitespace-pre-line leading-tight tracking-wide">
-                        {`${dow}\n${dm}`}
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {shifts.map((shift) => (
-                <tr
-                  key={shift.shiftID}
-                  className="align-top hover:bg-slate-50 transition-colors"
+            {/* 2 dropdown: YEAR + WEEK */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold uppercase tracking-wide text-red-600 underline">
+                  Year
+                </span>
+                <select
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[110px]"
+                  value={year}
+                  onChange={(e) => setYear(parseInt(e.target.value, 10))}
                 >
-                  <td className="border border-slate-300 p-5 font-semibold bg-slate-50 sticky left-0">
-                    <div className="text-slate-900 text-base">
-                      {shift.shiftType}
-                    </div>
-                    <div className="text-xs text-slate-600 leading-tight mt-0.5">
-                      {formatShiftTimeWindow(shift)}
-                    </div>
-                  </td>
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                  Week
+                </span>
+                <select
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[200px]"
+                  value={weekStart}
+                  onChange={(e) => setWeekStart(e.target.value)}
+                >
+                  {weekOptions.map((ws) => (
+                    <option key={ws} value={ws}>
+                      {weekLabel(ws)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Thống kê nhỏ */}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="tabular-nums">
+              Tổng: {total}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-200 hover:text-blue-900 transition-colors"
+              onClick={() => {
+                setYear(today.getFullYear());
+                setWeekStart(currentWeekStart);
+              }}
+            >
+              Tuần hiện tại
+            </Button>
+          </div>
+
+          {/* Báo trạng thái fetch */}
+          {loading && (
+            <p className="text-sm text-muted-foreground">Đang tải danh sách…</p>
+          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {shiftsLoading && (
+            <p className="text-sm text-muted-foreground">Đang tải ca làm việc…</p>
+          )}
+          {shiftsError && (
+            <p className="text-sm text-red-600">{shiftsError}</p>
+          )}
+
+          {/* Bảng lịch */}
+          <div className="overflow-x-auto rounded-lg shadow-lg border border-slate-200 bg-white font-sans">
+            <table className="w-full border-collapse table-fixed">
+              <thead>
+                <tr className="bg-gradient-to-r from-blue-600 to-blue-700">
+                  <th className="p-4 text-left text-white font-bold sticky left-0 bg-blue-700 w-56">
+                    Ca &amp; khung giờ
+                  </th>
                   {weekDates.map((iso) => {
-                    const dayBucket = grouped.get(iso) ?? {};
-                    const items = dayBucket[shift.shiftID] ?? [];
+                    const d = new Date(iso + "T00:00:00");
+                    const dow = d.toLocaleDateString("vi-VN", {
+                      weekday: "short",
+                    });
+                    const dm = d.toLocaleDateString("vi-VN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                    });
                     return (
-                      <td
-                        key={`${shift.shiftID}-${iso}`}
-                        className="border border-slate-300 p-4 align-top"
+                      <th
+                        key={iso}
+                        className="p-4 text-center text-white font-bold min-w-60"
                       >
-                        {items.length ? (
-                          <div className="space-y-3">
-                            {items.map((apt) => (
-                              <button
-                                key={apt.appointmentId}
-                                onClick={() => openDetail(apt)}
-                                className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer border hover:shadow-md ${statusToClasses(
-                                  apt.status
-                                )}`}
-                                title={`${apt.patientName} (${apt.appointmentTime})`}
-                              >
-                                <div className="flex items-center gap-3 leading-none">
-                                  <Clock className="w-5 h-5 shrink-0 translate-y-[0.5px]" />
-                                  <span className="font-semibold tabular-nums tracking-tight text-base">
-                                    {apt.appointmentTime}
-                                  </span>
-                                </div>
-                                <div className="mt-1 flex items-center gap-2 text-[15px] leading-tight">
-                                  <User className="w-4 h-4 shrink-0" />
-                                  <span className="font-medium truncate">
-                                    {apt.patientName}
-                                  </span>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center h-20 text-slate-300 text-sm font-medium">
-                            —
-                          </div>
-                        )}
-                      </td>
+                        <div className="whitespace-pre-line leading-tight tracking-wide">
+                          {`${dow}\n${dm}`}
+                        </div>
+                      </th>
                     );
                   })}
                 </tr>
-              ))}
-              {!shifts.length && !shiftsLoading && (
-                <tr>
-                  <td
-                    colSpan={1 + weekDates.length}
-                    className="p-4 text-center text-sm text-slate-500"
+              </thead>
+              <tbody>
+                {shifts.map((shift) => (
+                  <tr
+                    key={shift.shiftID}
+                    className="align-top hover:bg-slate-50 transition-colors"
                   >
-                    Không có cấu hình ca làm việc.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal chi tiết */}
-      {selected && (
-        <>
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <Card className="w-full max-w-md shadow-2xl">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900">
-                    Chi tiết lịch hẹn
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setSelected(null);
-                      setShowReasonPopup(false);
-                    }}
-                    className="text-slate-500 hover:text-slate-700"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-                {detailLoading && (
-                  <p className="text-sm text-muted-foreground">
-                    Đang tải chi tiết…
-                  </p>
-                )}
-                {detailError && (
-                  <p className="text-sm text-red-600">{detailError}</p>
-                )}
-                <div className="space-y-4">
-                  <div className="bg-slate-50 p-4 rounded">
-                    <label className="text-xs font-semibold text-slate-600 uppercase">
-                      Trạng thái:{" "}
-                    </label>
-                    <Badge
-                      className={`mt-2 text-base py-1 px-3 ${statusToClasses(
-                        selected.status
-                      )}`}
+                    <td className="border border-slate-300 p-5 font-semibold bg-slate-50 sticky left-0">
+                      <div className="text-slate-900 text-base">
+                        {shift.shiftType}
+                      </div>
+                      <div className="text-xs text-slate-600 leading-tight mt-0.5">
+                        {formatShiftTimeWindow(shift)}
+                      </div>
+                    </td>
+                    {weekDates.map((iso) => {
+                      const dayBucket = grouped.get(iso) ?? {};
+                      const items = dayBucket[shift.shiftID] ?? [];
+                      return (
+                        <td
+                          key={`${shift.shiftID}-${iso}`}
+                          className="border border-slate-300 p-4 align-top"
+                        >
+                          {items.length ? (
+                            <div className="space-y-3">
+                              {items.map((apt) => (
+                                <button
+                                  key={apt.appointmentId}
+                                  onClick={() => openDetail(apt)}
+                                  className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all cursor-pointer border hover:shadow-md ${statusToClasses(
+                                    apt.status
+                                  )}`}
+                                  title={`${apt.patientName} (${apt.appointmentTime})`}
+                                >
+                                  <div className="flex items-center gap-3 leading-none">
+                                    <Clock className="w-5 h-5 shrink-0 translate-y-[0.5px]" />
+                                    <span className="font-semibold tabular-nums tracking-tight text-base">
+                                      {apt.appointmentTime}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-2 text-[15px] leading-tight">
+                                    <User className="w-4 h-4 shrink-0" />
+                                    <span className="font-medium truncate">
+                                      {apt.patientName}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-20 text-slate-300 text-sm font-medium">
+                              —
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+                {!shifts.length && !shiftsLoading && (
+                  <tr>
+                    <td
+                      colSpan={1 + weekDates.length}
+                      className="p-4 text-center text-sm text-slate-500"
                     >
-                      {selected.status}
-                    </Badge>
-                  </div>
+                      Không có cấu hình ca làm việc.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                        <CalendarIcon className="w-4 h-4 text-blue-600" /> Ngày
-                        khám
-                      </label>
-                      <p className="font-medium">
-                        {new Date(
-                          selected.appointmentDateISO + "T00:00:00"
-                        ).toLocaleDateString("vi-VN", {
-                          weekday: "short",
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                        <Clock className="w-4 h-4 text-blue-600" /> Giờ khám
-                      </label>
-                      <p className="font-medium">{selected.appointmentTime}</p>
-                    </div>
+        {/* Modal chi tiết */}
+        {selected && (
+          <>
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+              <Card className="w-full max-w-md shadow-2xl">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      Chi tiết lịch hẹn
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setSelected(null);
+                        setShowReasonPopup(false);
+                      }}
+                      className="text-slate-500 hover:text-slate-700"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
                   </div>
+                  {detailLoading && (
+                    <p className="text-sm text-muted-foreground">
+                      Đang tải chi tiết…
+                    </p>
+                  )}
+                  {detailError && (
+                    <p className="text-sm text-red-600">{detailError}</p>
+                  )}
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded">
+                      <label className="text-xs font-semibold text-slate-600 uppercase">
+                        Trạng thái:{" "}
+                      </label>
+                      <Badge
+                        className={`mt-2 text-base py-1 px-3 ${statusToClasses(
+                          selected.status
+                        )}`}
+                      >
+                        {selected.status}
+                      </Badge>
+                    </div>
 
-                  {/* Thông tin bệnh nhân */}
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                      <User className="w-4 h-4 text-blue-600" /> Thông tin bệnh
-                      nhân
-                    </h3>
-                    <div className="bg-slate-50 p-3 rounded space-y-1">
-                      <p>
-                        <span className="text-sm text-slate-600">Tên: </span>
-                        {selected.patientName}
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-slate-400" />
-                        <span className="font-medium">
-                          {selected.patientPhone}
-                        </span>
-                      </p>
-                      <div className="flex gap-2 mt-2">
-                        <Button size="sm" onClick={loadOrCreateMedicalRecord}>
-                          Hồ sơ bệnh án
-                        </Button>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                          <CalendarIcon className="w-4 h-4 text-blue-600" /> Ngày
+                          khám
+                        </label>
+                        <p className="font-medium">
+                          {new Date(
+                            selected.appointmentDateISO + "T00:00:00"
+                          ).toLocaleDateString("vi-VN", {
+                            weekday: "short",
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                          <Clock className="w-4 h-4 text-blue-600" /> Giờ khám
+                        </label>
+                        <p className="font-medium">{selected.appointmentTime}</p>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Lý do khám bệnh */}
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-blue-600" />
-                        Lý do khám bệnh
+                    {/* Thông tin bệnh nhân */}
+                    <div className="border-t pt-4">
+                      <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                        <User className="w-4 h-4 text-blue-600" /> Thông tin bệnh
+                        nhân
                       </h3>
-                      {selected.visitReason && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowReasonPopup(true)}
-                        >
-                          Xem chi tiết lý do
-                        </Button>
-                      )}
-                    </div>
-                    {!selected.visitReason && (
-                      <p className="mt-2 text-sm text-slate-500 italic">
-                        Chưa có lý do khám bệnh.
-                      </p>
-                    )}
-                  </div>
+                      <div className="bg-slate-50 p-3 rounded space-y-1">
+                        <p>
+                          <span className="text-sm text-slate-600">Tên: </span>
+                          {selected.patientName}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-slate-400" />
+                          <span className="font-medium">
+                            {selected.patientPhone}
+                          </span>
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          {(() => {
+                            const isToday =
+                              selected.appointmentDateISO === todayISO;
+                            const selectedShiftId = getShiftIdForTime(
+                              selected.appointmentTime,
+                              shifts
+                            );
+                            const canOpenMedicalRecord =
+                              isToday &&
+                              currentShiftId !== null &&
+                              selectedShiftId !== null &&
+                              currentShiftId === selectedShiftId;
 
-                  {/* Thông tin bác sĩ */}
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                      <Stethoscope className="w-4 h-4 text-blue-600" /> Thông
-                      tin bác sĩ
-                    </h3>
-                    <div className="bg-blue-50 p-3 rounded space-y-1">
-                      <p>
-                        <span className="text-sm text-slate-600">Tên: </span>
-                        {selected.doctorName}
-                      </p>
-                      <p>
-                        <span className="text-sm text-slate-600">
-                          Chuyên khoa:{" "}
-                        </span>
-                        {selected.doctorSpecialty}
-                      </p>
-                      {selected.createdAt && (
-                        <p className="text-xs text-slate-500 mt-1">
-                          Tạo lúc: {selected.createdAt}
+                            return (
+                              <Button
+                                size="sm"
+                                onClick={
+                                  canOpenMedicalRecord
+                                    ? loadOrCreateMedicalRecord
+                                    : undefined
+                                }
+                                disabled={!canOpenMedicalRecord}
+                                className={
+                                  !canOpenMedicalRecord
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
+                                }
+                                title={
+                                  !canOpenMedicalRecord
+                                    ? "Chỉ mở / tạo hồ sơ bệnh án cho lịch hẹn thuộc ca đang làm hôm nay."
+                                    : ""
+                                }
+                              >
+                                Hồ sơ bệnh án
+                              </Button>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lý do khám bệnh */}
+                    <div className="border-t pt-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-blue-600" />
+                          Lý do khám bệnh
+                        </h3>
+                        {selected.visitReason && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowReasonPopup(true)}
+                          >
+                            Xem chi tiết lý do
+                          </Button>
+                        )}
+                      </div>
+                      {!selected.visitReason && (
+                        <p className="mt-2 text-sm text-slate-500 italic">
+                          Chưa có lý do khám bệnh.
                         </p>
                       )}
                     </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
 
-          {/* Popup lý do khám bệnh */}
-          {selected.visitReason && showReasonPopup && (
-            <div className="fixed inset-0 flex items-center justify-center z-60 p-4 pointer-events-none">
-              <div
-                className="absolute inset-0"
-                onClick={() => setShowReasonPopup(false)}
-              />
-              <Card className="relative w-full max-w-lg max-h-[70vh] shadow-2xl bg-white pointer-events-auto">
-                <div className="p-4 border-b flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-semibold text-lg">
-                      Lý do khám bệnh
-                    </h3>
+                    {/* Thông tin bác sĩ */}
+                    <div className="border-t pt-4">
+                      <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                        <Stethoscope className="w-4 h-4 text-blue-600" /> Thông
+                        tin bác sĩ
+                      </h3>
+                      <div className="bg-blue-50 p-3 rounded space-y-1">
+                        <p>
+                          <span className="text-sm text-slate-600">Tên: </span>
+                          {selected.doctorName}
+                        </p>
+                        <p>
+                          <span className="text-sm text-slate-600">
+                            Chuyên khoa:{" "}
+                          </span>
+                          {selected.doctorSpecialty}
+                        </p>
+                        {selected.createdAt && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Tạo lúc: {selected.createdAt}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setShowReasonPopup(false)}
-                    className="text-slate-500 hover:text-slate-700"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="p-4">
-                  <div className="bg-slate-50 p-3 rounded max-h-[50vh] overflow-y-auto text-sm whitespace-pre-line">
-                    {selected.visitReason}
-                  </div>
-                </div>
-                <div className="px-4 pb-4 flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowReasonPopup(false)}
-                  >
-                    Đóng
-                  </Button>
                 </div>
               </Card>
             </div>
-          )}
-        </>
-      )}
-    </DashboardLayout>
+
+            {/* Popup lý do khám bệnh */}
+            {selected.visitReason && showReasonPopup && (
+              <div className="fixed inset-0 flex items-center justify-center z-60 p-4 pointer-events-none">
+                <div
+                  className="absolute inset-0"
+                  onClick={() => setShowReasonPopup(false)}
+                />
+                <Card className="relative w-full max-w-lg max-h-[70vh] shadow-2xl bg-white pointer-events-auto">
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-semibold text-lg">
+                        Lý do khám bệnh
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setShowReasonPopup(false)}
+                      className="text-slate-500 hover:text-slate-700"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="p-4">
+                    <div className="bg-slate-50 p-3 rounded max-h-[50vh] overflow-y-auto text-sm whitespace-pre-line">
+                      {selected.visitReason}
+                    </div>
+                  </div>
+                  <div className="px-4 pb-4 flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowReasonPopup(false)}
+                    >
+                      Đóng
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </>
+        )}
+      </DashboardLayout>
+    </RoleGuard>
   );
 }

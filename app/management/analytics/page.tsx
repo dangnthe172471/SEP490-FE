@@ -20,6 +20,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 // Mock data for detailed analytics
 const hourlyPatientData = [
@@ -114,8 +115,9 @@ export default function ManagementAnalyticsPage() {
   }
 
   return (
-    <DashboardLayout navigation={navigation}>
-      <div className="space-y-6">
+    <RoleGuard allowedRoles={["management", "admin"]}>
+      <DashboardLayout navigation={navigation}>
+        <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Phân tích chi tiết</h1>
           <p className="text-muted-foreground">Thông tin chuyên sâu về hoạt động phòng khám</p>
@@ -313,6 +315,7 @@ export default function ManagementAnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </RoleGuard>
   )
 }

@@ -157,7 +157,7 @@ export function Header() {
               </div>
               <div className="hidden items-center gap-2 sm:flex">
                 <Clock className="h-4 w-4" />
-                <span>Thứ 2 - Chủ nhật: 7:00 - 22:00</span>
+                <span>Thứ 2 - Chủ nhật: 8:00 - 22:00</span>
               </div>
             </div>
             {!isClient ? null : currentUser ? (

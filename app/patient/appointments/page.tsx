@@ -300,26 +300,6 @@ export default function PatientAppointmentsPage() {
                                                     </div>
                                                 </div>
 
-                                                {/* Patient Contact Info */}
-                                                {(appointment.patientPhone || appointment.patientEmail) && (
-                                                    <div className="flex items-start space-x-3">
-                                                        <div className="flex-shrink-0">
-                                                            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                                                                <Phone className="w-5 h-5 text-purple-600" />
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-medium text-gray-900">Liên hệ của bạn</h4>
-                                                            {appointment.patientPhone && (
-                                                                <p className="text-sm text-gray-600">{appointment.patientPhone}</p>
-                                                            )}
-                                                            {appointment.patientEmail && (
-                                                                <p className="text-xs text-gray-500">{appointment.patientEmail}</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
-
                                                 {/* Reason */}
                                                 {appointment.reasonForVisit && (
                                                     <div className="flex items-start space-x-3">

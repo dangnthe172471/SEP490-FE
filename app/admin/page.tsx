@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Activity, Users, Settings, Shield, UserPlus, Clock } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { getAdminNavigation } from "@/lib/navigation/admin-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 // Mock users data
 const mockUsers = [
@@ -100,8 +101,9 @@ export default function AdminDashboard() {
   }
 
   return (
-    <DashboardLayout navigation={navigation}>
-      <div className="space-y-6">
+    <RoleGuard allowedRoles="admin">
+      <DashboardLayout navigation={navigation}>
+        <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Quản trị hệ thống</h1>
           <p className="text-muted-foreground">Quản lý người dùng và phân quyền</p>
@@ -228,6 +230,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </RoleGuard>
   )
 }

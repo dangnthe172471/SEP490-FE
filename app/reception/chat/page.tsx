@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { getReceptionNavigation } from "@/lib/navigation/reception-navigation"
+import { RoleGuard } from "@/components/role-guard"
 
 
 export default function ReceptionChatPage() {
@@ -41,6 +42,7 @@ export default function ReceptionChatPage() {
 
     if (isLoading) {
         return (
+            <RoleGuard allowedRoles="reception">
             <DashboardLayout navigation={navigation}>
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
@@ -49,6 +51,7 @@ export default function ReceptionChatPage() {
                     </div>
                 </div>
             </DashboardLayout>
+            </RoleGuard>
         )
     }
 
@@ -57,6 +60,7 @@ export default function ReceptionChatPage() {
     }
 
     return (
+        <RoleGuard allowedRoles="reception">
         <DashboardLayout navigation={navigation}>
             <div className="space-y-6">
                 {/* Chat Interface */}
@@ -144,5 +148,6 @@ export default function ReceptionChatPage() {
                 </div>
             </div>
         </DashboardLayout>
+        </RoleGuard>
     )
 }

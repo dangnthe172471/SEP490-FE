@@ -38,7 +38,7 @@ import {
 } from "recharts"
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation"
 import React from "react"
-import PageGuard from "@/components/PageGuard"
+import { RoleGuard } from "@/components/role-guard"
 import { RevenueChartSection } from "./charts/RevenueChart"
 import { useEffect, useMemo, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -265,7 +265,13 @@ export default function ManagementDashboard() {
       } catch (e: any) {
         console.error("❌ Diagnostic analytics load failed:", e)
         setDiagnosticStats(null)
-        setDiagnosticError(e?.message || "Không thể tải dữ liệu xét nghiệm & chẩn đoán")
+
+        // Xử lý lỗi 403 Forbidden một cách đặc biệt
+        if (e?.status === 403 || e?.message?.includes('403') || e?.message?.includes('Forbidden')) {
+          setDiagnosticError("Bạn không có quyền truy cập dữ liệu xét nghiệm & chẩn đoán. Vui lòng liên hệ quản trị viên.")
+        } else {
+          setDiagnosticError(e?.message || "Không thể tải dữ liệu xét nghiệm & chẩn đoán")
+        }
       } finally {
         setDiagnosticLoading(false)
       }
@@ -300,7 +306,13 @@ export default function ManagementDashboard() {
       } catch (e: any) {
         console.error("❌ Patient statistics load failed:", e)
         setPatientStats(null)
-        setPatientStatsError(e?.message || "Không thể tải dữ liệu thống kê bệnh nhân")
+
+        // Xử lý lỗi 403 Forbidden một cách đặc biệt
+        if (e?.status === 403 || e?.message?.includes('403') || e?.message?.includes('Forbidden')) {
+          setPatientStatsError("Bạn không có quyền truy cập dữ liệu thống kê bệnh nhân. Vui lòng liên hệ quản trị viên.")
+        } else {
+          setPatientStatsError(e?.message || "Không thể tải dữ liệu thống kê bệnh nhân")
+        }
       } finally {
         setPatientStatsLoading(false)
       }
@@ -354,15 +366,26 @@ export default function ManagementDashboard() {
       setDoctorStats(data)
     } catch (error: any) {
       setDoctorStats(null)
+
+      // Xử lý lỗi 403 Forbidden một cách đặc biệt
+      const isForbidden = error?.status === 403 || error?.message?.includes('403') || error?.message?.includes('Forbidden')
+      const isUnauthorized = error?.message === "UNAUTHORIZED" || error?.status === 401
+
       toast({
         title: "Lỗi tải dữ liệu",
         description:
-          error?.message === "UNAUTHORIZED"
-            ? "Bạn không có quyền hoặc phiên đăng nhập đã hết hạn."
-            : error?.message || "Không thể tải thống kê bác sĩ.",
+          isForbidden
+            ? "Bạn không có quyền truy cập dữ liệu thống kê bác sĩ. Vui lòng liên hệ quản trị viên."
+            : isUnauthorized
+              ? "Bạn không có quyền hoặc phiên đăng nhập đã hết hạn."
+              : error?.message || "Không thể tải thống kê bác sĩ.",
         variant: "destructive",
       })
-      setDoctorStatsError(error?.message || "Không thể tải thống kê bác sĩ")
+      setDoctorStatsError(
+        isForbidden
+          ? "Bạn không có quyền truy cập dữ liệu thống kê bác sĩ. Vui lòng liên hệ quản trị viên."
+          : error?.message || "Không thể tải thống kê bác sĩ"
+      )
     } finally {
       setDoctorStatsLoading(false)
     }
@@ -419,7 +442,12 @@ export default function ManagementDashboard() {
       const stats = await svc.getPatientStatistics(patientStatsFrom || undefined, patientStatsTo || undefined)
       setPatientStats(stats)
     } catch (e: any) {
-      setPatientStatsError(e?.message || "Không thể tải dữ liệu thống kê bệnh nhân")
+      // Xử lý lỗi 403 Forbidden một cách đặc biệt
+      if (e?.status === 403 || e?.message?.includes('403') || e?.message?.includes('Forbidden')) {
+        setPatientStatsError("Bạn không có quyền truy cập dữ liệu thống kê bệnh nhân. Vui lòng liên hệ quản trị viên.")
+      } else {
+        setPatientStatsError(e?.message || "Không thể tải dữ liệu thống kê bệnh nhân")
+      }
     } finally {
       setPatientStatsLoading(false)
     }
@@ -541,7 +569,7 @@ export default function ManagementDashboard() {
   ]
 
   return (
-    <PageGuard allowedRoles={["management", "admin"]}>
+    <RoleGuard allowedRoles={["management", "admin"]}>
       <DashboardLayout navigation={navigation}>
         <div className="space-y-6">
           <div>
@@ -1225,6 +1253,6 @@ export default function ManagementDashboard() {
 
         </div>
       </DashboardLayout>
-    </PageGuard>
+    </RoleGuard>
   )
 }

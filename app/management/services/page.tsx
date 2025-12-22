@@ -32,6 +32,7 @@ import { serviceService } from "@/lib/services/service-service";
 import type { ServiceDto, CreateServiceRequest, UpdateServiceRequest, PagedResponse } from "@/lib/types/service";
 import { useToast } from "@/hooks/use-toast";
 import { getManagerNavigation } from "@/lib/navigation/manager-navigation";
+import { RoleGuard } from "@/components/role-guard";
 
 const PRICE_ONLY_CATEGORIES = ["Dermatology", "InternalMed", "Pediatric"];
 const isPriceOnlyCategory = (category?: string | null) =>
@@ -348,8 +349,9 @@ export default function ServicesManagementPage() {
   };
 
   return (
-    <DashboardLayout navigation={navigation}>
-      <div className="space-y-6">
+    <RoleGuard allowedRoles={["management", "admin"]}>
+      <DashboardLayout navigation={navigation}>
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -643,7 +645,8 @@ export default function ServicesManagementPage() {
         </Card>
 
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </RoleGuard>
   );
 }
 

@@ -11,58 +11,7 @@ import { vi } from "date-fns/locale"
 
 import type { PrescriptionSummaryDto } from "@/lib/types/prescription-doctor"
 import { getPrescriptionById } from "@/lib/services/prescription-doctor-service"
-
-/* ===== Helpers decode token & roles ===== */
-type JwtPayload = { [key: string]: any }
-
-function decodeJwt(token: string): JwtPayload | null {
-  try {
-    const parts = token.split(".")
-    if (parts.length < 2) return null
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/")
-    const padded =
-      base64.length % 4 === 0
-        ? base64
-        : base64.padEnd(base64.length + (4 - (base64.length % 4)), "=")
-    const json = atob(padded)
-    return JSON.parse(json)
-  } catch {
-    return null
-  }
-}
-
-function extractRoles(payload: JwtPayload | null): string[] {
-  if (!payload) return []
-  const raw =
-    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
-    payload["roles"] ??
-    payload["role"]
-
-  if (!raw) return []
-
-  if (Array.isArray(raw)) {
-    return raw.map((r) => String(r))
-  }
-
-  return String(raw)
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean)
-}
-
-function getAccessTokenFromClient(): string | null {
-  if (typeof window === "undefined") return null
-  try {
-    return (
-      window.localStorage.getItem("auth_token") ??
-      window.localStorage.getItem("access_token") ??
-      window.localStorage.getItem("accessToken") ??
-      null
-    )
-  } catch {
-    return null
-  }
-}
+import { RoleGuard } from "@/components/role-guard"
 
 export default function PrescriptionDetailPage() {
   const router = useRouter()
@@ -70,9 +19,6 @@ export default function PrescriptionDetailPage() {
   const [data, setData] = useState<PrescriptionSummaryDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const [authChecked, setAuthChecked] = useState(false)
-  const [isAuthorized, setIsAuthorized] = useState(false)
 
   const goBackSafely = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -82,40 +28,8 @@ export default function PrescriptionDetailPage() {
     }
   }
 
-  // ===== Guard: chỉ cho Doctor & Patient vào xem =====
+  // ===== Load đơn thuốc (RoleGuard chặn Doctor ở bên ngoài) =====
   useEffect(() => {
-    const token = getAccessTokenFromClient()
-
-    if (!token) {
-      // alert("Bạn không có quyền truy cập trang này hoặc trang không tồn tại.")
-      setAuthChecked(true)
-      setIsAuthorized(false)
-      goBackSafely()
-      return
-    }
-
-    const payload = decodeJwt(token)
-    const roles = extractRoles(payload)
-
-    const allow =
-      roles.includes("Doctor") ||
-      roles.includes("Patient")
-
-    if (!allow) {
-      //alert("Bạn không có quyền truy cập trang này hoặc trang không tồn tại.")
-      setAuthChecked(true)
-      setIsAuthorized(false)
-      goBackSafely()
-      return
-    }
-
-    setIsAuthorized(true)
-    setAuthChecked(true)
-  }, [router])
-
-  // ===== Load đơn thuốc (chỉ khi đã pass guard) =====
-  useEffect(() => {
-    if (!authChecked || !isAuthorized) return
     if (!id) return
 
     let mounted = true
@@ -173,17 +87,8 @@ export default function PrescriptionDetailPage() {
 
   const printPage = () => window.print()
 
-  // Chưa check xong quyền thì không render để tránh nháy
-  if (!authChecked) {
-    return null
-  }
-
-  // Nếu không được authorize thì effect đã redirect, ở đây trả null
-  if (!isAuthorized) {
-    return null
-  }
-
   return (
+    <RoleGuard allowedRoles="doctor">
     <main className="min-h-screen bg-background p-4 md:p-6 print:p-0">
       <div className="max-w-5xl mx-auto">
         {/* ACTION BAR (ẩn khi in) */}
@@ -391,6 +296,7 @@ export default function PrescriptionDetailPage() {
         }
       `}</style>
     </main>
+    </RoleGuard>
   )
 }
 
