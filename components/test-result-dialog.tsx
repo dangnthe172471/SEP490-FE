@@ -248,44 +248,87 @@ export function TestResultDialog({
 
   // chỉ dùng khi nhấn Lưu
   async function uploadAttachment(file: File): Promise<string> {
-    const formData = new FormData()
-    formData.append("file", file)
+  const formData = new FormData()
+  formData.append("file", file)
 
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("auth_token") || localStorage.getItem("token")
-        : null
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("auth_token") || localStorage.getItem("token")
+      : null
 
+  try {
     const res = await fetch(`${API_BASE_URL}/api/uploads/attachments`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: formData,
     })
 
+    //Nếu server trả 413
+    if (res.status === 413) {
+      throw new Error("Ảnh quá lớn. Vui lòng chọn ảnh ≤ 10MB.")
+    }
+
     if (!res.ok) {
-      const text = await res.text()
-      throw new Error(text || "Upload file thất bại.")
+      const ct = res.headers.get("content-type") || ""
+      if (ct.includes("application/json")) {
+        const j = await res.json().catch(() => null)
+        throw new Error(j?.message || `Upload file thất bại (${res.status}).`)
+      }
+      const text = await res.text().catch(() => "")
+      throw new Error(text || `Upload file thất bại (${res.status}).`)
     }
 
-    const data = (await res.json()) as {
-      relativePath?: string
-      url?: string
-    }
-
+    const data = (await res.json()) as { relativePath?: string; url?: string }
     return data.relativePath || data.url || ""
+  } catch (e: any) {
+    // Browser network error => "Failed to fetch"
+    const msg = String(e?.message ?? "")
+    if (msg.includes("Failed to fetch")) {
+      throw new Error("Không upload được. Có thể ảnh quá lớn (tối đa 10MB) hoặc lỗi kết nối/CORS.")
+    }
+    throw e
   }
-
+}
   // chỉ đổi file tạm + preview, KHÔNG gọi API
-  const handleAttachmentChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const MAX_BYTES = 10 * 1024 * 1024 // 10MB
+  const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
+const handleAttachmentChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0]
+  if (!file) return
 
-    setPendingFile(file)
+  if (!ALLOWED_TYPES.has(file.type)) {
+    showToast(
+      "destructive",
+      "File không hợp lệ",
+      "Chỉ cho phép ảnh JPG/PNG/WebP."
+    )
+    e.currentTarget.value = ""
+    setPendingFile(null)
     setLocalPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev)
-      return URL.createObjectURL(file)
+      return ""
     })
+    return
   }
+
+  if (file.size > MAX_BYTES) {
+    showToast("destructive", "Ảnh quá lớn", "Vui lòng chọn ảnh ≤ 10MB.")
+    setPendingFile(null)
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ""
+    })
+    e.currentTarget.value = ""
+    return
+  }
+
+  setPendingFile(file)
+  setLocalPreviewUrl((prev) => {
+    if (prev) URL.revokeObjectURL(prev)
+    return URL.createObjectURL(file)
+  })
+}
+
 
   const handleSave = async () => {
     if (!selectedResultId) {

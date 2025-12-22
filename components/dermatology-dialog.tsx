@@ -171,41 +171,74 @@ export function DermatologyDialog({
   }
 
   async function uploadAttachment(file: File): Promise<string> {
-    const formData = new FormData()
-    formData.append("file", file)
+  const formData = new FormData()
+  formData.append("file", file)
 
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("auth_token") || localStorage.getItem("token")
-        : null
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("auth_token") || localStorage.getItem("token")
+      : null
 
+  try {
     const res = await fetch(`${API_BASE_URL}/api/uploads/attachments`, {
       method: "POST",
-      headers: token
-        ? {
-          Authorization: `Bearer ${token}`,
-        }
-        : undefined,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: formData,
     })
 
+    //Nếu server trả 413 (Payload Too Large)
+    if (res.status === 413) {
+      throw new Error("Ảnh quá lớn. Vui lòng chọn ảnh có dung lượng nhỏ hơn.")
+    }
+
     if (!res.ok) {
-      const text = await res.text()
-      throw new Error(text || "Upload file thất bại.")
+      const text = await res.text().catch(() => "")
+      throw new Error(text || `Upload file thất bại (${res.status}).`)
     }
 
-    const data = (await res.json()) as {
-      relativePath?: string
-      url?: string
-    }
-
+    const data = (await res.json()) as { relativePath?: string; url?: string }
     return data.relativePath || data.url || ""
+  } catch (e: any) {
+    const msg = String(e?.message ?? "")
+    if (msg.includes("Failed to fetch")) {
+      throw new Error("Không upload được. Có thể ảnh quá lớn (tối đa 10MB) hoặc lỗi kết nối/CORS.")
+    }
+    throw e
   }
+}
 
+
+  const MAX_BYTES = 10 * 1024 * 1024
+  const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
   // CHỈ đổi file tạm + preview, không call API
   const handleAttachmentChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    if (!ALLOWED_TYPES.has(file.type)) {
+    showToast(
+      "destructive",
+      "File không hợp lệ",
+      "Chỉ cho phép ảnh JPG/PNG/WebP."
+    )
+    e.currentTarget.value = ""
+    setPendingFile(null)
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ""
+    })
+    return
+  }
+    if (file.size > MAX_BYTES) {
+    showToast("destructive", "Ảnh quá lớn", "Vui lòng chọn ảnh ≤ 10MB.")
+    setPendingFile(null)
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ""
+    })
+    e.currentTarget.value = "" // reset input để chọn lại
+    return
+    }
 
     setPendingFile(file)
     setLocalPreviewUrl((prev) => {
