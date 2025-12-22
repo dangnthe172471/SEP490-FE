@@ -239,8 +239,9 @@ export default function DoctorAppointmentsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
-  const [, setMrLoading] = useState(false);
-  const [, setMrError] = useState<string | null>(null);
+  const [mrLoading, setMrLoading] = useState(false);
+  const [mrError, setMrError] = useState<string | null>(null);
+  const [hasMedicalRecord, setHasMedicalRecord] = useState<boolean | null>(null);
 
   const [showReasonPopup, setShowReasonPopup] = useState(false);
 
@@ -431,6 +432,14 @@ export default function DoctorAppointmentsPage() {
       const d = await getDoctorAppointmentDetail(apt.appointmentId);
       setSelected(d);
       setShowReasonPopup(false);
+
+      // Kiểm tra xem đã có hồ sơ bệnh án chưa
+      try {
+        const existingRecord = await MedicalRecordService.getByAppointmentId(apt.appointmentId);
+        setHasMedicalRecord(existingRecord !== null);
+      } catch {
+        setHasMedicalRecord(false);
+      }
     } catch (e: any) {
       const msg = e?.message ?? "Không thể tải chi tiết";
 
@@ -452,6 +461,7 @@ export default function DoctorAppointmentsPage() {
         doctorSpecialty: "",
         createdAt: null,
       } as AppointmentDetail);
+      setHasMedicalRecord(false);
     } finally {
       setDetailLoading(false);
     }
@@ -654,6 +664,7 @@ export default function DoctorAppointmentsPage() {
                       onClick={() => {
                         setSelected(null);
                         setShowReasonPopup(false);
+                        setHasMedicalRecord(null);
                       }}
                       className="text-slate-500 hover:text-slate-700"
                     >
@@ -728,37 +739,58 @@ export default function DoctorAppointmentsPage() {
                           {(() => {
                             const isToday =
                               selected.appointmentDateISO === todayISO;
+                            const isPast = selected.appointmentDateISO < todayISO;
                             const selectedShiftId = getShiftIdForTime(
                               selected.appointmentTime,
                               shifts
                             );
-                            const canOpenMedicalRecord =
-                              isToday &&
+
+                            // Cho phép mở hồ sơ bệnh án nếu:
+                            // 1. Đã có hồ sơ bệnh án (bất kỳ lịch hẹn nào)
+                            // 2. Hoặc là lịch hẹn trong quá khứ (đã qua)
+                            // 3. Hoặc là lịch hẹn hôm nay và thuộc ca đang làm
+                            const isFuture = selected.appointmentDateISO > todayISO;
+                            const isInCurrentShift = isToday &&
                               currentShiftId !== null &&
                               selectedShiftId !== null &&
                               currentShiftId === selectedShiftId;
 
+                            const canOpenMedicalRecord =
+                              hasMedicalRecord === true ||
+                              isPast ||
+                              isInCurrentShift;
+
+                            const buttonText = mrLoading
+                              ? "Đang tải..."
+                              : hasMedicalRecord === true
+                                ? "Xem hồ sơ bệnh án"
+                                : "Mở hồ sơ bệnh án";
+
+                            const tooltipText = !canOpenMedicalRecord
+                              ? hasMedicalRecord === null
+                                ? "Đang kiểm tra hồ sơ bệnh án..."
+                                : isFuture
+                                  ? "Chỉ có thể mở hồ sơ bệnh án cho lịch hẹn đã qua hoặc lịch hẹn hôm nay thuộc ca đang làm."
+                                  : "Không thể mở hồ sơ bệnh án."
+                              : hasMedicalRecord === true
+                                ? "Mở hồ sơ bệnh án đã có"
+                                : isPast
+                                  ? "Mở / tạo hồ sơ bệnh án cho lịch hẹn đã qua"
+                                  : "Mở / tạo hồ sơ bệnh án";
+
                             return (
                               <Button
                                 size="sm"
-                                onClick={
-                                  canOpenMedicalRecord
-                                    ? loadOrCreateMedicalRecord
-                                    : undefined
-                                }
-                                disabled={!canOpenMedicalRecord}
+                                onClick={canOpenMedicalRecord ? loadOrCreateMedicalRecord : undefined}
+                                disabled={!canOpenMedicalRecord || mrLoading || hasMedicalRecord === null}
                                 className={
-                                  !canOpenMedicalRecord
+                                  !canOpenMedicalRecord || hasMedicalRecord === null
                                     ? "opacity-50 cursor-not-allowed"
                                     : ""
                                 }
-                                title={
-                                  !canOpenMedicalRecord
-                                    ? "Chỉ mở / tạo hồ sơ bệnh án cho lịch hẹn thuộc ca đang làm hôm nay."
-                                    : ""
-                                }
+                                title={tooltipText}
                               >
-                                Hồ sơ bệnh án
+                                {buttonText}
                               </Button>
                             );
                           })()}

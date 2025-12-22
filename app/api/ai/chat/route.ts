@@ -16,27 +16,30 @@ PHẠM VI HOẠT ĐỘNG:
 - Không khẳng định chắc chắn khi thiếu dữ liệu
 
 FORMAT TRẢ LỜI (CHỈ DÙNG KHI CÂU HỎI VỀ Y TẾ):
-1. Nhận định (phân tích chi tiết các triệu chứng và dữ liệu)
-2. Chẩn đoán phân biệt (tối đa 3, giải thích rõ lý do)
-3. Xét nghiệm đề xuất (liệt kê đầy đủ và giải thích mục đích)
-4. Hướng xử trí (phác đồ điều trị chi tiết, liều lượng nếu có)
-5. Cảnh báo (tương tác thuốc, chống chỉ định, lưu ý đặc biệt)
+1. Nhận định (phân tích ngắn gọn, súc tích các triệu chứng và dữ liệu quan trọng)
+2. Chẩn đoán phân biệt (tối đa 3, giải thích ngắn gọn lý do)
+3. Xét nghiệm đề xuất (liệt kê các xét nghiệm cần thiết, giải thích ngắn gọn mục đích)
+4. Hướng xử trí (phác đồ điều trị ngắn gọn, liều lượng nếu có)
+5. Cảnh báo (tương tác thuốc, chống chỉ định, lưu ý đặc biệt - ngắn gọn)
 
-YÊU CẦU:
-- Trả lời đầy đủ, chi tiết, không bỏ sót thông tin quan trọng
-- Mỗi phần phải có nội dung cụ thể, không chỉ liệt kê
-- Dùng bullet points nhưng phải giải thích rõ ràng
-- Kết thúc câu đầy đủ, không dở dang
+YÊU CẦU QUAN TRỌNG:
+- Trả lời ĐẦY ĐỦ tất cả 5 phần, KHÔNG được bỏ sót phần nào
+- Viết NGẮN GỌN, SÚC TÍCH, tập trung vào thông tin quan trọng nhất
+- Mỗi phần chỉ cần 2-4 câu hoặc bullet points ngắn gọn
+- Dùng bullet points với giải thích ngắn, không cần quá chi tiết
+- PHẢI hoàn thành tất cả các câu, không được để câu dở dang
+- PHẢI kết thúc phần 5 (Cảnh báo) một cách đầy đủ trước khi dừng
+- Nếu đang viết một câu, PHẢI hoàn thành câu đó trước khi kết thúc
 - TUYỆT ĐỐI KHÔNG bao gồm code, ví dụ lập trình, hoặc nội dung không liên quan đến y tế
 `;
 
 const DEFAULT_MODEL = "gemini-2.5-flash"
 
 const GENERATION_CONFIG = {
-    temperature: 0.5,      // Cân bằng giữa chính xác và chi tiết
-    topK: 32,              // Nhiều lựa chọn hơn để trả lời đầy đủ
-    topP: 0.9,             // Cho phép nhiều từ vựng hơn
-    maxOutputTokens: 3072  // Tăng để trả lời dài và đầy đủ
+    temperature: 0.7,      // Tăng để phản hồi nhanh hơn
+    topK: 20,              // Giảm để tối ưu tốc độ
+    topP: 0.85,            // Giảm nhẹ để tối ưu tốc độ
+    maxOutputTokens: 4096  // Giảm để phản hồi ngắn gọn hơn và nhanh hơn
 };
 
 const MAX_HISTORY_MESSAGES = 10
@@ -262,6 +265,19 @@ function processSuccessfulResponse(
     }
 
     logResponseDetails(model, aiResponse, candidate.finishReason)
+
+    // Cảnh báo nếu phản hồi bị cắt do đạt giới hạn token
+    if (candidate.finishReason === "MAX_TOKENS") {
+        console.warn(`[Gemini API] Response truncated due to MAX_TOKENS limit. Consider increasing maxOutputTokens.`)
+        // Thêm cảnh báo vào phản hồi để người dùng biết
+        const truncatedWarning = "\n\n⚠️ Lưu ý: Phản hồi có thể đã bị cắt do giới hạn độ dài. Vui lòng yêu cầu AI tiếp tục nếu cần thêm thông tin."
+        return NextResponse.json({
+            response: aiResponse + truncatedWarning,
+            model,
+            finishReason: candidate.finishReason,
+            truncated: true,
+        })
+    }
 
     return NextResponse.json({
         response: aiResponse,
