@@ -19,7 +19,6 @@ import {
 import type { ReadTestResultDto } from "@/lib/types/test-results"
 import { Save, Loader2, ChevronsUpDown, Check } from "lucide-react"
 
-// Combobox
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Command,
@@ -31,7 +30,6 @@ import {
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 
-// Select đơn vị tách riêng
 import { UnitSelect } from "@/components/unit-select"
 
 const API_BASE_URL =
@@ -45,8 +43,8 @@ function buildAttachmentUrl(path: string): string {
 }
 
 type RowState = {
-  resultValue: string // chỉ phần số / giá trị
-  unit: string // đơn vị (mmHg, mmol/L,...)
+  resultValue: string
+  unit: string
   attachment: string
   notes: string
 }
@@ -59,12 +57,7 @@ const sanitizeValue = (value: string | null | undefined) => {
   return value
 }
 
-/**
- * Nếu DB/nhập tay bị dính unit trong value (vd "5,6%" hoặc "5.6 %")
- * và unit="%" => trả về "5,6" / "5.6"
- *
- * Chỉ strip khi unit nằm ở CUỐI chuỗi để tránh phá case phức tạp.
- */
+
 function stripUnitFromValue(value: string, unit: string): string {
   if (!value || !unit) return value
   const v = value.trim()
@@ -73,13 +66,12 @@ function stripUnitFromValue(value: string, unit: string): string {
 
   // "5.6 %"
   if (v.endsWith(` ${u}`)) return v.slice(0, -(u.length + 1)).trim()
-  // "5.6%"
+
   if (v.endsWith(u)) return v.slice(0, -u.length).trim()
 
   return value
 }
 
-// format Date -> chuỗi local yyyy-MM-ddTHH:mm (không toISOString)
 function toLocalDateTimeInputValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0")
   const yyyy = d.getFullYear()
@@ -160,7 +152,7 @@ export function TestResultDialog({
           let unit = first.unit ?? ""
           let numeric = sanitized
 
-          // ✅ FIX: nếu DB đã bị dính unit trong value, strip ra
+          //nếu DB đã bị dính unit trong value, strip ra
           if (sanitized && unit) numeric = stripUnitFromValue(sanitized, unit)
 
           // fallback: nếu không có unit thì thử tách từ value
@@ -202,10 +194,10 @@ export function TestResultDialog({
     return () => {
       mounted = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [open, recordId])
 
-  // cleanup blob URL khi đổi file / unmount
+  
   useEffect(() => {
     return () => {
       if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
@@ -415,7 +407,7 @@ export function TestResultDialog({
                       variant="outline"
                       role="combobox"
                       aria-expanded={typePopoverOpen}
-                      className="w-full justify-between bg-slate-50 hover:bg-slate-100"
+                      className="w-full justify-between bg-slate-50 text-slate-900 hover:bg-slate-200 hover:text-slate-900 data-[state=open]:bg-slate-200 data-[state=open]:text-slate-900"
                     >
                       {selectedLabel || "Chọn loại xét nghiệm"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -451,11 +443,11 @@ export function TestResultDialog({
                   </PopoverContent>
                 </Popover>
 
-                {selectedResult && (
+                {/* {selectedResult && (
                   <p className="text-xs text-muted-foreground">
                     Mã xét nghiệm: #{selectedResult.testResultId}
                   </p>
-                )}
+                )} */}
               </div>
 
               <div className="grid md:grid-cols-2 gap-3">

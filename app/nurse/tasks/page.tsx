@@ -611,7 +611,7 @@ export default function NurseTestWorklistPage() {
                               <span className="font-medium">
                                 {item.patientName}
                               </span>
-                              <Badge variant="outline">#{item.patientId}</Badge>
+                              {/* <Badge variant="outline">#{item.patientId}</Badge> */}
                               <CombinedStatusPill status={status} />
                             </div>
                             <div className="text-sm text-muted-foreground">

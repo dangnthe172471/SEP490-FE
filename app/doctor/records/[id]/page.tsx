@@ -482,7 +482,7 @@ export default function MedicalRecordDetailPage() {
         recordId: record.recordId,
         testTypeId: type.testTypeId,
         resultValue: "PENDING",
-        notes: "Chờ điều dưỡng cập nhật kết quả",
+        notes: undefined,
       });
 
       // cập nhật cả record lẫn testResults
