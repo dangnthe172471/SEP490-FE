@@ -17,6 +17,9 @@ import { appointmentService } from "@/lib/services/appointment-service"
 import { getTestResultsByRecord } from "@/lib/services/test-results-service"
 import type { ReadTestResultDto } from "@/lib/types/test-results"
 import type { AppointmentDto } from "@/lib/types/appointment"
+import { MedicalRecordService } from "@/lib/services/medical-record-service"
+import type { MedicalRecordDto } from "@/lib/services/medical-record-service"
+import type { ReadInternalMedRecordDto, ReadPediatricRecordDto, ReadDermatologyRecordDto } from "@/lib/types/specialties"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 
@@ -107,7 +110,11 @@ export function AIChatInterface() {
     const formatRecordInfo = (
         record: RecordListItemDto,
         patientInfo?: { allergies?: string; medicalHistory?: string },
-        extra?: { appointment?: AppointmentDto | null; tests?: ReadTestResultDto[] | null }
+        extra?: {
+            appointment?: AppointmentDto | null
+            tests?: ReadTestResultDto[] | null
+            medicalRecord?: MedicalRecordDto | null
+        }
     ) => {
         const dobFormatted = record.dob
             ? format(new Date(record.dob), "dd/MM/yyyy", { locale: vi })
@@ -133,23 +140,82 @@ export function AIChatInterface() {
             infoLines.push(`- Lý do khám: ${reason}`)
         }
 
-        // Tóm tắt kết quả xét nghiệm gần đây
-        const tests = extra?.tests && Array.isArray(extra.tests) ? extra.tests : []
-        if (tests.length > 0) {
-            infoLines.push(`- Kết quả xét nghiệm gần đây:`)
-            const topTests = tests.slice(0, 5)
-            topTests.forEach((t) => {
-                const value = t.resultValue?.toString().trim() || "Chưa có kết quả"
-                const unit = t.unit ? ` ${t.unit}` : ""
-                infoLines.push(`  • ${t.testName}: ${value}${unit}`)
-            })
-            if (tests.length > topTests.length) {
-                infoLines.push(`  • ... và ${tests.length - topTests.length} xét nghiệm khác`)
+        // Thông tin khám nội khoa (Internal Medicine)
+        const internalMed = extra?.medicalRecord?.internalMedRecord
+        if (internalMed) {
+            infoLines.push(`- Khám nội khoa:`)
+            if (internalMed.bloodPressure !== null && internalMed.bloodPressure !== undefined) {
+                infoLines.push(`  • Huyết áp: ${internalMed.bloodPressure} mmHg`)
+            }
+            if (internalMed.heartRate !== null && internalMed.heartRate !== undefined) {
+                infoLines.push(`  • Nhịp tim: ${internalMed.heartRate} bpm`)
+            }
+            if (internalMed.bloodSugar !== null && internalMed.bloodSugar !== undefined) {
+                infoLines.push(`  • Đường huyết: ${internalMed.bloodSugar} mmol/L`)
+            }
+            if (internalMed.notes) {
+                infoLines.push(`  • Ghi chú: ${internalMed.notes}`)
             }
         }
 
+        // Thông tin khám nhi khoa (Pediatrics)
+        const pediatric = extra?.medicalRecord?.pediatricRecord
+        if (pediatric) {
+            infoLines.push(`- Khám nhi khoa:`)
+            if (pediatric.weightKg !== null && pediatric.weightKg !== undefined) {
+                infoLines.push(`  • Cân nặng: ${pediatric.weightKg} kg`)
+            }
+            if (pediatric.heightCm !== null && pediatric.heightCm !== undefined) {
+                infoLines.push(`  • Chiều cao: ${pediatric.heightCm} cm`)
+            }
+            if (pediatric.heartRate !== null && pediatric.heartRate !== undefined) {
+                infoLines.push(`  • Nhịp tim: ${pediatric.heartRate} bpm`)
+            }
+            if (pediatric.temperatureC !== null && pediatric.temperatureC !== undefined) {
+                infoLines.push(`  • Nhiệt độ: ${pediatric.temperatureC}°C`)
+            }
+        }
+
+        // Thông tin khám da liễu (Dermatology)
+        const dermatologyRecords = extra?.medicalRecord?.dermatologyRecords
+        if (dermatologyRecords && dermatologyRecords.length > 0) {
+            infoLines.push(`- Khám da liễu:`)
+            dermatologyRecords.forEach((derm, idx) => {
+                if (derm.requestedProcedure) {
+                    infoLines.push(`  • Thủ thuật ${idx + 1}: ${derm.requestedProcedure}`)
+                }
+                if (derm.bodyArea) {
+                    infoLines.push(`    - Vùng cơ thể: ${derm.bodyArea}`)
+                }
+                if (derm.procedureNotes) {
+                    infoLines.push(`    - Ghi chú: ${derm.procedureNotes}`)
+                }
+                if (derm.resultSummary) {
+                    infoLines.push(`    - Kết quả: ${derm.resultSummary}`)
+                }
+            })
+        }
+
+        // Ghi chú của bác sĩ
+        const doctorNotes = extra?.medicalRecord?.doctorNotes?.toString().trim()
+        if (doctorNotes) {
+            infoLines.push(`- Ghi chú bác sĩ: ${doctorNotes}`)
+        }
+
+        // Tất cả kết quả xét nghiệm (không giới hạn số lượng)
+        const tests = extra?.tests && Array.isArray(extra.tests) ? extra.tests : []
+        if (tests.length > 0) {
+            infoLines.push(`- Kết quả xét nghiệm:`)
+            tests.forEach((t) => {
+                const value = t.resultValue?.toString().trim() || "Chưa có kết quả"
+                const unit = t.unit ? ` ${t.unit}` : ""
+                const notes = t.notes ? ` (${t.notes})` : ""
+                infoLines.push(`  • ${t.testName}: ${value}${unit}${notes}`)
+            })
+        }
+
         // Chuẩn đoán hiện tại đặt ở cuối cùng cho dễ đọc
-        const diagnosis = record.diagnosisRaw?.toString().trim()
+        const diagnosis = record.diagnosisRaw?.toString().trim() || extra?.medicalRecord?.diagnosis?.toString().trim()
         if (!diagnosis || diagnosis.toLowerCase() === "null") {
             infoLines.push(`- Chuẩn đoán hiện tại: Chưa có chẩn đoán`)
         } else {
@@ -169,11 +235,13 @@ export function AIChatInterface() {
                 chatHistoryResult,
                 appointmentResult,
                 testResultsResult,
+                medicalRecordResult,
             ] = await Promise.allSettled([
                 patientService.getPatientById(record.patientId),
                 AIChatHistoryService.getChatHistory(record.recordId),
                 appointmentService.getById(record.appointmentId),
                 getTestResultsByRecord(record.recordId),
+                MedicalRecordService.getById(record.recordId), // Lấy đầy đủ medical record với tất cả specialty records
             ])
 
             const patientInfo =
@@ -184,15 +252,21 @@ export function AIChatInterface() {
                 appointmentResult.status === "fulfilled" ? appointmentResult.value : null
             const tests =
                 testResultsResult.status === "fulfilled" ? testResultsResult.value : null
+            const medicalRecord =
+                medicalRecordResult.status === "fulfilled" ? medicalRecordResult.value : null
 
             if (patientInfoResult.status === 'rejected') {
                 console.error("Failed to load patient medical info:", patientInfoResult.reason)
+            }
+            if (medicalRecordResult.status === 'rejected') {
+                console.error("Failed to load medical record:", medicalRecordResult.reason)
             }
 
             setPatientContext(
                 formatRecordInfo(record, patientInfo, {
                     appointment,
                     tests,
+                    medicalRecord,
                 })
             )
 
