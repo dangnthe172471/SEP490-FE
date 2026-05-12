@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
-import { Footer } from "@/components/footer"
-import { Header } from "@/components/header"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { useEffect } from "react";
+import { Footer } from "@/components/footer";
+import { Header } from "@/components/header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Stethoscope,
   Heart,
@@ -18,17 +18,17 @@ import {
   TrendingUp,
   Sparkles,
   ArrowRight,
-} from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
-import { logout, isLoggedIn } from "@/lib/auth"
-import { authService } from "@/lib/services/auth.service"
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { logout, isLoggedIn } from "@/lib/auth";
+import { authService } from "@/lib/services/auth.service";
 
 const isUnauthorizedError = (error: any): boolean => {
-  if (!error) return false
+  if (!error) return false;
 
-  const message = error?.message?.toLowerCase() || ""
-  const status = error?.status
+  const message = error?.message?.toLowerCase() || "";
+  const status = error?.status;
 
   return (
     message === "unauthorized" ||
@@ -40,27 +40,29 @@ const isUnauthorizedError = (error: any): boolean => {
     message.includes("failed to fetch") ||
     message.includes("networkerror") ||
     message.includes("network request failed")
-  )
-}
+  );
+};
 
 export default function HomePage() {
   useEffect(() => {
     const verifyAuth = async () => {
-      if (!isLoggedIn()) return
+      if (!isLoggedIn()) return;
 
       try {
-        await authService.getProfile()
+        await authService.getProfile();
       } catch (error) {
         if (isUnauthorizedError(error)) {
-          console.warn("Token không hợp lệ hoặc không kết nối được API. Tự động đăng xuất...")
-          logout()
-          window.location.reload()
+          console.warn(
+            "Token không hợp lệ hoặc không kết nối được API. Tự động đăng xuất...",
+          );
+          logout();
+          window.location.reload();
         }
       }
-    }
+    };
 
-    verifyAuth()
-  }, [])
+    verifyAuth();
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col" suppressHydrationWarning>
@@ -85,8 +87,9 @@ export default function HomePage() {
                     chất lượng cao
                   </h1>
                   <p className="text-pretty text-xl leading-relaxed text-muted-foreground">
-                    Đặt khám nhanh - Lấy số thứ tự trực tuyến - Tư vấn sức khỏe từ xa với đội ngũ bác sĩ chuyên môn cao
-                    và trang thiết bị y tế hiện đại.
+                    Đặt khám nhanh - Lấy số thứ tự trực tuyến - Tư vấn sức khỏe
+                    từ xa với đội ngũ bác sĩ chuyên môn cao và trang thiết bị y
+                    tế hiện đại.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-4">
@@ -99,14 +102,14 @@ export default function HomePage() {
                       Đặt lịch khám ngay
                     </Button>
                   </Link>
-                  <Link href="tel:0978468063">
+                  <Link href="tel:0999999999">
                     <Button
                       size="lg"
                       variant="outline"
                       className="h-14 border-2 border-primary/20 bg-white px-8 text-base font-semibold hover:border-primary/40 hover:bg-primary/5"
                     >
                       <Phone className="mr-2 h-5 w-5" />
-                      Hotline: 0978-468-063
+                      Hotline: 0999-999-999
                     </Button>
                   </Link>
                 </div>
@@ -114,16 +117,28 @@ export default function HomePage() {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-8 border-t-2 border-border pt-10">
                   <div className="space-y-2">
-                    <div className="text-4xl font-bold text-primary md:text-5xl">100K+</div>
-                    <div className="text-sm font-medium text-muted-foreground">Lượt khám</div>
+                    <div className="text-4xl font-bold text-primary md:text-5xl">
+                      100K+
+                    </div>
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Lượt khám
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-4xl font-bold text-primary md:text-5xl">50+</div>
-                    <div className="text-sm font-medium text-muted-foreground">Bác sĩ</div>
+                    <div className="text-4xl font-bold text-primary md:text-5xl">
+                      50+
+                    </div>
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Bác sĩ
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-4xl font-bold text-primary md:text-5xl">15+</div>
-                    <div className="text-sm font-medium text-muted-foreground">Năm kinh nghiệm</div>
+                    <div className="text-4xl font-bold text-primary md:text-5xl">
+                      15+
+                    </div>
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Năm kinh nghiệm
+                    </div>
                   </div>
                 </div>
               </div>
@@ -145,7 +160,9 @@ export default function HomePage() {
                     </div>
                     <div className="space-y-1">
                       <div className="text-xl font-bold">Chăm sóc tận tâm</div>
-                      <div className="text-sm text-muted-foreground">Hỗ trợ 24/7</div>
+                      <div className="text-sm text-muted-foreground">
+                        Hỗ trợ 24/7
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -158,9 +175,12 @@ export default function HomePage() {
         <section className="border-b bg-white py-20 md:py-28">
           <div className="container mx-auto px-4">
             <div className="mb-16 text-center">
-              <h2 className="mb-5 text-4xl font-bold text-balance md:text-5xl">Vì sao chọn Diamond Health?</h2>
+              <h2 className="mb-5 text-4xl font-bold text-balance md:text-5xl">
+                Vì sao chọn Diamond Health?
+              </h2>
               <p className="mx-auto max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-                Chúng tôi cam kết mang đến dịch vụ y tế chất lượng cao với quy trình chuyên nghiệp
+                Chúng tôi cam kết mang đến dịch vụ y tế chất lượng cao với quy
+                trình chuyên nghiệp
               </p>
             </div>
 
@@ -170,7 +190,9 @@ export default function HomePage() {
                   <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-110">
                     <Stethoscope className="h-10 w-10" />
                   </div>
-                  <h3 className="mb-3 text-xl font-bold">Bác sĩ chuyên môn cao</h3>
+                  <h3 className="mb-3 text-xl font-bold">
+                    Bác sĩ chuyên môn cao
+                  </h3>
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     Đội ngũ bác sĩ giàu kinh nghiệm, được đào tạo bài bản
                   </p>
@@ -182,7 +204,9 @@ export default function HomePage() {
                   <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground shadow-lg shadow-secondary/25 transition-transform group-hover:scale-110">
                     <Activity className="h-10 w-10" />
                   </div>
-                  <h3 className="mb-3 text-xl font-bold">Trang thiết bị hiện đại</h3>
+                  <h3 className="mb-3 text-xl font-bold">
+                    Trang thiết bị hiện đại
+                  </h3>
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     Công nghệ y tế tiên tiến, chính xác cao
                   </p>
@@ -194,7 +218,9 @@ export default function HomePage() {
                   <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-110">
                     <Clock className="h-10 w-10" />
                   </div>
-                  <h3 className="mb-3 text-xl font-bold">Đặt lịch nhanh chóng</h3>
+                  <h3 className="mb-3 text-xl font-bold">
+                    Đặt lịch nhanh chóng
+                  </h3>
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     Đặt lịch online tiện lợi, tiết kiệm thời gian
                   </p>
@@ -224,8 +250,12 @@ export default function HomePage() {
           <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-white/5 blur-3xl"></div>
           <div className="container relative mx-auto px-4">
             <div className="mb-12 text-center">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Con số ấn tượng</h2>
-              <p className="text-lg opacity-90">Được hàng nghìn khách hàng tin tưởng</p>
+              <h2 className="mb-4 text-3xl font-bold md:text-4xl">
+                Con số ấn tượng
+              </h2>
+              <p className="text-lg opacity-90">
+                Được hàng nghìn khách hàng tin tưởng
+              </p>
             </div>
             <div className="grid gap-10 md:grid-cols-3 lg:grid-cols-5">
               <div className="text-center">
@@ -233,14 +263,18 @@ export default function HomePage() {
                   <Users className="h-12 w-12 opacity-90" />
                 </div>
                 <div className="mb-2 text-5xl font-bold">100K+</div>
-                <div className="text-base font-medium opacity-90">Lượt khám</div>
+                <div className="text-base font-medium opacity-90">
+                  Lượt khám
+                </div>
               </div>
               <div className="text-center">
                 <div className="mb-3 flex items-center justify-center">
                   <Building2 className="h-12 w-12 opacity-90" />
                 </div>
                 <div className="mb-2 text-5xl font-bold">3</div>
-                <div className="text-base font-medium opacity-90">Cơ sở y tế</div>
+                <div className="text-base font-medium opacity-90">
+                  Cơ sở y tế
+                </div>
               </div>
               <div className="text-center">
                 <div className="mb-3 flex items-center justify-center">
@@ -254,14 +288,18 @@ export default function HomePage() {
                   <TrendingUp className="h-12 w-12 opacity-90" />
                 </div>
                 <div className="mb-2 text-5xl font-bold">5K+</div>
-                <div className="text-base font-medium opacity-90">Lượt truy cập/tháng</div>
+                <div className="text-base font-medium opacity-90">
+                  Lượt truy cập/tháng
+                </div>
               </div>
               <div className="text-center">
                 <div className="mb-3 flex items-center justify-center">
                   <Calendar className="h-12 w-12 opacity-90" />
                 </div>
                 <div className="mb-2 text-5xl font-bold">200+</div>
-                <div className="text-base font-medium opacity-90">Lượt đặt lịch/ngày</div>
+                <div className="text-base font-medium opacity-90">
+                  Lượt đặt lịch/ngày
+                </div>
               </div>
             </div>
           </div>
@@ -271,9 +309,12 @@ export default function HomePage() {
         <section className="bg-white py-24 md:py-32">
           <div className="container mx-auto px-4">
             <div className="mb-16 text-center">
-              <h2 className="mb-5 text-4xl font-bold text-balance md:text-5xl">Khám phá dịch vụ của chúng tôi</h2>
+              <h2 className="mb-5 text-4xl font-bold text-balance md:text-5xl">
+                Khám phá dịch vụ của chúng tôi
+              </h2>
               <p className="mx-auto max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-                Tìm hiểu thêm về các chuyên khoa, đội ngũ bác sĩ và đánh giá từ khách hàng
+                Tìm hiểu thêm về các chuyên khoa, đội ngũ bác sĩ và đánh giá từ
+                khách hàng
               </p>
             </div>
 
@@ -288,7 +329,10 @@ export default function HomePage() {
                     <p className="mb-4 flex-1 text-sm leading-relaxed text-muted-foreground">
                       Khám phá các chuyên khoa khám chữa bệnh chất lượng cao
                     </p>
-                    <Button variant="link" className="p-0 text-base font-semibold text-primary hover:gap-2">
+                    <Button
+                      variant="link"
+                      className="p-0 text-base font-semibold text-primary hover:gap-2"
+                    >
                       Xem chi tiết
                       <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                     </Button>
@@ -306,7 +350,10 @@ export default function HomePage() {
                     <p className="mb-4 flex-1 text-sm leading-relaxed text-muted-foreground">
                       Gặp gỡ đội ngũ bác sĩ chuyên môn cao và giàu kinh nghiệm
                     </p>
-                    <Button variant="link" className="p-0 text-base font-semibold text-secondary hover:gap-2">
+                    <Button
+                      variant="link"
+                      className="p-0 text-base font-semibold text-secondary hover:gap-2"
+                    >
                       Xem chi tiết
                       <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                     </Button>
@@ -324,7 +371,10 @@ export default function HomePage() {
                     <p className="mb-4 flex-1 text-sm leading-relaxed text-muted-foreground">
                       Liên hệ với chúng tôi để được tư vấn và hỗ trợ
                     </p>
-                    <Button variant="link" className="p-0 text-base font-semibold text-secondary hover:gap-2">
+                    <Button
+                      variant="link"
+                      className="p-0 text-base font-semibold text-secondary hover:gap-2"
+                    >
                       Xem chi tiết
                       <ArrowRight className="ml-1 h-4 w-4 transition-all" />
                     </Button>
@@ -344,29 +394,31 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-40"></div>
           <div className="container relative mx-auto px-4 text-center">
             <div className="mx-auto max-w-3xl space-y-10">
-              <h2 className="text-4xl font-bold text-balance md:text-5xl">Sẵn sàng chăm sóc sức khỏe của bạn?</h2>
+              <h2 className="text-4xl font-bold text-balance md:text-5xl">
+                Sẵn sàng chăm sóc sức khỏe của bạn?
+              </h2>
               <p className="text-pretty text-xl leading-relaxed opacity-95">
-                Đặt lịch khám ngay hôm nay để được tư vấn và chăm sóc bởi đội ngũ bác sĩ chuyên nghiệp
+                Đặt lịch khám ngay hôm nay để được tư vấn và chăm sóc bởi đội
+                ngũ bác sĩ chuyên nghiệp
               </p>
               <div className="flex flex-wrap justify-center gap-4">
                 <Link href="/lien-he">
                   <Button
                     size="lg"
                     className="h-14 bg-secondary px-8 text-base font-semibold shadow-xl shadow-secondary/30 hover:bg-secondary/90 hover:shadow-2xl hover:shadow-secondary/40"
-
                   >
                     <Calendar className="mr-2 h-5 w-5" />
                     Đặt lịch khám ngay
                   </Button>
                 </Link>
-                <Link href="tel:0978468063">
+                <Link href="tel:0999999999">
                   <Button
                     size="lg"
                     variant="outline"
                     className="h-14 border-2 border-primary-foreground/30 bg-primary-foreground/10 px-8 text-base font-semibold text-primary-foreground hover:bg-primary-foreground/20"
                   >
                     <Phone className="mr-2 h-5 w-5" />
-                    Gọi ngay: 0978-468-063
+                    Gọi ngay: 0999-999-999
                   </Button>
                 </Link>
               </div>
@@ -377,5 +429,5 @@ export default function HomePage() {
 
       <Footer />
     </div>
-  )
+  );
 }
